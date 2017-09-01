@@ -1,0 +1,8 @@
+<seelog minlevel="debug">
+  <outputs formatid="main">
+      <rollingfile type="date" filename="/data/logs/malicious_prevent/malicious.log" datepattern="2006.01.02" maxrolls="7" />
+  </outputs>
+  <formats>
+    <format id="main" format="%Date/%Time [%LEV:%File:%Line] %Msg%n"/>
+  </formats>
+</seelog>
