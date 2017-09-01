@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head> 
+  @@include('./base/head.html')
+
+</head>
+  <body class="hold-transition skin-blue sidebar-mini">
+  <div class="wrapper">
+
+      @@include('./base/header.html', {
+        "activeside": {
+          "automate":"active", "decision":"active"
+        }
+      })
+
+      <div class="content-wrapper" style="min-height: 841px">
+        <div class="container" style="min-height: inherit; width: 100%;">
+          <div class="row">
+            @@loop('./table/table_base.html', [
+              { "title": "decisions", "tableid":"decision_table"}
+            ])
+          </div>
+        </div>
+      </div>
+
+       @@include('./modal/decision.html', {
+        "modalid": "edit_modal"
+      })
+
+
+      @@include('./base/footer.html')
+
+  </div>
+  
+  <script src="/management/static/js/decision.js"></script>
+
+  </body> 
+</html>

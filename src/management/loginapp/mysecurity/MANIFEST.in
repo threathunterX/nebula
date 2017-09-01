@@ -1,0 +1,8 @@
+include LICENSE
+include README.rst
+include requirements.txt
+include requirements-dev.txt
+include tox.ini
+recursive-include flask_security/templates *.*
+recursive-include tests *
+recursive-exclude tests/__pycache__ *

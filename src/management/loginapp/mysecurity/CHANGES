@@ -1,0 +1,267 @@
+Flask-Security Changelog
+========================
+
+Here you can see the full list of changes between each Flask-Security release.
+
+Version 1.7.5
+-------------
+
+Released December 2nd 2015
+
+- Added `SECURITY_TOKEN_MAX_AGE` configuration setting
+- Fixed calls to `SQLAlchemyUserDatastore.get_user(None)` (this now returns `False` instead of raising a `TypeError`
+- Fixed URL generation adding extra slashes in some cases (see GitHub #343)
+- Fixed handling of trackable IP addresses when the `X-Forwarded-For` header contains multiple values
+- Include WWW-Authenticate headers in `@auth_required` authentication checks
+- Fixed error when `check_token` function is used with a json list
+- Added support for custom `AnonymousUser` classes
+- Restricted `forgot_password` endpoint to anonymous users
+- Allowed unauthorized callback to be overridden
+- Fixed issue where passwords cannot be reset if currently set to `None`
+- Ensured that password reset tokens are invalidated after use
+- Updated `is_authenticated` and `is_active` functions to support Flask-Login changes
+- Various documentation improvements
+
+
+Version 1.7.4
+-------------
+
+Released October 13th 2014
+
+- Fixed a bug related to changing existing passwords from plaintext to hashed
+- Fixed a bug in form validation that did not enforce case insensivitiy
+- Fixed a bug with validating redirects
+
+
+Version 1.7.3
+-------------
+
+Released June 10th 2014
+
+- Fixed a bug where redirection to `SECURITY_POST_LOGIN_VIEW` was not respected
+- Fixed string encoding in various places to be friendly to unicode
+- Now using `werkzeug.security.safe_str_cmp` to check tokens
+- Removed user information from JSON output on `/reset` responses
+- Added Python 3.4 support
+
+
+Version 1.7.2
+-------------
+
+Released May 6th 2014
+
+- Updated IP tracking to check for `X-Forwarded-For` header
+- Fixed a bug regarding the re-hashing of passwords with a new algorithm
+- Fixed a bug regarding the `password_changed` signal.
+
+
+Version 1.7.1
+-------------
+
+Released January 14th 2014
+
+- Fixed a bug where passwords would fail to verify when specifying a password hash algorithm
+
+
+Version 1.7.0
+-------------
+
+Released January 10th 2014
+
+- Python 3.3 support!
+- Dependency updates
+- Fixed a bug when `SECURITY_LOGIN_WITHOUT_CONFIRMATION = True` did not allow users to log in
+- Added `SECURITY_SEND_PASSWORD_RESET_NOTICE_EMAIL` configuraiton option to optionally send password reset notice emails
+- Add documentation for `@security.send_mail_task`
+- Move to `request.get_json` as `request.json` is now deprecated in Flask
+- Fixed a bug when using AJAX to change a user's password
+- Added documentation for select functions in the `flask_security.utils` module
+- Fixed a bug in `flask_security.forms.NextFormMixin`
+- Added `CHANGE_PASSWORD_TEMPLATE` configuration option to optionally specify a different change password template
+- Added the ability to specify addtional fields on the user model to be used for identifying the user via the `USER_IDENTITY_ATTRIBUTES` configuration option
+- An error is now shown if a user tries to change their password and the password is the same as before. The message can be customed with the `SECURITY_MSG_PASSWORD_IS_SAME` configuration option
+- Fixed a bug in `MongoEngineUserDatastore` where user model would not be updated when using the `add_role_to_user` method
+- Added `SECURITY_SEND_PASSWORD_CHANGE_EMAIL` configuration option to optionally disable password change email from being sent
+- Fixed a bug in the `find_or_create_role` method of the PeeWee datastore
+- Removed pypy tests
+- Fixed some tests
+- Include CHANGES and LICENSE in MANIFEST.in
+- A bit of documentation cleanup
+- A bit of code cleanup including removal of unnecessary utcnow call and simplification of get_max_age method
+
+
+Version 1.6.9
+-------------
+
+Released August 20th 2013
+
+- Fix bug in SQLAlchemy datastore's `get_user` function
+- Fix bug in PeeWee datastore's `remove_role_from_user` function
+- Fixed import error caused by new Flask-WTF release
+
+
+Version 1.6.8
+-------------
+
+Released August 1st 2013
+
+- Fixed bug with case sensitivity of email address during login
+- Code cleanup regarding token_callback
+- Ignore validation errors in find_user function for MongoEngineUserDatastore
+
+
+Version 1.6.7
+-------------
+
+Released July 11th 2013
+
+- Made password length form error message configurable
+- Fixed email confirmation bug that prevented logged in users from confirming their email
+
+
+Version 1.6.6
+-------------
+
+Released June 28th 2013
+
+- Fixed dependency versions
+
+
+Version 1.6.5
+-------------
+
+Released June 20th 2013
+
+- Fixed bug in `flask.ext.security.confirmable.generate_confirmation_link`
+
+
+Version 1.6.4
+-------------
+
+Released June 18th 2013
+
+- Added `SECURITY_DEFAULT_REMEMBER_ME` configuration value to unify behavior between endpoints
+- Fixed Flask-Login dependency problem
+- Added optional `next` parameter to registration endpoint, similar to that of login
+
+
+Version 1.6.3
+-------------
+
+Released May 8th 2013
+
+- Fixed bug in regards to imports with latest version of MongoEngine
+
+
+Version 1.6.2
+-------------
+
+Released April 4th 2013
+
+- Fixed bug with http basic auth
+
+
+Version 1.6.1
+-------------
+
+Released April 3rd 2013
+
+- Fixed bug with signals
+
+
+Version 1.6.0
+-------------
+
+Released March 13th 2013
+
+- Added Flask-Pewee support
+- Password hashing is now more flexible and can be changed to a different type at will
+- Flask-Login messages are configurable
+- AJAX requests must now send a CSRF token for security reasons
+- Form messages are now configurable
+- Forms can now be extended with more fields
+- Added change password endpoint
+- Added the user to the request context when successfully authenticated via http basic and token auth
+- The Flask-Security blueprint subdomain is now configurable
+- Redirects to other domains are now not allowed during requests that may redirect
+- Template paths can be configured
+- The welcome/register email can now optionally be sent to the user
+- Passwords can now contain non-latin characters
+- Fixed a bug when confirming an account but the account has been deleted
+
+
+Version 1.5.4
+-------------
+
+Released January 6th 2013
+
+- Fix bug in forms with `csrf_enabled` parameter not accounting attempts to login using JSON data
+
+
+Version 1.5.3
+-------------
+
+Released December 23rd 2012
+
+- Change dependency requirement
+
+Version 1.5.2
+-------------
+
+Released December 11th 2012
+
+- Fix a small bug in `flask_security.utils.login_user` method
+
+Version 1.5.1
+-------------
+
+Released November 26th 2012
+
+- Fixed bug with `next` form variable
+- Added better documentation regarding Flask-Mail configuration
+- Added ability to configure email subjects
+
+Version 1.5.0
+-------------
+
+Released October 11th 2012
+
+- Major release. Upgrading from previous versions will require a bit of work to
+  accomodate API changes. See documentation for a list of new features and for
+  help on how to upgrade.
+
+Version 1.2.3
+-------------
+
+Released June 12th 2012
+
+- Fixed a bug in the RoleMixin eq/ne functions
+
+Version 1.2.2
+-------------
+
+Released April 27th 2012
+
+- Fixed bug where `roles_required` and `roles_accepted` did not pass the next
+  argument to the login view
+
+Version 1.2.1
+-------------
+
+Released March 28th 2012
+
+- Added optional user model mixin parameter for datastores
+- Added CreateRoleCommand to available Flask-Script commands
+
+Version 1.2.0
+-------------
+
+Released March 12th 2012
+
+- Added configuration option `SECURITY_FLASH_MESSAGES` which can be set to a
+  boolean value to specify if Flask-Security should flash messages or not.
+
+Version 1.1.0
+-------------
+
+Initial release

@@ -1,0 +1,47 @@
+<!-- Modal -->
+<div class="modal fade" id="@@modalid" role="dialog">
+  <div class="modal-dialog">
+    <!-- Modal content-->
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title" id="@@modalid_title" >编辑规则</h4>
+      </div>
+
+      <div class="modal-body">
+          <!-- form start -->
+          <form class="form-horizontal">
+            <div class="box-body" id="@@modalid_box_body">
+
+                <div class="form-group" >
+                  <label>ID</label>
+                  <input disabled="disabled" type="text" class="form-control postc" id="@@modalid_item_id">
+                </div>
+
+                <div class="form-group" >
+                  <label>name</label>
+                  <input type="text" class="form-control postc" id="@@modalid_item_name">
+                </div>
+
+                <div class="form-group" >
+                  <label>Category</label>
+                  <input type="text" class="form-control postc" id="@@modalid_item_category">
+                </div>
+            </div>
+
+            <div>
+              <p id="@@modalid_edit_worry-text" style="color: #ff4e00;text-align: center;"></p>
+            </div>
+            
+            <div class="modal-footer">
+              <div class="box-footer">
+                <button type="button" id = "@@modalid_apply_modify" class="btn btn-info pull-right">确认修改</button>
+                 <button type="button" id = "@@modalid_apply_add" class="btn btn-info pull-right">确认增加</button>
+               <button type="button" id = "@@modalid_apply_del" class="btn btn-info pull-right">确认删除</button>
+              </div>
+            </div>
+          </form>
+      </div>
+    </div>
+  </div>
+</div>
