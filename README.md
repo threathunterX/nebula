@@ -30,4 +30,4 @@
 相对封闭，各自为战的状态。虽然协同合作已经是行业共识，但一直缺乏有效的举
 措。通过开源星云业务风控系统，我们希望走出这一步，集结社区力量，让更多的
 安全从业者可以参与进来，贡献自己的力量。
-[![kzjtZd.md.jpg](https://s2.ax1x.com/2019/03/08/kzjtZd.md.jpg)](https://imgchr.com/i/kzjtZd)
+![kzjzQO.png](https://s2.ax1x.com/2019/03/08/kzjzQO.png)
