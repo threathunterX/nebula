@@ -1,0 +1,39 @@
+[submodule "src/nebula_web"]
+	path = src/nebula_web
+	url = https://github.com/threathunterX/nebula_web.git
+[submodule "src/labrador"]
+	path = src/labrador
+	url = https://github.com/threathunterX/labrador.git
+[submodule "src/nebula_db_writer"]
+	path = src/nebula_db_writer
+	url = https://github.com/threathunterX/nebula_db_writer.git
+[submodule "src/nebula_query_web"]
+	path = src/nebula_query_web
+	url = https://github.com/threathunterX/nebula_query_web.git
+[submodule "src/offline"]
+	path = src/offline
+	url = https://github.com/threathunterX/offline.git
+[submodule "src/python_lib"]
+	path = src/python_lib
+	url = https://github.com/threathunterX/python_lib.git
+[submodule "src/online"]
+	path = src/online
+	url = https://github.com/threathunterX/online.git
+[submodule "src/java_lib"]
+	path = src/java_lib
+	url = https://github.com/threathunterX/java_lib.git
+[submodule "src/greatdant"]
+	path = src/greatdant
+	url = https://github.com/threathunterX/greatdant.git
+[submodule "src/BChart"]
+	path = src/BChart
+	url = https://github.com/threathunterX/BChart.git
+[submodule "src/nebula_fe"]
+	path = src/nebula_fe
+	url = https://github.com/threathunterX/nebula_fe.git
+[submodule "src/greyhound"]
+	path = src/greyhound
+	url = https://github.com/threathunterX/greyhound.git
+[submodule "src/apiserver"]
+	path = src/apiserver
+	url = https://github.com/threathunterX/apiserver.git
