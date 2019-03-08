@@ -13,12 +13,7 @@
 - 5. 日志查询：通过自定义的方式去搜索历史日志中的数据
 - 6. 策略管理：提供了可视化策略编辑功能，允许用户通过界面方式创建或编辑策略，并且可通过对策略状态的编辑快速的测试策略的有效程度，以及生产策略的下限。
 
-# 写在最后
-
-与黑灰产的多年对抗中，我们看到了黑灰产无数次的狂欢，也看到了太多企业遭受攻击后的无奈和辛酸。但是目前整个互联网行业中的风控系统基础设施普及率还不到5%。通过开源，我们希望能让更多人意识到风控的重要性，能以更低的成本，完成风控体系从无到有的搭建。黑灰产已经是一个分工明确，合作紧密的“庞然大物”，而安全行业绝大多数仍处于相对封闭，各自为战的状态。虽然协同合作已经是行业共识，但一直缺乏有效的举措。通过开源星云业务风控系统，我们希望走出这一步，集结社区力量，让更多的安全从业者可以参与进来，贡献自己的力量。
-
-![kzjzQO.png](https://s2.ax1x.com/2019/03/08/kzjzQO.png)
-
+# 文档
 * [简介](https://github.com/threathunterX/nebula_doc/blob/master/Introduction.md)
 * [1. 安装](https://github.com/threathunterX/nebula_doc/blob/master/chapter1/section0.md)
     * [1.1. 二进制安装](https://github.com/threathunterX/nebula_doc/blob/master/chapter1/section1.md)
@@ -42,3 +37,11 @@
 * [4. 实践经验](https://github.com/threathunterX/nebula_doc/blob/master/chapter4/section0.md)
 * [5. 二次开发](https://github.com/threathunterX/nebula_doc/blob/master/chapter5/section0.md)
 * [6. FAQ](https://github.com/threathunterX/nebula_doc/blob/master/chapter6/section0.md)
+
+# 写在最后
+
+与黑灰产的多年对抗中，我们看到了黑灰产无数次的狂欢，也看到了太多企业遭受攻击后的无奈和辛酸。但是目前整个互联网行业中的风控系统基础设施普及率还不到5%。通过开源，我们希望能让更多人意识到风控的重要性，能以更低的成本，完成风控体系从无到有的搭建。黑灰产已经是一个分工明确，合作紧密的“庞然大物”，而安全行业绝大多数仍处于相对封闭，各自为战的状态。虽然协同合作已经是行业共识，但一直缺乏有效的举措。通过开源星云业务风控系统，我们希望走出这一步，集结社区力量，让更多的安全从业者可以参与进来，贡献自己的力量。
+
+![kzjzQO.png](https://s2.ax1x.com/2019/03/08/kzjzQO.png)
+
+
