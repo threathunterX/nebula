@@ -1,0 +1,211 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_mail_proxy_module - Module ngx_mail_proxy_module
+
+
+
+
+=head1 Directives
+
+=head2 proxy_buffer
+
+
+B<syntax:> proxy_buffer I<I<C<size>>>
+
+
+B<default:> I<4kE<verbar>8k>
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the size of the buffer used for proxying.
+By default, the buffer size is equal to one memory page.
+Depending on a platform, it is either 4K or 8K.
+
+
+
+
+
+
+
+=head2 proxy_pass_error_message
+
+
+B<syntax:> proxy_pass_error_message I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+
+
+Indicates whether to pass the error message obtained during
+the authentication on the backend to the client.
+
+
+
+
+
+Usually, if the authentication in nginx is a success,
+the backend cannot return an error.
+If it nevertheless returns an error,
+it means some internal error has occurred.
+In such case the backend message can contain information
+that should not be shown to the client.
+However, responding with an error for the correct password
+is a normal behavior for some POP3 servers.
+For example, CommuniGatePro informs a user about
+L<mailbox
+overflow|http://www.stalker.com/CommuniGatePro/Alerts.html#Quota> or other events by periodically outputting the
+L<authentication
+error|http://www.stalker.com/CommuniGatePro/POP.html#Alerts>.
+The directive should be enabled in this case.
+
+
+
+
+
+
+
+=head2 proxy_timeout
+
+
+B<syntax:> proxy_timeout I<I<C<timeout>>>
+
+
+B<default:> I<24h>
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the I<C<timeout>> between two successive
+read or write operations on client or proxied server connections.
+If no data is transmitted within this time, the connection is closed.
+
+
+
+
+
+
+
+=head2 xclient
+
+
+B<syntax:> xclient I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables or disables the passing of the
+L<XCLIENT|http://www.postfix.org/XCLIENT_README.html>
+command with client parameters when connecting to the SMTP backend.
+
+
+
+
+
+With C<XCLIENT>, the MTA is able to write client information
+to the log and apply various limitations based on this data.
+
+
+
+
+
+If C<XCLIENT> is enabled
+then nginx passes the following commands when connecting to the backend:
+
+=over
+
+
+
+=item *
+
+C<EHLO> with the
+L<server name|ngx_mail_core_module>
+
+
+
+=item *
+
+C<
+XCLIENT
+>
+
+
+
+=item *
+
+C<EHLO> or C<HELO>,
+as passed by the client
+
+
+=back
+
+
+
+
+
+
+
+If the name
+L<found|ngx_mail_core_module>
+by the client IP address points to the same address,
+it is passed in the C<NAME> parameter
+of the C<XCLIENT> command.
+If the name could not be found, points to a different address,
+or L<ngx_mail_core_module> is not specified,
+the C<[UNAVAILABLE]> is passed
+in the C<NAME> parameter.
+If an error has occurred in the process of resolving,
+the C<[TEMPUNAVAIL]> value is used.
+
+
+
+
+
+If C<XCLIENT> is disabled
+then nginx passes the C<EHLO> command with the
+L<server name|ngx_mail_core_module>
+when connecting to the backend if the client has passed
+C<EHLO>,
+or C<HELO> with the server name, otherwise.
+
+
+
+
+
+
+

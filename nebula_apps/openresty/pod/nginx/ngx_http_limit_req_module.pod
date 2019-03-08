@@ -1,0 +1,292 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_limit_req_module - Module ngx_http_limit_req_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_limit_req_module> module (0.7.21) is used
+to limit the request processing rate per a defined key,
+in particular, the processing rate of requests coming
+from a single IP address.
+The limitation is done using the “leaky bucket” method.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    http {
+        limit_req_zone $binary_remote_addr zone=one:10m rate=1r/s;
+    
+        ...
+    
+        server {
+    
+            ...
+    
+            location /search/ {
+                limit_req zone=one burst=5;
+            }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 limit_req
+
+
+B<syntax:> limit_req I<
+    C<zone>=I<C<name>>
+    [C<burst>=I<C<number>>]
+    [C<nodelay>]>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the shared memory zone
+and the maximum burst size of requests.
+If the requests rate exceeds the rate configured for a zone,
+their processing is delayed such that requests are processed
+at a defined rate.
+Excessive requests are delayed until their number exceeds the
+maximum burst size
+in which case the request is terminated with an error
+C<503> (C<Service Temporarily Unavailable>).
+By default, the maximum burst size is equal to zero.
+For example, the directives
+
+    
+    limit_req_zone $binary_remote_addr zone=one:10m rate=1r/s;
+    
+    server {
+        location /search/ {
+            limit_req zone=one burst=5;
+        }
+
+
+allow not more than 1 request per second at an average,
+with bursts not exceeding 5 requests.
+
+
+
+
+
+If delaying of excessive requests while requests are being limited is not
+desired, the parameter C<nodelay> should be used:
+
+    
+    limit_req zone=one burst=5 nodelay;
+
+
+
+
+
+
+
+There could be several C<limit_req> directives.
+For example, the following configuration will limit the processing rate
+of requests coming from a single IP address and, at the same time,
+the request processing rate by the virtual server:
+
+    
+    limit_req_zone $binary_remote_addr zone=perip:10m rate=1r/s;
+    limit_req_zone $server_name zone=perserver:10m rate=10r/s;
+    
+    server {
+        ...
+        limit_req zone=perip burst=5 nodelay;
+        limit_req zone=perserver burst=10;
+    }
+
+
+
+
+
+
+
+
+These directives are inherited from the previous level if and
+only if there are no
+C<limit_req>
+directives on the current level.
+
+
+
+
+
+
+
+=head2 limit_req_log_level
+
+
+B<syntax:> limit_req_log_level I<
+C<info> E<verbar>
+C<notice> E<verbar>
+C<warn> E<verbar>
+C<error>>
+
+
+B<default:> I<error>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.8.18.
+
+
+
+
+
+Sets the desired logging level
+for cases when the server refuses to process requests
+due to rate exceeding,
+or delays request processing.
+Logging level for delays is one point less than for refusals; for example,
+if “C<limit_req_log_level notice>” is specified,
+delays are logged with the C<info> level.
+
+
+
+
+
+
+
+=head2 limit_req_status
+
+
+B<syntax:> limit_req_status I<I<C<code>>>
+
+
+B<default:> I<503>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.3.15.
+
+
+
+
+
+Sets the status code to return in response to rejected requests.
+
+
+
+
+
+
+
+=head2 limit_req_zone
+
+
+B<syntax:> limit_req_zone I<
+    I<C<key>>
+    C<zone>=I<C<name>>:I<C<size>>
+    C<rate>=I<C<rate>>>
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Sets parameters for a shared memory zone
+that will keep states for various keys.
+In particular, the state stores the current number of excessive requests.
+The I<C<key>> can contain text, variables, and their combination.
+Requests with an empty key value are not accounted.
+
+B<NOTE>
+
+Prior to version 1.7.6, a I<C<key>> could contain exactly one variable.
+
+Usage example:
+
+    
+    limit_req_zone $binary_remote_addr zone=one:10m rate=1r/s;
+
+
+
+
+
+
+
+Here, the states are kept in a 10 megabyte zone “one”, and an
+average request processing rate for this zone cannot exceed
+1 request per second.
+
+
+
+
+
+A client IP address serves as a key.
+Note that instead of C<$remote_addr>, the
+C<$binary_remote_addr> variable is used here.
+The C<$binary_remote_addr> variable’s size
+is always 4 bytes for IPv4 addresses or 16 bytes for IPv6 addresses.
+The stored state always occupies
+64 bytes on 32-bit platforms and 128 bytes on 64-bit platforms.
+One megabyte zone can keep about 16 thousand 64-byte states
+or about 8 thousand 128-byte states.
+If the zone storage is exhausted, the server will return the
+C<503> (C<Service Temporarily Unavailable>)
+error to all further requests.
+
+
+
+
+
+The rate is specified in requests per second (rE<sol>s).
+If a rate of less than one request per second is desired,
+it is specified in request per minute (rE<sol>m).
+For example, half-request per second is 30rE<sol>m.
+
+
+
+
+
+
+

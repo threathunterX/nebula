@@ -1,0 +1,497 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_upstream_hc_module - Module ngx_http_upstream_hc_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_upstream_hc_module> module
+allows enabling periodic health checks of the servers in a
+L<group|ngx_http_upstream_module>
+referenced in the surrounding location.
+The server group must reside in the
+L<shared memory|ngx_http_upstream_module>.
+
+
+
+
+
+If a health check fails,
+the server will be considered unhealthy.
+If several health checks are defined for the same group of servers,
+a single failure of any check will make the corresponding server be
+considered unhealthy.
+Client requests are not passed to unhealthy servers
+and servers in the “checking” state.
+
+
+
+
+
+
+B<NOTE>
+
+Please note that most of the variables will have empty values
+when used with health checks.
+
+
+
+
+
+
+
+B<NOTE>
+
+This module is available as part of our
+commercial subscription.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    upstream dynamic {
+        zone upstream_dynamic 64k;
+    
+        server backend1.example.com      weight=5;
+        server backend2.example.com:8080 fail_timeout=5s slow_start=30s;
+        server 192.0.2.1                 max_fails=3;
+    
+        server backup1.example.com:8080  backup;
+        server backup2.example.com:8080  backup;
+    }
+    
+    server {
+        location / {
+            proxy_pass http://dynamic;
+            health_check;
+        }
+    }
+
+
+With this configuration, nginx will send “C<E<sol>>” requests to each
+server in the C<backend> group every five seconds.
+If any communication error or timeout occurs, or a
+proxied server responds with the status code other than
+2xx or 3xx, the health check will fail, and the server will
+be considered unhealthy.
+
+
+
+
+
+Health checks can be configured to test the status code of a response,
+presence of certain header fields and their values,
+and the body contents.
+Tests are configured separately using the L</match> directive
+and referenced in the C<match> parameter
+of the  L</health_check> directive:
+
+    
+    http {
+        server {
+        ...
+            location / {
+                proxy_pass http://backend;
+                health_check match=welcome;
+            }
+        }
+    
+        match welcome {
+            status 200;
+            header Content-Type = text/html;
+            body ~ "Welcome to nginx!";
+        }
+    }
+
+
+This configuration shows that in order for a health check to pass, the response
+to a health check request should succeed, have status 200,
+and contain “C<Welcome to nginx!>” in the body.
+
+
+
+
+=head1 Directives
+
+=head2 health_check
+
+
+B<syntax:> health_check I<[I<C<parameters>>]>
+
+
+
+B<context:> I<location>
+
+
+
+
+
+Enables periodic health checks of the servers in a
+L<group|ngx_http_upstream_module>
+referenced in the surrounding location.
+
+
+
+
+
+The following optional parameters are supported:
+
+=over
+
+
+
+=item 
+C<interval>=I<C<time>>
+
+
+
+
+
+sets the interval between two consecutive health checks,
+by default, 5 seconds.
+
+
+
+=item 
+C<jitter>=I<C<time>>
+
+
+
+
+
+sets the time within which
+each health check will be randomly delayed,
+by default, there is no delay.
+
+
+
+=item 
+C<fails>=I<C<number>>
+
+
+
+
+
+sets the number of consecutive failed health checks of a particular server
+after which this server will be considered unhealthy,
+by default, 1.
+
+
+
+=item 
+C<passes>=I<C<number>>
+
+
+
+
+
+sets the number of consecutive passed health checks of a particular server
+after which the server will be considered healthy,
+by default, 1.
+
+
+
+=item 
+C<uri>=I<C<uri>>
+
+
+
+
+
+defines the URI used in health check requests,
+by default, “C<E<sol>>”.
+
+
+
+=item 
+C<mandatory>
+
+
+
+
+
+sets the initial “checking” state for a server
+until the first health check is completed (1.11.7).
+Client requests are not passed to servers in the “checking” state.
+If the parameter is not specified,
+the server will be initially considered healthy.
+
+
+
+=item 
+C<match>=I<C<name>>
+
+
+
+
+
+specifies the C<match> block configuring the tests that a
+response should pass in order for a health check to pass.
+By default, the response should have status code 2xx or 3xx.
+
+
+
+=item 
+C<port>=I<C<number>>
+
+
+
+
+
+defines the port used when connecting to a server
+to perform a health check (1.9.7).
+By default, equals the
+L<ngx_http_upstream_module> port.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 match
+
+
+B<syntax:> match I<I<C<name>> { B<...> } >
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Defines the named test set used to verify responses to health check requests.
+
+
+
+
+
+The following items can be tested in a response:
+
+=over
+
+
+
+=item C<status 200;>
+
+
+
+status is 200
+
+
+=item C<status ! 500;>
+
+
+
+status is not 500
+
+
+=item C<status 200 204;>
+
+
+
+status is 200 or 204
+
+
+=item C<status ! 301 302;>
+
+
+
+status is neither 301 nor 302
+
+
+=item C<status 200-399;>
+
+
+
+status is in the range from 200 to 399
+
+
+=item C<status ! 400-599;>
+
+
+
+status is not in the range from 400 to 599
+
+
+=item C<status 301-303 307;>
+
+
+
+status is either 301, 302, 303, or 307
+
+
+
+=back
+
+
+
+
+=over
+
+
+
+=item C<header Content-Type = textE<sol>html;>
+
+
+
+
+header contains C<Content-Type>
+with value C<textE<sol>html>
+
+
+
+=item C<header Content-Type != textE<sol>html;>
+
+
+
+
+header contains C<Content-Type>
+with value other than C<textE<sol>html>
+
+
+
+=item C<header Connection ~ close;>
+
+
+
+
+header contains C<Connection>
+with value matching regular expression C<close>
+
+
+
+=item C<header Connection !~ close;>
+
+
+
+
+header contains C<Connection>
+with value not matching regular expression C<close>
+
+
+
+=item C<header Host;>
+
+
+
+header contains C<Host>
+
+
+=item C<header ! X-Accel-Redirect;>
+
+
+
+header lacks C<X-Accel-Redirect>
+
+
+
+=back
+
+
+
+
+=over
+
+
+
+=item C<body ~ "Welcome to nginx!";>
+
+
+
+
+body matches regular expression “C<Welcome to nginx!>”
+
+
+
+=item C<body !~ "Welcome to nginx!";>
+
+
+
+
+body does not match regular expression “C<Welcome to nginx!>”
+
+
+
+
+=back
+
+
+
+
+
+
+
+If several tests are specified,
+the response matches only if it matches all tests.
+
+B<NOTE>
+
+Only the first 256k of the response body are examined.
+
+
+
+
+
+
+Examples:
+
+    
+    # status is 200, content type is "text/html",
+    # and body contains "Welcome to nginx!"
+    match welcome {
+        status 200;
+        header Content-Type = text/html;
+        body ~ "Welcome to nginx!";
+    }
+
+
+
+
+    
+    # status is not one of 301, 302, 303, or 307, and header does not have "Refresh:"
+    match not_redirect {
+        status ! 301-303 307;
+        header ! Refresh;
+    }
+
+
+
+
+    
+    # status ok and not in maintenance mode
+    match server_ok {
+        status 200-399;
+        body !~ "maintenance mode";
+    }
+
+
+
+
+
+
+
+
+
+

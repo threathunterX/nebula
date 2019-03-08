@@ -1,0 +1,14 @@
+{
+    "name": "misclog_notify",
+    "callmode": "notify",
+    "delivermode": "sharding",
+    "serverimpl": "redis",
+    "coder": "mail",
+    "options": {
+        "cdc": "sh",
+        "sdc": "sh",
+        "serversubname": "onlinekv",
+	"serverseq": 1,
+        "servercardinality": 1
+    }
+}

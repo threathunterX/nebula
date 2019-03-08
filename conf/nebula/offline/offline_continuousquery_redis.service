@@ -1,0 +1,13 @@
+{
+    "name": "offline_continuousquery",
+    "callmode": "polling",
+    "delivermode": "topic",
+    "serverimpl": "redis",
+    "coder": "mail",
+    "options": {
+        "cdc": "sh",
+        "sdc": "sh",
+        "serversubname": "offlinecontinuous",
+        "servercardinality": 1
+    }
+}

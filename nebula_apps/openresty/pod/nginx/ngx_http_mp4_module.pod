@@ -1,0 +1,329 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_mp4_module - Module ngx_http_mp4_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_mp4_module> module provides pseudo-streaming
+server-side support for MP4 files.
+Such files typically have the F<.mp4>, F<.m4v>,
+or F<.m4a> filename extensions.
+
+
+
+
+
+Pseudo-streaming works in alliance with a compatible Flash player.
+The player sends an HTTP request to the server with the start time
+specified in the query string argument (named simply
+C<start>
+and specified in seconds), and the server responds with the stream
+such that its start position corresponds to the requested time,
+for example:
+
+    
+    http://example.com/elephants_dream.mp4?start=238.88
+
+
+This allows performing a random seeking at any time, or starting playback
+in the middle of the timeline.
+
+
+
+
+
+To support seeking, H.264-based formats store metadata
+in a so-called “moov atom”.
+It is a part of the file that holds the index information for the
+whole file.
+
+
+
+
+
+To start playback, the player first needs to read metadata.
+This is done by sending a special request with the
+C<start=0> argument.
+A lot of encoding software insert the metadata at
+the end of the file.
+This is suboptimal for pseudo-streaming, because the player
+has to download the entire file before starting playback.
+If the metadata are located at the beginning of the file,
+it is enough for nginx to simply start sending back the file contents.
+If the metadata are located at the end of the file,
+nginx must read the entire file and prepare a new stream so that
+the metadata come before the media data.
+This involves some CPU, memory, and disk IE<sol>O overhead,
+so it is a good idea to
+L<prepare an original file for pseudo-streaming|http://flowplayer.org/plugins/streaming/pseudostreaming.html#prepare> in advance,
+rather than having nginx do this on every such request.
+
+
+
+
+
+The module also supports the C<end> argument of an HTTP request
+(1.5.13) which sets the end point of playback.
+The C<end> argument can be specified with the
+C<start> argument
+or separately:
+
+    
+    http://example.com/elephants_dream.mp4?start=238.88&end=555.55
+
+
+
+
+
+
+
+For a matching request with a non-zero
+C<start> or C<end>
+argument, nginx will read the metadata from the file, prepare the
+stream with the requested time range, and send it to the client.
+This has the same overhead as described above.
+
+
+
+
+
+If a matching request does not include the
+C<start> and C<end>
+arguments, there is no overhead, and the file is sent simply as a static
+resource.
+Some players also support byte-range requests, and thus do not require
+this module.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+C<--with-http_mp4_module>
+configuration parameter.
+
+B<NOTE>
+
+If a third-party mp4 module was previously used, it should be disabled.
+
+
+
+
+
+
+A similar pseudo-streaming support for FLV files is provided by the
+L<ngx_http_flv_module|ngx_http_flv_module> module.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location /video/ {
+        mp4;
+        mp4_buffer_size       1m;
+        mp4_max_buffer_size   5m;
+        mp4_limit_rate        on;
+        mp4_limit_rate_after  30s;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 mp4
+
+
+
+
+B<context:> I<location>
+
+
+
+
+
+Turns on module processing in a surrounding location.
+
+
+
+
+
+
+
+=head2 mp4_buffer_size
+
+
+B<syntax:> mp4_buffer_size I<I<C<size>>>
+
+
+B<default:> I<512K>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the initial I<C<size>> of the buffer used for
+processing MP4 files.
+
+
+
+
+
+
+
+=head2 mp4_max_buffer_size
+
+
+B<syntax:> mp4_max_buffer_size I<I<C<size>>>
+
+
+B<default:> I<10M>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+During metadata processing, a larger buffer may become necessary.
+Its size cannot exceed the specified I<C<size>>,
+or else nginx will return the
+C<500> (C<Internal Server Error>) server error,
+and log the following message:
+
+    
+    "/some/movie/file.mp4" mp4 moov atom is too large:
+    12583268, you may want to increase mp4_max_buffer_size
+
+
+
+
+
+
+
+
+
+=head2 mp4_limit_rate
+
+
+B<syntax:> mp4_limit_rate I<
+    C<on> E<verbar>
+    C<off> E<verbar>
+    I<C<factor>>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Limits the rate of response transmission to a client.
+The rate is limited based on the average bitrate of the
+MP4 file served.
+To calculate the rate, the bitrate is multiplied by the specified
+I<C<factor>>.
+The special value “C<on>” corresponds to the factor of 1.1.
+The special value “C<off>” disables rate limiting.
+The limit is set per a request, and so if a client simultaneously opens
+two connections, the overall rate will be twice as much
+as the specified limit.
+
+
+
+
+
+
+B<NOTE>
+
+This directive is available as part of our
+commercial subscription.
+
+
+
+
+
+
+
+
+=head2 mp4_limit_rate_after
+
+
+B<syntax:> mp4_limit_rate_after I<I<C<time>>>
+
+
+B<default:> I<60s>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the initial amount of media data (measured in playback time)
+after which the further transmission of the response to a client
+will be rate limited.
+
+
+
+
+
+
+B<NOTE>
+
+This directive is available as part of our
+commercial subscription.
+
+
+
+
+
+
+
+

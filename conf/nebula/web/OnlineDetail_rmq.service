@@ -1,0 +1,14 @@
+{
+    "name": "clickstreamquery",
+    "callmode": "polling",
+    "delivermode": "topic",
+    "serverimpl": "rabbitmq",
+    "coder": "mail",
+    "options": {
+        "cdc": "sh",
+        "sdc": "sh",
+        "serversubname": "online",
+        "servercardinality": 1,
+        "serverseq": 1
+    }
+}

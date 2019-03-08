@@ -1,0 +1,176 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_limit_conn_module - Module ngx_stream_limit_conn_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_limit_conn_module> module (1.9.3) is used to
+limit the number of connections per the defined key, in
+particular, the number of connections from a single IP address.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    stream {
+        limit_conn_zone $binary_remote_addr zone=addr:10m;
+    
+        ...
+    
+        server {
+    
+            ...
+    
+            limit_conn           addr 1;
+            limit_conn_log_level error;
+        }
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 limit_conn
+
+
+B<syntax:> limit_conn I<I<C<zone>> I<C<number>>>
+
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the shared memory zone
+and the maximum allowed number of connections for a given key value.
+When this limit is exceeded, the server will close the connection.
+For example, the directives
+
+    
+    limit_conn_zone $binary_remote_addr zone=addr:10m;
+    
+    server {
+        ...
+        limit_conn addr 1;
+    }
+
+
+allow only one connection per an IP address at a time.
+
+
+
+
+
+When several C<limit_conn> directives are specified,
+any configured limit will apply.
+
+
+
+
+
+The directives are inherited from the previous level if and
+only if there are no
+C<limit_conn>
+directives on the current level.
+
+
+
+
+
+
+
+=head2 limit_conn_log_level
+
+
+B<syntax:> limit_conn_log_level I<
+C<info> E<verbar>
+C<notice> E<verbar>
+C<warn> E<verbar>
+C<error>>
+
+
+B<default:> I<error>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the desired logging level for cases when the server
+limits the number of connections.
+
+
+
+
+
+
+
+=head2 limit_conn_zone
+
+
+B<syntax:> limit_conn_zone I<
+    I<C<key>>
+    C<zone>=I<C<name>>:I<C<size>>>
+
+
+
+B<context:> I<stream>
+
+
+
+
+
+Sets parameters for a shared memory zone
+that will keep states for various keys.
+In particular, the state includes the current number of connections.
+The I<C<key>> can contain text, variables,
+and their combinations (1.11.2).
+Connections with an empty key value are not accounted.
+Usage example:
+
+    
+    limit_conn_zone $binary_remote_addr zone=addr:10m;
+
+
+Here, the key is a client IP address set by the
+C<$binary_remote_addr> variable.
+The size of C<$binary_remote_addr>
+is 4 bytes for IPv4 addresses or 16 bytes for IPv6 addresses.
+The stored state always occupies 32 or 64 bytes
+on 32-bit platforms and 64 bytes on 64-bit platforms.
+One megabyte zone can keep about 32 thousand 32-byte states
+or about 16 thousand 64-byte states.
+If the zone storage is exhausted, the server will close the connection.
+
+
+
+
+
+
+
+

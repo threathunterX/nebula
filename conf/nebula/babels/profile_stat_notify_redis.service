@@ -1,0 +1,13 @@
+{
+    "name": "batch_event_send",
+    "callmode": "notify",
+    "delivermode": "sharding",
+    "serverimpl": "redis",
+    "coder": "mail",
+    "options": {
+        "cdc": "sh",
+        "sdc": "sh",
+        "serverseq": 1,
+        "servercardinality": 1
+    }
+}

@@ -1,0 +1,116 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_gunzip_module - Module ngx_http_gunzip_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_gunzip_module> module is a filter that
+decompresses responses with “C<Content-Encoding: gzip>”
+for clients that do not support “gzip” encoding method.
+The module will be useful when it is desirable to store
+data compressed to save space and reduce IE<sol>O costs.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+C<--with-http_gunzip_module>
+configuration parameter.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location /storage/ {
+        gunzip on;
+        ...
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 gunzip
+
+
+B<syntax:> gunzip I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Enables or disables decompression of gzipped responses
+for clients that lack gzip support.
+If enabled, the following directives are also taken into account
+when determining if clients support gzip:
+L<ngx_http_gzip_module>,
+L<ngx_http_gzip_module>, and
+L<ngx_http_gzip_module>.
+See also the L<ngx_http_gzip_module> directive.
+
+
+
+
+
+
+
+=head2 gunzip_buffers
+
+
+B<syntax:> gunzip_buffers I<I<C<number>> I<C<size>>>
+
+
+B<default:> I<32 4kE<verbar>16 8k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the I<C<number>> and I<C<size>> of buffers
+used to decompress a response.
+By default, the buffer size is equal to one memory page.
+This is either 4K or 8K, depending on a platform.
+
+
+
+
+
+
+

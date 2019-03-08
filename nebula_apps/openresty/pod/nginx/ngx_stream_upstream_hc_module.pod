@@ -1,0 +1,442 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_upstream_hc_module - Module ngx_stream_upstream_hc_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_upstream_hc_module> module (1.9.0)
+allows enabling periodic health checks of the servers in a
+L<group|ngx_stream_upstream_module>.
+The server group must reside in the
+L<shared memory|ngx_stream_upstream_module>.
+
+
+
+
+
+If a health check fails, the server will be considered unhealthy.
+If several health checks are defined for the same group of servers,
+a single failure of any check will make the corresponding server be
+considered unhealthy.
+Client connections are not passed to unhealthy servers
+and servers in the “checking” state.
+
+
+
+
+
+
+B<NOTE>
+
+This module is available as part of our
+commercial subscription.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    upstream tcp {
+        zone upstream_tcp 64k;
+    
+        server backend1.example.com:12345 weight=5;
+        server backend2.example.com:12345 fail_timeout=5s slow_start=30s;
+        server 192.0.2.1:12345            max_fails=3;
+    
+        server backup1.example.com:12345  backup;
+        server backup2.example.com:12345  backup;
+    }
+    
+    server {
+        listen     12346;
+        proxy_pass tcp;
+        health_check;
+    }
+
+
+With this configuration, nginx
+will check the ability to establish a TCP connection to each server
+in the C<tcp> group every five seconds.
+When a connection to the server cannot be established,
+the health check will fail, and the server will
+be considered unhealthy.
+
+
+
+
+
+Health checks can be configured for the UDP protocol:
+
+    
+    upstream dns_upstream {
+    
+        zone   dns_zone 64k;
+    
+        server dns1.example.com:53;
+        server dns2.example.com:53;
+        server dns3.example.com:53;
+    }
+    
+    server {
+        listen       53 udp;
+        proxy_pass   dns_upstream;
+        health_check udp;
+    }
+
+
+In this case, the absence of
+ICMP “C<Destination Unreachable>” message is expected
+in reply to the sent string “C<nginx health check>”.
+
+
+
+
+
+Health checks can also be configured to test data obtained from the server.
+Tests are configured separately using the L</match> directive
+and referenced in the C<match> parameter
+of the L</health_check> directive.
+
+
+
+
+=head1 Directives
+
+=head2 health_check
+
+
+B<syntax:> health_check I<[I<C<parameters>>]>
+
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables periodic health checks of the servers in a
+L<group|ngx_stream_upstream_module>.
+
+
+
+
+
+The following optional parameters are supported:
+
+=over
+
+
+
+=item 
+C<interval>=I<C<time>>
+
+
+
+
+
+sets the interval between two consecutive health checks,
+by default, 5 seconds.
+
+
+
+=item 
+C<jitter>=I<C<time>>
+
+
+
+
+
+sets the time within which
+each health check will be randomly delayed,
+by default, there is no delay.
+
+
+
+=item 
+C<fails>=I<C<number>>
+
+
+
+
+
+sets the number of consecutive failed health checks of a particular server
+after which this server will be considered unhealthy,
+by default, 1.
+
+
+
+=item 
+C<passes>=I<C<number>>
+
+
+
+
+
+sets the number of consecutive passed health checks of a particular server
+after which the server will be considered healthy,
+by default, 1.
+
+
+
+=item 
+C<mandatory>
+
+
+
+
+
+sets the initial “checking” state for a server
+until the first health check is completed (1.11.7).
+Client connections are not passed to servers in the “checking” state.
+If the parameter is not specified,
+the server will be initially considered healthy.
+
+
+
+=item 
+C<match>=I<C<name>>
+
+
+
+
+
+specifies the C<match> block configuring the tests that a
+successful connection should pass in order for a health check to pass.
+By default, for TCP, only the ability
+to establish a TCP connection with the server is checked.
+For UDP, the absence of
+ICMP “C<Destination Unreachable>” message is expected
+in reply to the sent string “C<nginx health check>”.
+
+B<NOTE>
+
+Prior to version 1.11.7, by default, UDP health check
+required a match block with the
+send and expect
+parameters.
+
+
+
+
+=item 
+C<port>=I<C<number>>
+
+
+
+
+
+defines the port used when connecting to a server
+to perform a health check (1.9.7).
+By default, equals the
+L<ngx_stream_upstream_module> port.
+
+
+
+=item 
+C<udp>
+
+
+
+
+
+specifies that the C<UDP> protocol should be used for
+health checks instead of the default C<TCP> protocol (1.9.13).
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 health_check_timeout
+
+
+B<syntax:> health_check_timeout I<I<C<timeout>>>
+
+
+B<default:> I<5s>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Overrides the
+L<ngx_stream_proxy_module>
+value for health checks.
+
+
+
+
+
+
+
+=head2 match
+
+
+B<syntax:> match I<I<C<name>>  { B<...> } >
+
+
+
+B<context:> I<stream>
+
+
+
+
+
+Defines the named test set used to verify server responses to health checks.
+
+
+
+
+
+The following parameters can be configured:
+
+=over
+
+
+
+=item 
+C<send> I<C<string>>;
+
+
+
+
+
+sends a I<C<string>> to the server;
+
+
+
+=item 
+C<expect> I<C<string>> E<verbar>
+C<~> I<C<regex>>;
+
+
+
+
+
+a literal string (1.9.12) or a regular expression
+that the data obtained from the server should match.
+The regular expression is specified with the preceding
+“C<~*>” modifier (for case-insensitive matching), or the
+“C<~>” modifier (for case-sensitive matching).
+
+
+
+
+=back
+
+
+Both C<send> and C<expect> parameters
+can contain hexadecimal literals with the prefix “C<\x>”
+followed by two hex digits, for example, “C<\x80>” (1.9.12).
+
+
+
+
+
+Health check is passed if:
+
+=over
+
+
+
+=item *
+
+the TCP connection was successfully established;
+
+
+
+=item *
+
+the I<C<string>> from the C<send> parameter,
+if specified, was sent;
+
+
+
+=item *
+
+the data obtained from the server matched the string or regular expression
+from the C<expect> parameter, if specified;
+
+
+
+=item *
+
+the time elapsed does not exceed the value specified
+in the L</health_check_timeout> directive.
+
+
+
+=back
+
+
+
+
+
+
+
+Example:
+
+    
+    upstream backend {
+        zone     upstream_backend 10m;
+        server   127.0.0.1:12345;
+    }
+    
+    match http {
+        send     "GET / HTTP/1.0\r\nHost: localhost\r\n\r\n";
+        expect ~ "200 OK";
+    }
+    
+    server {
+        listen       12346;
+        proxy_pass   backend;
+        health_check match=http;
+    }
+
+
+
+
+
+
+
+
+B<NOTE>
+
+Only the first
+L<ngx_stream_proxy_module>
+bytes of data obtained from the server are examined.
+
+
+
+
+
+
+
+

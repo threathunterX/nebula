@@ -1,0 +1,111 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_access_module - Module ngx_stream_access_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_access_module> module (1.9.2) allows
+limiting access to certain client addresses.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    server {
+        ...
+        deny  192.168.1.1;
+        allow 192.168.1.0/24;
+        allow 10.1.1.0/16;
+        allow 2001:0db8::/32;
+        deny  all;
+    }
+
+
+
+
+
+
+
+The rules are checked in sequence until the first match is found.
+In this example, access is allowed only for IPv4 networks
+C<10.1.1.0E<sol>16> and C<192.168.1.0E<sol>24>
+excluding the address C<192.168.1.1>,
+and for IPv6 network C<2001:0db8::E<sol>32>.
+
+
+
+
+=head1 Directives
+
+=head2 allow
+
+
+B<syntax:> allow I<
+    I<C<address>> E<verbar>
+    I<C<CIDR>> E<verbar>
+    C<unix:> E<verbar>
+    C<all>>
+
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Allows access for the specified network or address.
+If the special value C<unix:> is specified,
+allows access for all UNIX-domain sockets.
+
+
+
+
+
+
+
+=head2 deny
+
+
+B<syntax:> deny I<
+    I<C<address>> E<verbar>
+    I<C<CIDR>> E<verbar>
+    C<unix:> E<verbar>
+    C<all>>
+
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Denies access for the specified network or address.
+If the special value C<unix:> is specified,
+denies access for all UNIX-domain sockets.
+
+
+
+
+
+
+

@@ -1,0 +1,13 @@
+
+{
+    "name": "variableglobalvalue_query",
+    "callmode": "polling",
+    "delivermode": "topic",
+    "serverimpl": "redis",
+    "coder": "mail",
+    "options": {
+        "servercardinality": 1,
+        "sdc":"sh",
+        "cdc":"sh"
+    }
+}

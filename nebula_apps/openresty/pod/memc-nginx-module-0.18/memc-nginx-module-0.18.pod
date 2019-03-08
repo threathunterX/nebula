@@ -1,0 +1,853 @@
+=encoding utf-8
+
+
+=head1 Name
+
+B<ngx_memc> - An extended version of the standard memcached module that supports set, add, delete, and many more memcached commands.
+
+I<This module is not distributed with the Nginx source.> See L<the installation instructions>.
+
+
+=head1 Version
+
+This document describes ngx_memc L<v0.18|http://github.com/openresty/memc-nginx-module/tags> released on 8 April 2017.
+
+
+=head1 Synopsis
+
+
+     # GET /foo?key=dog
+     #
+     # POST /foo?key=cat
+     # Cat's value...
+     #
+     # PUT /foo?key=bird
+     # Bird's value...
+     #
+     # DELETE /foo?key=Tiger
+     location /foo {
+         set $memc_key $arg_key;
+    
+         # $memc_cmd defaults to get for GET,
+         #   add for POST, set for PUT, and
+         #   delete for the DELETE request method.
+    
+         memc_pass 127.0.0.1:11211;
+     }
+
+
+     # GET /bar?cmd=get&key=cat
+     #
+     # POST /bar?cmd=set&key=dog
+     # My value for the "dog" key...
+     #
+     # DELETE /bar?cmd=delete&key=dog
+     # GET /bar?cmd=delete&key=dog
+     location /bar {
+         set $memc_cmd $arg_cmd;
+         set $memc_key $arg_key;
+         set $memc_flags $arg_flags; # defaults to 0
+         set $memc_exptime $arg_exptime; # defaults to 0
+    
+         memc_pass 127.0.0.1:11211;
+     }
+
+
+     # GET /bar?cmd=get&key=cat
+     # GET /bar?cmd=set&key=dog&val=animal&flags=1234&exptime=2
+     # GET /bar?cmd=delete&key=dog
+     # GET /bar?cmd=flush_all
+     location /bar {
+         set $memc_cmd $arg_cmd;
+         set $memc_key $arg_key;
+         set $memc_value $arg_val;
+         set $memc_flags $arg_flags; # defaults to 0
+         set $memc_exptime $arg_exptime; # defaults to 0
+    
+         memc_cmds_allowed get set add delete flush_all;
+    
+         memc_pass 127.0.0.1:11211;
+     }
+
+
+       http {
+         ...
+         upstream backend {
+            server 127.0.0.1:11984;
+            server 127.0.0.1:11985;
+         }
+         server {
+             location /stats {
+                 set $memc_cmd stats;
+                 memc_pass backend;
+             }
+             ...
+         }
+       }
+       ...
+
+
+     # read the memcached flags into the Last-Modified header
+     # to respond 304 to conditional GET
+     location /memc {
+         set $memc_key $arg_key;
+    
+         memc_pass 127.0.0.1:11984;
+    
+         memc_flags_to_last_modified on;
+     }
+
+
+     location /memc {
+         set $memc_key foo;
+         set $memc_cmd get;
+    
+         # access the unix domain socket listend by memcached
+         memc_pass unix:/tmp/memcached.sock;
+     }
+
+
+=head1 Description
+
+This module extends the standard L<memcached module|http://nginx.org/en/docs/http/ngx_http_memcached_module.html> to support almost the whole L<memcached ascii protocol|http://code.sixapart.com/svn/memcached/trunk/server/doc/protocol.txt>.
+
+It allows you to define a custom L<REST|http://en.wikipedia.org/wiki/REST> interface to your memcached servers or access memcached in a very efficient way from within the nginx server by means of subrequests or L<independent fake requests|http://github.com/srlindsay/nginx-independent-subrequest>.
+
+This module is not supposed to be merged into the Nginx core because I've used L<Ragel|http://www.complang.org/ragel/> to generate the memcached response parsers (in C) for joy :)
+
+If you are going to use this module to cache location responses out of the box, try L<srcache-nginx-module|http://github.com/openresty/srcache-nginx-module> with this module to achieve that.
+
+When used in conjunction with L<lua-nginx-module|http://github.com/openresty/lua-nginx-module>, it is recommended to use the L<lua-resty-memcached|http://github.com/openresty/lua-resty-memcached> library instead of this module though, because the former is much more flexible and memory-efficient.
+
+
+
+
+=head2 Keep-alive connections to memcached servers
+
+You need L<HttpUpstreamKeepaliveModule|http://wiki.nginx.org/HttpUpstreamKeepaliveModule> together with this module for keep-alive TCP connections to your backend memcached servers.
+
+Here's a sample configuration:
+
+
+       http {
+         upstream backend {
+           server 127.0.0.1:11211;
+    
+           # a pool with at most 1024 connections
+           # and do not distinguish the servers:
+           keepalive 1024;
+         }
+    
+         server {
+             ...
+             location /memc {
+                 set $memc_cmd get;
+                 set $memc_key $arg_key;
+                 memc_pass backend;
+             }
+         }
+       }
+
+
+
+
+=head2 How it works
+
+It implements the memcached TCP protocol all by itself, based upon the C<upstream> mechanism. Everything involving I/O is non-blocking.
+
+The module itself does not keep TCP connections to the upstream memcached servers across requests, just like other upstream modules. For a working solution, see section L<Keep-alive connections to memcached servers>.
+
+
+
+
+=head1 Memcached commands supported
+
+The memcached storage commands L<set>, L<add>, L<replace>, L<prepend>, and L<append> uses the C<$memc_key> as the key, C<$memc_exptime> as the expiration time (or delay) (defaults to 0), C<$memc_flags> as the flags (defaults to 0), to build the corresponding memcached queries.
+
+If C<$memc_value> is not defined at all, then the request body will be used as the value of the C<$memc_value> except for the L<incr> and L<decr> commands. Note that if C<$memc_value> is defined as an empty string (C<"">), that empty string will still be used as the value as is.
+
+The following memcached commands have been implemented and tested (with their parameters marked by corresponding
+nginx variables defined by this module):
+
+
+
+
+=head2 get $memc_key
+
+Retrieves the value using a key.
+
+
+       location /foo {
+           set $memc_cmd 'get';
+           set $memc_key 'my_key';
+    
+           memc_pass 127.0.0.1:11211;
+    
+           add_header X-Memc-Flags $memc_flags;
+       }
+
+Returns C<200 OK> with the value put into the response body if the key is found, or C<404 Not Found> otherwise. The C<flags> number will be set into the C<$memc_flags> variable so it's often desired to put that info into the response headers by means of the standard L<add_header directive|http://nginx.org/en/docs/http/ngx_http_headers_module.html#add_header>.
+
+It returns C<502> for C<ERROR>, C<CLIENT_ERROR>, or C<SERVER_ERROR>.
+
+
+
+
+=head2 set $memc_key $memc_flags $memc_exptime $memc_value
+
+To use the request body as the memcached value, just avoid setting the C<$memc_value> variable:
+
+
+       # POST /foo
+       # my value...
+       location /foo {
+           set $memc_cmd 'set';
+           set $memc_key 'my_key';
+           set $memc_flags 12345;
+           set $memc_exptime 24;
+    
+           memc_pass 127.0.0.1:11211;
+       }
+
+Or let the C<$memc_value> hold the value:
+
+
+       location /foo {
+           set $memc_cmd 'set';
+           set $memc_key 'my_key';
+           set $memc_flags 12345;
+           set $memc_exptime 24;
+           set $memc_value 'my_value';
+    
+           memc_pass 127.0.0.1:11211;
+       }
+
+Returns C<201 Created> if the upstream memcached server replies C<STORED>, C<200> for C<NOT_STORED>, C<404> for C<NOT_FOUND>, C<502> for C<ERROR>, C<CLIENT_ERROR>, or C<SERVER_ERROR>.
+
+The original memcached responses are returned as the response body except for C<404 NOT FOUND>.
+
+
+
+
+=head2 add $memc_key $memc_flags $memc_exptime $memc_value
+
+Similar to the L<set command>.
+
+
+
+
+=head2 replace $memc_key $memc_flags $memc_exptime $memc_value
+
+Similar to the L<set command>.
+
+
+
+
+=head2 append $memc_key $memc_flags $memc_exptime $memc_value
+
+Similar to the L<set command>.
+
+Note that at least memcached version 1.2.2 does not support the "append" and "prepend" commands. At least 1.2.4 and later versions seem to supports these two commands.
+
+
+
+
+=head2 prepend $memc_key $memc_flags $memc_exptime $memc_value
+
+Similar to the L<append command>.
+
+
+
+
+=head2 delete $memc_key
+
+Deletes the memcached entry using a key.
+
+
+       location /foo
+           set $memc_cmd delete;
+           set $memc_key my_key;
+    
+           memc_pass 127.0.0.1:11211;
+       }
+
+Returns C<200 OK> if deleted successfully, C<404 Not Found> for C<NOT_FOUND>, or C<502> for C<ERROR>, C<CLIENT_ERROR>, or C<SERVER_ERROR>.
+
+The original memcached responses are returned as the response body except for C<404 NOT FOUND>.
+
+
+
+
+=head2 delete $memc_key $memc_exptime
+
+Similar to the L<delete $memc_key> command except it accepts an optional C<expiration> time specified by the C<$memc_exptime> variable.
+
+This command is no longer available in the latest memcached version 1.4.4.
+
+
+
+
+=head2 incr $memc_key $memc_value
+
+Increments the existing value of C<$memc_key> by the amount specified by C<$memc_value>:
+
+
+       location /foo {
+           set $memc_key my_key;
+           set $memc_value 2;
+           memc_pass 127.0.0.1:11211;
+       }
+
+In the preceding example, every time we access C</foo> will cause the value of C<my_key> increments by C<2>.
+
+Returns C<200 OK> with the new value associated with that key as the response body if successful, or C<404 Not Found> if the key is not found.
+
+It returns C<502> for C<ERROR>, C<CLIENT_ERROR>, or C<SERVER_ERROR>.
+
+
+
+
+=head2 decr $memc_key $memc_value
+
+Similar to L<incr $memc_key $memc_value>.
+
+
+
+
+=head2 flush_all
+
+Mark all the keys on the memcached server as expired:
+
+
+       location /foo {
+           set $memc_cmd flush_all;
+           memc_pass 127.0.0.1:11211;
+       }
+
+
+
+
+=head2 flush_all $memc_exptime
+
+Just like L<flush_all> but also accepts an expiration time specified by the C<$memc_exptime> variable.
+
+
+
+
+=head2 stats
+
+Causes the memcached server to output general-purpose statistics and settings
+
+
+       location /foo {
+           set $memc_cmd stats;
+           memc_pass 127.0.0.1:11211;
+       }
+
+Returns C<200 OK> if the request succeeds, or 502 for C<ERROR>, C<CLIENT_ERROR>, or C<SERVER_ERROR>.
+
+The raw C<stats> command output from the upstream memcached server will be put into the response body. 
+
+
+
+
+=head2 version
+
+Queries the memcached server's version number:
+
+
+       location /foo {
+           set $memc_cmd version;
+           memc_pass 127.0.0.1:11211;
+       }
+
+Returns C<200 OK> if the request succeeds, or 502 for C<ERROR>, C<CLIENT_ERROR>, or C<SERVER_ERROR>.
+
+The raw C<version> command output from the upstream memcached server will be put into the response body.
+
+
+
+
+=head1 Directives
+
+All the standard L<memcached module|http://nginx.org/en/docs/http/ngx_http_memcached_module.html> directives in nginx 0.8.28 are directly inherited, with the C<memcached_> prefixes replaced by C<memc_>. For example, the C<memcached_pass> directive is spelled C<memc_pass>.
+
+Here we only document the most important two directives (the latter is a new directive introduced by this module).
+
+
+
+
+=head2 memc_pass
+
+B<syntax:> I<memc_pass E<lt>memcached server IP addressE<gt>:E<lt>memcached server portE<gt>>
+
+B<syntax:> I<memc_pass E<lt>memcached server hostnameE<gt>:E<lt>memcached server portE<gt>>
+
+B<syntax:> I<memc_pass E<lt>upstream_backend_nameE<gt>>
+
+B<syntax:> I<memc_pass unix:E<lt>path_to_unix_domain_socketE<gt>>
+
+B<default:> I<none>
+
+B<context:> I<http, server, location, if>
+
+B<phase:> I<content>
+
+Specify the memcached server backend.
+
+
+
+
+=head2 memc_cmds_allowed
+
+B<syntax:> I<memc_cmds_allowed E<lt>cmdE<gt>...>
+
+B<default:> I<none>
+
+B<context:> I<http, server, location, if>
+
+Lists memcached commands that are allowed to access. By default, all the memcached commands supported by this module are accessible.
+An example is
+
+
+        location /foo {
+            set $memc_cmd $arg_cmd;
+            set $memc_key $arg_key;
+            set $memc_value $arg_val;
+    
+            memc_pass 127.0.0.1:11211;
+    
+            memc_cmds_allowed get;
+        }
+
+
+
+
+=head2 memc_flags_to_last_modified
+
+B<syntax:> I<memc_flags_to_last_modified on|off>
+
+B<default:> I<off>
+
+B<context:> I<http, server, location, if>
+
+Read the memcached flags as epoch seconds and set it as the value of the C<Last-Modified> header. For conditional GET, it will signal nginx to return C<304 Not Modified> response to save bandwidth.
+
+
+
+
+=head2 memc_connect_timeout
+
+B<syntax:> I<memc_connect_timeout E<lt>timeE<gt>>
+
+B<default:> I<60s>
+
+B<context:> I<http, server, location>
+
+The timeout for connecting to the memcached server, in seconds by default.
+
+It's wise to always explicitly specify the time unit to avoid confusion. Time units supported are "s"(seconds), "ms"(milliseconds), "y"(years), "M"(months), "w"(weeks), "d"(days), "h"(hours), and "m"(minutes).
+
+This time must be less than 597 hours.
+
+
+
+
+=head2 memc_send_timeout
+
+B<syntax:> I<memc_send_timeout E<lt>timeE<gt>>
+
+B<default:> I<60s>
+
+B<context:> I<http, server, location>
+
+The timeout for sending TCP requests to the memcached server, in seconds by default.
+
+It is wise to always explicitly specify the time unit to avoid confusion. Time units supported are "s"(seconds), "ms"(milliseconds), "y"(years), "M"(months), "w"(weeks), "d"(days), "h"(hours), and "m"(minutes).
+
+This time must be less than 597 hours.
+
+
+
+
+=head2 memc_read_timeout
+
+B<syntax:> I<memc_read_timeout E<lt>timeE<gt>>
+
+B<default:> I<60s>
+
+B<context:> I<http, server, location>
+
+The timeout for reading TCP responses from the memcached server, in seconds by default.
+
+It's wise to always explicitly specify the time unit to avoid confusion. Time units supported are "s"(seconds), "ms"(milliseconds), "y"(years), "M"(months), "w"(weeks), "d"(days), "h"(hours), and "m"(minutes).
+
+This time must be less than 597 hours.
+
+
+
+
+=head2 memc_buffer_size
+
+B<syntax:> I<memc_buffer_size E<lt>sizeE<gt>>
+
+B<default:> I<4k/8k>
+
+B<context:> I<http, server, location>
+
+This buffer size is used for the memory buffer to hold
+
+
+=over
+
+
+=item *
+
+the complete response for memcached commands other than C<get>,
+
+=item *
+
+the complete response header (i.e., the first line of the response) for the C<get> memcached command.
+
+
+=back
+
+This default size is the page size, may be C<4k> or C<8k>.
+
+
+
+
+=head2 memc_ignore_client_abort
+
+B<syntax:> I<memc_ignore_client_abort on|off>
+
+B<default:> I<off>
+
+B<context:> I<location>
+
+Determines whether the connection with a memcache server should be closed when a client closes a connection without waiting for a response.
+
+This directive was first added in the C<v0.14> release.
+
+
+
+
+=head1 Installation
+
+You're recommended to install this module (as well as the Nginx core and many other goodies) via the L<OpenResty bundle|http://openresty.org>. See the L<installation steps|http://openresty.org/#Installation> for C<OpenResty>.
+
+Alternatively, you can compile this module into the standard Nginx source distribution by hand:
+
+Grab the nginx source code from L<nginx.org|http://nginx.org/>, for example,
+the version 1.11.2 (see L<nginx compatibility>), and then build the source with this module:
+
+
+     wget 'http://nginx.org/download/nginx-1.11.2.tar.gz'
+     tar -xzvf nginx-1.11.2.tar.gz
+     cd nginx-1.11.2/
+    
+     # Here we assume you would install you nginx under /opt/nginx/.
+     ./configure --prefix=/opt/nginx \
+         --add-module=/path/to/memc-nginx-module
+    
+     make -j2
+     make install
+
+Download the latest version of the release tarball of this module from L<memc-nginx-module file list|http://github.com/openresty/memc-nginx-module/tags>.
+
+Starting from NGINX 1.9.11, you can also compile this module as a dynamic module, by using the C<--add-dynamic-module=PATH> option instead of C<--add-module=PATH> on the
+C<./configure> command line above. And then you can explicitly load the module in your C<nginx.conf> via the L<load_module|http://nginx.org/en/docs/ngx_core_module.html#load_module>
+directive, for example,
+
+
+    load_module /path/to/modules/ngx_http_memc_module.so;
+
+
+
+
+=head2 For Developers
+
+The memached response parsers were generated by L<Ragel|http://www.complang.org/ragel/>. If you want to
+regenerate the parser's C file, i.e., L<srcE<sol>ngx_http_memc_response.c|http://github.com/openresty/memc-nginx-module/blob/master/src/ngx_http_memc_response.c>, use the following command from the root of the memc module's source tree:
+
+
+     $ ragel -G2 src/ngx_http_memc_response.rl
+
+
+
+
+=head1 Compatibility
+
+The following versions of Nginx should work with this module:
+
+
+=over
+
+
+=item *
+
+B<1.11.x>                      (last tested: 1.11.2)
+
+=item *
+
+B<1.10.x>
+
+=item *
+
+B<1.9.x>                       (last tested: 1.9.15)
+
+=item *
+
+B<1.8.x>
+
+=item *
+
+B<1.7.x>                       (last tested: 1.7.10)
+
+=item *
+
+B<1.6.x>
+
+=item *
+
+B<1.5.x>                       (last tested: 1.5.12)
+
+=item *
+
+B<1.4.x>                       (last tested: 1.4.4)
+
+=item *
+
+B<1.2.x>                       (last tested: 1.2.9)
+
+=item *
+
+B<1.1.x>                       (last tested: 1.1.5)
+
+=item *
+
+B<1.0.x>                       (last tested: 1.0.10)
+
+=item *
+
+B<0.9.x>                       (last tested: 0.9.4)
+
+=item *
+
+B<0.8.x>                       (last tested: 0.8.54)
+
+=item *
+
+B<0.7.x E<gt>= 0.7.46>             (last tested: 0.7.68)
+
+
+=back
+
+It's worth mentioning that some 0.7.x versions older than 0.7.46 might also work, but I can't easily test them because the test suite makes extensive use of the L<echo module|http://github.com/openresty/echo-nginx-module>'s L<echo_location directive|http://github.com/openresty/echo-nginx-module#echo_location>, which requires at least nginx 0.7.46 :)
+
+Earlier versions of Nginx like 0.6.x and 0.5.x will I<not> work.
+
+If you find that any particular version of Nginx above 0.7.46 does not work with this module, please consider L<reporting a bug>.
+
+
+
+
+=head1 Community
+
+
+
+
+=head2 English Mailing List
+
+The L<openresty-en|https://groups.google.com/group/openresty-en> mailing list is for English speakers.
+
+
+
+
+=head2 Chinese Mailing List
+
+The L<openresty|https://groups.google.com/group/openresty> mailing list is for Chinese speakers.
+
+
+
+
+=head1 Report Bugs
+
+Although a lot of effort has been put into testing and code tuning, there must be some serious bugs lurking somewhere in this module. So whenever you are bitten by any quirks, please don't hesitate to
+
+
+=over
+
+
+=item 1.
+
+create a ticket on the L<issue tracking interface|http://github.com/openresty/memc-nginx-module/issues> provided by GitHub,
+
+=item 2.
+
+or send a bug report or even patches to the L<nginx mailing list|http://mailman.nginx.org/mailman/listinfo/nginx>.
+
+
+=back
+
+
+
+
+=head1 Source Repository
+
+Available on github at L<openrestyE<sol>memc-nginx-module|http://github.com/openresty/memc-nginx-module>.
+
+
+
+
+=head1 Changes
+
+The changes of every release of this module can be obtained from the OpenResty bundle's change logs:
+
+E<lt>http://openresty.org/#ChangesE<gt>
+
+
+
+
+=head1 Test Suite
+
+This module comes with a Perl-driven test suite. The L<test cases|http://github.com/openresty/memc-nginx-module/tree/master/t/> are
+L<declarative|http://github.com/openresty/memc-nginx-module/blob/master/t/storage.t> too. Thanks to the L<Test::Base|http://search.cpan.org/perldoc?Test::Base> module in the Perl world.
+
+To run it on your side:
+
+
+     $ PATH=/path/to/your/nginx-with-memc-module:$PATH prove -r t
+
+You need to terminate any Nginx processes before running the test suite if you have changed the Nginx server binary.
+
+Either L<LWP::UserAgent|http://search.cpan.org/perldoc?LWP::UserAgent> or L<IO::Socket|http://search.cpan.org/perldoc?IO::Socket> is used by the L<test scaffold|http://github.com/openresty/memc-nginx-module/blob/master/test/lib/Test/Nginx/LWP.pm>.
+
+Because a single nginx server (by default, C<localhost:1984>) is used across all the test scripts (C<.t> files), it's meaningless to run the test suite in parallel by specifying C<-jN> when invoking the C<prove> utility.
+
+You should also keep a memcached server listening on the C<11211> port at localhost before running the test suite.
+
+Some parts of the test suite requires modules L<rewrite|http://nginx.org/en/docs/http/ngx_http_rewrite_module.html> and L<echo|http://github.com/openresty/echo-nginx-module> to be enabled as well when building Nginx.
+
+
+
+
+=head1 TODO
+
+
+=over
+
+
+=item *
+
+add support for the memcached commands C<cas>, C<gets> and C<stats $memc_value>.
+
+=item *
+
+add support for the C<noreply> option.
+
+
+=back
+
+
+
+
+=head1 Getting involved
+
+You'll be very welcomed to submit patches to the L<author> or just ask for a commit bit to the L<source repository> on GitHub.
+
+
+
+
+=head1 Author
+
+Yichun "agentzh" Zhang (章亦春) I<E<lt>agentzh@gmail.comE<gt>>, OpenResty Inc.
+
+This wiki page is also maintained by the author himself, and everybody is encouraged to improve this page as well.
+
+
+
+
+=head1 Copyright & License
+
+The code base is borrowed directly from the standard L<memcached module|http://nginx.org/en/docs/http/ngx_http_memcached_module.html> in the Nginx core. This part of code is copyrighted by Igor Sysoev and Nginx Inc.
+
+Copyright (c) 2009-2016, Yichun "agentzh" Zhang (章亦春) E<lt>agentzh@gmail.comE<gt>, OpenResty Inc.
+
+This module is licensed under the terms of the BSD license.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+The original announcement email on the nginx mailing list: L<ngx_memc: "an extended version of ngx_memcached that supports set, add, delete, and many more commands"|http://forum.nginx.org/read.php?2,28359>
+
+=item *
+
+My slides demonstrating various ngx_memc usage: E<lt>http://agentzh.org/misc/slides/nginx-conf-scripting/nginx-conf-scripting.html#34E<gt> (use the arrow or pageup/pagedown keys on the keyboard to swith pages)
+
+=item *
+
+The latest L<memcached TCP protocol|http://code.sixapart.com/svn/memcached/trunk/server/doc/protocol.txt>.
+
+=item *
+
+The L<ngx_srcache|http://github.com/openresty/srcache-nginx-module> module
+
+=item *
+
+The L<lua-resty-memcached|https://github.com/openresty/lua-resty-memcached> library based on the L<lua-nginx-module|http://github.com/openresty/lua-nginx-module> cosocket API.
+
+=item *
+
+The standard L<memcached|http://nginx.org/en/docs/http/ngx_http_memcached_module.html> module.
+
+=item *
+
+The L<echo module|http://github.com/openresty/echo-nginx-module> for Nginx module's automated testing.
+
+=item *
+
+The standard L<headers|http://nginx.org/en/docs/http/ngx_http_headers_module.html> module and the 3rd-parth L<headers-more|http://github.com/openresty/headers-more-nginx-module> module.
+
+
+=back
+

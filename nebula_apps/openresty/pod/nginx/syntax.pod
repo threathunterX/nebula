@@ -1,0 +1,63 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+syntax - Configuration file measurement units
+
+
+=head1
+
+
+
+Sizes can be specified in bytes, kilobytes
+(suffixes C<k> and C<K>) or megabytes
+(suffixes C<m> and C<M>), for example,
+“C<1024>”, “C<8k>”, “C<1m>”.
+
+
+
+
+
+Offsets may be also specified in gigabytes using
+C<g> or C<G> suffixes.
+
+
+
+
+
+Time intervals can be specified in milliseconds, seconds,
+minutes, hours, days and so on, using the following suffixes:
+
+ms     milliseconds
+ s          seconds
+ m          minutes
+ h            hours
+ d             days
+ w            weeks
+ M  months, 30 days
+ y  years, 365 days
+
+
+
+
+
+
+Multiple units can be combined in a single value
+by specifying them in the order from the most to the least significant,
+and optionally separated by whitespace.
+For example, “C<1h 30m>” specifies the same time
+as “C<90m>” or “C<5400s>”.
+A value without a suffix means seconds.
+It is recommended to always specify a suffix.
+
+
+
+
+
+Some of the time intervals can be specified only with a seconds resolution.
+
+
+
+

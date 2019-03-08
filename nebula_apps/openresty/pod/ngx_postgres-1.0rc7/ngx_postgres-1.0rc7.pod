@@ -1,0 +1,758 @@
+=encoding utf-8
+
+
+=head1 About
+
+C<ngx_postgres> is an upstream module that allows C<nginx> to communicate directly
+with C<PostgreSQL> database.
+
+Response is generated in C<rds> format, so it's compatible with C<ngx_rds_json>
+and C<ngx_drizzle> modules.
+
+
+=head1 Status
+
+This module is production-ready and it's compatible with following nginx
+releases:
+
+
+=over
+
+
+=item *
+
+0.7.x (tested with 0.7.60 to 0.7.69),
+
+=item *
+
+0.8.x (tested with 0.8.0 to 0.8.55),
+
+=item *
+
+0.9.x (tested with 0.9.0 to 0.9.7),
+
+=item *
+
+1.0.x (tested with 1.0.0 to 1.0.11),
+
+=item *
+
+1.1.x (tested with 1.1.0 to 1.1.12).
+
+=item *
+
+1.2.x (tested with 1.2.3 to 1.2.3).
+
+=item *
+
+1.3.x (tested with 1.3.4 to 1.3.4).
+
+
+=back
+
+
+=head1 Configuration directives
+
+
+=head2 postgres_server
+
+
+=over
+
+
+=item *
+
+B<syntax>: C<postgres_server ip[:port] dbname=dbname user=user password=pass>
+
+=item *
+
+B<default>: C<none>
+
+=item *
+
+B<context>: C<upstream>
+
+
+=back
+
+Set details about the database server.
+
+
+=head2 postgres_keepalive
+
+
+=over
+
+
+=item *
+
+B<syntax>: C<postgres_keepalive off | max=count [mode=single|multi] [overflow=ignore|reject]>
+
+=item *
+
+B<default>: C<max=10 mode=single overflow=ignore>
+
+=item *
+
+B<context>: C<upstream>
+
+
+=back
+
+Configure keepalive parameters:
+
+
+=over
+
+
+=item *
+
+C<max>      - maximum number of keepalive connections (per worker process),
+
+=item *
+
+C<mode>     - backend matching mode,
+
+=item *
+
+C<overflow> - either C<ignore> the fact that keepalive connection pool is full
+and allow request, but close connection afterwards or C<reject> request with
+C<503 Service Unavailable> response.
+
+
+=back
+
+
+=head2 postgres_pass
+
+
+=over
+
+
+=item *
+
+B<syntax>: C<postgres_pass upstream>
+
+=item *
+
+B<default>: C<none>
+
+=item *
+
+B<context>: C<location>, C<if location>
+
+
+=back
+
+Set name of an upstream block that will be used for the database connections
+(it can include variables).
+
+
+=head2 postgres_query
+
+
+=over
+
+
+=item *
+
+B<syntax>: C<postgres_query [methods] query>
+
+=item *
+
+B<default>: C<none>
+
+=item *
+
+B<context>: C<http>, C<server>, C<location>, C<if location>
+
+
+=back
+
+Set query string (it can include variables). When methods are specified then
+query is used only for them, otherwise it's used for all methods.
+
+This directive can be used more than once within same context.
+
+
+=head2 postgres_rewrite
+
+
+=over
+
+
+=item *
+
+B<syntax>: C<postgres_rewrite [methods] condition [=]status_code>
+
+=item *
+
+B<default>: C<none>
+
+=item *
+
+B<context>: C<http>, C<server>, C<location>, C<if location>
+
+
+=back
+
+Rewrite response C<status_code> when given condition is met (first one wins!):
+
+
+=over
+
+
+=item *
+
+C<no_changes> - no rows were affected by the query,
+
+=item *
+
+C<changes>    - at least one row was affected by the query,
+
+=item *
+
+C<no_rows>    - no rows were returned in the result-set,
+
+=item *
+
+C<rows>       - at least one row was returned in the result-set.
+
+
+=back
+
+When C<status_code> is prefixed with C<=> sign then original response body is
+send to the client instead of the default error page for given C<status_code>.
+
+By design both C<no_changes> and C<changes> apply only to C<INSERT>,
+C<UPDATE>, C<DELETE>, C<MOVE>, C<FETCH> and C<COPY> SQL queries.
+
+This directive can be used more than once within same context.
+
+
+=head2 postgres_output
+
+
+=over
+
+
+=item *
+
+B<syntax>: C<postgres_output rds|text|value|binary_value|none>
+
+=item *
+
+B<default>: C<rds>
+
+=item *
+
+B<context>: C<http>, C<server>, C<location>, C<if location>
+
+
+=back
+
+Set output format:
+
+
+=over
+
+
+=item *
+
+C<rds>          - return all values from the result-set in C<rds> format
+(with appropriate C<Content-Type>),
+
+=item *
+
+C<text>         - return all values from the result-set in text format
+(with default C<Content-Type>), values are separated by new line,
+
+=item *
+
+C<value>        - return single value from the result-set in text format
+(with default C<Content-Type>),
+
+=item *
+
+C<binary_value> - return single value from the result-set in binary format
+(with default C<Content-Type>),
+
+=item *
+
+C<none>         - don't return anything, this should be used only when
+extracting values with C<postgres_set> for use with other modules (without
+C<Content-Type>).
+
+
+=back
+
+
+=head2 postgres_set
+
+
+=over
+
+
+=item *
+
+B<syntax>: C<postgres_set $variable row column [optional|required]>
+
+=item *
+
+B<default>: C<none>
+
+=item *
+
+B<context>: C<http>, C<server>, C<location>
+
+
+=back
+
+Get single value from the result-set and keep it in $variable.
+
+When requirement level is set to C<required> and value is either out-of-range,
+C<NULL> or zero-length, then nginx returns C<500 Internal Server Error> response.
+Such condition is silently ignored when requirement level is set to C<optional>
+(default).
+
+Row and column numbers start at 0. Column name can be used instead of column
+number.
+
+This directive can be used more than once within same context.
+
+
+=head2 postgres_escape
+
+
+=over
+
+
+=item *
+
+B<syntax>: C<postgres_escape $escaped [[=]$unescaped]>
+
+=item *
+
+B<default>: C<none>
+
+=item *
+
+B<context>: C<http>, C<server>, C<location>
+
+
+=back
+
+Escape and quote C<$unescaped> string. Result is stored in C<$escaped> variable
+which can be safely used in SQL queries.
+
+Because nginx cannot tell the difference between empty and non-existing strings,
+all empty strings are by default escaped to C<NULL> value. This behavior can be
+disabled by prefixing C<$unescaped> string with C<=> sign.
+
+
+=head2 postgres_connect_timeout
+
+
+=over
+
+
+=item *
+
+B<syntax>: C<postgres_connect_timeout timeout>
+
+=item *
+
+B<default>: C<10s>
+
+=item *
+
+B<context>: C<http>, C<server>, C<location>
+
+
+=back
+
+Set timeout for connecting to the database.
+
+
+=head2 postgres_result_timeout
+
+
+=over
+
+
+=item *
+
+B<syntax>: C<postgres_result_timeout timeout>
+
+=item *
+
+B<default>: C<30s>
+
+=item *
+
+B<context>: C<http>, C<server>, C<location>
+
+
+=back
+
+Set timeout for receiving result from the database.
+
+
+=head1 Configuration variables
+
+
+=head2 $postgres_columns
+
+Number of columns in received result-set.
+
+
+=head2 $postgres_rows
+
+Number of rows in received result-set.
+
+
+=head2 $postgres_affected
+
+Number of rows affected by C<INSERT>, C<UPDATE>, C<DELETE>, C<MOVE>, C<FETCH>
+or C<COPY> SQL query.
+
+
+=head2 $postgres_query
+
+SQL query, as seen by C<PostgreSQL> database.
+
+
+=head1 Sample configurations
+
+
+=head2 Sample configuration #1
+
+Return content of table C<cats> (in C<rds> format).
+
+    http {
+        upstream database {
+            postgres_server  127.0.0.1 dbname=test
+                             user=test password=test;
+        }
+
+        server {
+            location / {
+                postgres_pass   database;
+                postgres_query  "SELECT * FROM cats";
+            }
+        }
+    }
+
+
+=head2 Sample configuration #2
+
+Return only those rows from table C<sites> that match C<host> filter which
+is evaluated for each request based on its C<$http_host> variable.
+
+    http {
+        upstream database {
+            postgres_server  127.0.0.1 dbname=test
+                             user=test password=test;
+        }
+
+        server {
+            location / {
+                postgres_pass   database;
+                postgres_query  SELECT * FROM sites WHERE host='$http_host'";
+            }
+        }
+    }
+
+
+=head2 Sample configuration #3
+
+Pass request to the backend selected from the database (traffic router).
+
+    http {
+        upstream database {
+            postgres_server  127.0.0.1 dbname=test
+                             user=test password=test;
+        }
+
+        server {
+            location / {
+                eval_subrequest_in_memory  off;
+
+                eval $backend {
+                    postgres_pass    database;
+                    postgres_query   "SELECT * FROM backends LIMIT 1";
+                    postgres_output  value 0 0;
+                }
+
+                proxy_pass  $backend;
+            }
+        }
+    }
+
+Required modules (other than C<ngx_postgres>):
+
+
+=over
+
+
+=item *
+
+L<nginx-eval-module (agentzh's fork)|http://github.com/agentzh/nginx-eval-module>,
+
+
+=back
+
+
+=head2 Sample configuration #4
+
+Restrict access to local files by authenticating against C<PostgreSQL> database.
+
+    http {
+        upstream database {
+            postgres_server  127.0.0.1 dbname=test
+                             user=test password=test;
+        }
+
+        server {
+            location = /auth {
+                internal;
+
+                postgres_escape   $user $remote_user;
+                postgres_escape   $pass $remote_passwd;
+
+                postgres_pass     database;
+                postgres_query    "SELECT login FROM users WHERE login=$user AND pass=$pass";
+                postgres_rewrite  no_rows 403;
+                postgres_output   none;
+            }
+
+            location / {
+                auth_request      /auth;
+                root              /files;
+            }
+        }
+    }
+
+Required modules (other than C<ngx_postgres>):
+
+
+=over
+
+
+=item *
+
+L<ngx_http_auth_request_module|http://mdounin.ru/hg/ngx_http_auth_request_module/>,
+
+=item *
+
+L<ngx_coolkit|http://github.com/FRiCKLE/ngx_coolkit>.
+
+
+=back
+
+
+=head2 Sample configuration #5
+
+Simple RESTful webservice returning JSON responses with appropriate HTTP status
+codes.
+
+    http {
+        upstream database {
+            postgres_server  127.0.0.1 dbname=test
+                             user=test password=test;
+        }
+
+        server {
+            set $random  123;
+
+            location = /numbers/ {
+                postgres_pass     database;
+                rds_json          on;
+
+                postgres_query    HEAD GET  "SELECT * FROM numbers";
+
+                postgres_query    POST      "INSERT INTO numbers VALUES('$random') RETURNING *";
+                postgres_rewrite  POST      changes 201;
+
+                postgres_query    DELETE    "DELETE FROM numbers";
+                postgres_rewrite  DELETE    no_changes 204;
+                postgres_rewrite  DELETE    changes 204;
+            }
+
+            location ~ /numbers/(?<num>\d+) {
+                postgres_pass     database;
+                rds_json          on;
+
+                postgres_query    HEAD GET  "SELECT * FROM numbers WHERE number='$num'";
+                postgres_rewrite  HEAD GET  no_rows 410;
+
+                postgres_query    PUT       "UPDATE numbers SET number='$num' WHERE number='$num' RETURNING *";
+                postgres_rewrite  PUT       no_changes 410;
+
+                postgres_query    DELETE    "DELETE FROM numbers WHERE number='$num'";
+                postgres_rewrite  DELETE    no_changes 410;
+                postgres_rewrite  DELETE    changes 204;
+            }
+        }
+    }
+
+Required modules (other than C<ngx_postgres>):
+
+
+=over
+
+
+=item *
+
+L<ngx_rds_json|http://github.com/agentzh/rds-json-nginx-module>.
+
+
+=back
+
+
+=head2 Sample configuration #6
+
+Use GET parameter in SQL query.
+
+    location /quotes {
+        set_unescape_uri  $txt $arg_txt;
+        postgres_escape   $txt;
+        postgres_pass     database;
+        postgres_query    "SELECT * FROM quotes WHERE quote=$txt";
+    }
+
+Required modules (other than C<ngx_postgres>):
+
+
+=over
+
+
+=item *
+
+L<ngx_set_misc|http://github.com/agentzh/set-misc-nginx-module>.
+
+
+=back
+
+
+=head1 Testing
+
+C<ngx_postgres> comes with complete test suite based on L<Test::Nginx|http://github.com/agentzh/test-nginx>.
+
+You can test core functionality by running:
+
+C<$ TEST_NGINX_IGNORE_MISSING_DIRECTIVES=1 prove>
+
+You can also test interoperability with following modules:
+
+
+=over
+
+
+=item *
+
+L<ngx_coolkit|http://github.com/FRiCKLE/ngx_coolkit>,
+
+=item *
+
+L<ngx_echo|github.com/agentzh/echo-nginx-module>,
+
+=item *
+
+L<ngx_form_input|http://github.com/calio/form-input-nginx-module>,
+
+=item *
+
+L<ngx_set_misc|http://github.com/agentzh/set-misc-nginx-module>,
+
+=item *
+
+L<ngx_http_auth_request_module|http://mdounin.ru/hg/ngx_http_auth_request_module/>,
+
+=item *
+
+L<nginx-eval-module (agentzh's fork)|http://github.com/agentzh/nginx-eval-module>,
+
+=item *
+
+L<ngx_rds_json|http://github.com/agentzh/rds-json-nginx-module>.
+
+
+=back
+
+by running:
+
+C<$ prove>
+
+
+=head1 License
+
+    Copyright (c) 2010, FRiCKLE Piotr Sikora <info@frickle.com>
+    Copyright (c) 2009-2010, Xiaozhe Wang <chaoslawful@gmail.com>
+    Copyright (c) 2009-2010, Yichun Zhang <agentzh@gmail.com>
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions
+    are met:
+    1. Redistributions of source code must retain the above copyright
+       notice, this list of conditions and the following disclaimer.
+    2. Redistributions in binary form must reproduce the above copyright
+       notice, this list of conditions and the following disclaimer in the
+       documentation and/or other materials provided with the distribution.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This software includes also parts of the code from:
+
+
+=over
+
+
+=item *
+
+C<nginx> (copyrighted by B<Igor Sysoev> under BSD license),
+
+=item *
+
+C<ngx_http_upstream_keepalive> module (copyrighted by B<Maxim Dounin>
+under BSD license).
+
+
+=back
+
+
+=head1 See also
+
+
+=over
+
+
+=item *
+
+L<ngx_rds_json|http://github.com/agentzh/rds-json-nginx-module>,
+
+=item *
+
+L<ngx_drizzle|http://github.com/chaoslawful/drizzle-nginx-module>,
+
+=item *
+
+L<ngx_lua|http://github.com/chaoslawful/lua-nginx-module>,
+
+=item *
+
+L<nginx-eval-module (agentzh's fork)|http://github.com/agentzh/nginx-eval-module>.
+
+=back
+

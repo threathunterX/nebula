@@ -1,0 +1,15 @@
+
+{
+    "name": "variablekeyvalue_query",
+    "callmode": "rpc",
+    "delivermode": "sharding",
+    "serverimpl": "redis",
+    "coder": "mail",
+    "options": {
+        "serversubname": "",
+        "servercardinality": 1,
+        "serverseq": 1,
+        "sdc":"sh",
+        "cdc":"sh"
+    }
+}

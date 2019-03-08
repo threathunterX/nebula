@@ -1,0 +1,1450 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_ssl_module - Module ngx_http_ssl_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_ssl_module> module provides the
+necessary support for HTTPS.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+C<--with-http_ssl_module>
+configuration parameter.
+
+B<NOTE>
+
+This module requires the
+L<OpenSSL|http://www.openssl.org> library.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+To reduce the processor load it is recommended to
+
+=over
+
+
+
+
+=item *
+
+set the number of worker processes equal to the number of processors,
+
+
+
+=item *
+
+enable keep-alive connections,
+
+
+
+=item *
+
+enable the shared session cache,
+
+
+
+=item *
+
+disable the built-in session cache,
+
+
+
+=item *
+
+and possibly increase the session lifetime (by default, 5 minutes):
+
+
+
+=back
+
+
+
+
+    
+    <emphasis>worker_processes auto;</emphasis>
+    
+    http {
+    
+        ...
+    
+        server {
+            listen              443 ssl;
+            <emphasis>keepalive_timeout   70;</emphasis>
+    
+            ssl_protocols       TLSv1 TLSv1.1 TLSv1.2;
+            ssl_ciphers         AES128-SHA:AES256-SHA:RC4-SHA:DES-CBC3-SHA:RC4-MD5;
+            ssl_certificate     /usr/local/nginx/conf/cert.pem;
+            ssl_certificate_key /usr/local/nginx/conf/cert.key;
+            <emphasis>ssl_session_cache   shared:SSL:10m;</emphasis>
+            <emphasis>ssl_session_timeout 10m;</emphasis>
+    
+            ...
+        }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 ssl
+
+
+B<syntax:> ssl I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables the HTTPS protocol for the given virtual server.
+
+B<NOTE>
+
+It is recommended to use the C<ssl> parameter of the
+L<ngx_http_core_module> directive instead
+of this directive.
+
+
+
+
+
+
+
+
+=head2 ssl_buffer_size
+
+
+B<syntax:> ssl_buffer_size I<I<C<size>>>
+
+
+B<default:> I<16k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.5.9.
+
+
+
+
+
+Sets the size of the buffer used for sending data.
+
+
+
+
+
+By default, the buffer size is 16k, which corresponds to minimal
+overhead when sending big responses.
+To minimize Time To First Byte it may be beneficial to use smaller values,
+for example:
+
+    
+    ssl_buffer_size 4k;
+
+
+
+
+
+
+
+
+
+=head2 ssl_certificate
+
+
+B<syntax:> ssl_certificate I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Specifies a I<C<file>> with the certificate in the PEM format
+for the given virtual server.
+If intermediate certificates should be specified in addition to a primary
+certificate, they should be specified in the same file in the following
+order: the primary certificate comes first, then the intermediate certificates.
+A secret key in the PEM format may be placed in the same file.
+
+
+
+
+
+Since version 1.11.0,
+this directive can be specified multiple times
+to load certificates of different types, for example, RSA and ECDSA:
+
+    
+    server {
+        listen              443 ssl;
+        server_name         example.com;
+    
+        ssl_certificate     example.com.rsa.crt;
+        ssl_certificate_key example.com.rsa.key;
+    
+        ssl_certificate     example.com.ecdsa.crt;
+        ssl_certificate_key example.com.ecdsa.key;
+    
+        ...
+    }
+
+
+
+B<NOTE>
+
+Only OpenSSL 1.0.2 or higher supports separate
+L<certificate chains|configuring_https_servers>
+for different certificates.
+With older versions, only one certificate chain can be used.
+
+
+
+
+
+
+It should be kept in mind that due to the HTTPS protocol limitations
+virtual servers should listen on different IP addresses:
+
+    
+    server {
+        listen          192.168.1.1:443;
+        server_name     one.example.com;
+        ssl_certificate one.example.com.crt;
+        ...
+    }
+    
+    server {
+        listen          192.168.1.2:443;
+        server_name     two.example.com;
+        ssl_certificate two.example.com.crt;
+        ...
+    }
+
+
+otherwise
+L<the first server’s certificate|configuring_https_servers>
+will be issued for the second site.
+
+
+
+
+
+
+
+=head2 ssl_certificate_key
+
+
+B<syntax:> ssl_certificate_key I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Specifies a I<C<file>> with the secret key in the PEM format
+for the given virtual server.
+
+
+
+
+
+The value
+C<engine>:I<C<name>>:I<C<id>>
+can be specified instead of the I<C<file>> (1.7.9),
+which loads a secret key with a specified I<C<id>>
+from the OpenSSL engine I<C<name>>.
+
+
+
+
+
+
+
+=head2 ssl_ciphers
+
+
+B<syntax:> ssl_ciphers I<I<C<ciphers>>>
+
+
+B<default:> I<HIGH:!aNULL:!MD5>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Specifies the enabled ciphers.
+The ciphers are specified in the format understood by the
+OpenSSL library, for example:
+
+    
+    ssl_ciphers ALL:!aNULL:!EXPORT56:RC4+RSA:+HIGH:+MEDIUM:+LOW:+SSLv2:+EXP;
+
+
+
+
+
+
+
+The full list can be viewed using the
+“C<openssl ciphers>” command.
+
+
+
+
+
+
+B<NOTE>
+
+The previous versions of nginx used
+L<different|configuring_https_servers>
+ciphers by default.
+
+
+
+
+
+
+
+
+=head2 ssl_client_certificate
+
+
+B<syntax:> ssl_client_certificate I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Specifies a I<C<file>> with trusted CA certificates in the PEM format
+used to verify client certificates and
+OCSP responses if L</ssl_stapling> is enabled.
+
+
+
+
+
+The list of certificates will be sent to clients.
+If this is not desired, the L</ssl_trusted_certificate>
+directive can be used.
+
+
+
+
+
+
+
+=head2 ssl_crl
+
+
+B<syntax:> ssl_crl I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 0.8.7.
+
+
+
+
+
+Specifies a I<C<file>> with revoked certificates (CRL)
+in the PEM format used to verify
+client certificates.
+
+
+
+
+
+
+
+=head2 ssl_dhparam
+
+
+B<syntax:> ssl_dhparam I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 0.7.2.
+
+
+
+
+
+Specifies a I<C<file>> with DH parameters for DHE ciphers.
+
+
+
+
+
+
+
+=head2 ssl_ecdh_curve
+
+
+B<syntax:> ssl_ecdh_curve I<I<C<curve>>>
+
+
+B<default:> I<auto>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.1.0.
+
+
+
+This directive appeared in version 1.0.6.
+
+
+
+
+
+Specifies a I<C<curve>> for ECDHE ciphers.
+
+
+
+
+
+When using OpenSSL 1.0.2 or higher,
+it is possible to specify multiple curves (1.11.0), for example:
+
+    
+    ssl_ecdh_curve prime256v1:secp384r1;
+
+
+
+
+
+
+
+The special value C<auto> (1.11.0) instructs nginx to use
+a list built into the OpenSSL library when using OpenSSL 1.0.2 or higher,
+or C<prime256v1> with older versions.
+
+
+
+
+
+
+B<NOTE>
+
+Prior to version 1.11.0,
+the C<prime256v1> curve was used by default.
+
+
+
+
+
+
+
+
+=head2 ssl_password_file
+
+
+B<syntax:> ssl_password_file I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.7.3.
+
+
+
+
+
+Specifies a I<C<file>> with passphrases for
+secret keys
+where each passphrase is specified on a separate line.
+Passphrases are tried in turn when loading the key.
+
+
+
+
+
+Example:
+
+    
+    http {
+        ssl_password_file /etc/keys/global.pass;
+        ...
+    
+        server {
+            server_name www1.example.com;
+            ssl_certificate_key /etc/keys/first.key;
+        }
+    
+        server {
+            server_name www2.example.com;
+    
+            # named pipe can also be used instead of a file
+            ssl_password_file /etc/keys/fifo;
+            ssl_certificate_key /etc/keys/second.key;
+        }
+    }
+
+
+
+
+
+
+
+
+
+=head2 ssl_prefer_server_ciphers
+
+
+B<syntax:> ssl_prefer_server_ciphers I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Specifies that server ciphers should be preferred over client
+ciphers when using the SSLv3 and TLS protocols.
+
+
+
+
+
+
+
+=head2 ssl_protocols
+
+
+B<syntax:> ssl_protocols I<
+    [C<SSLv2>]
+    [C<SSLv3>]
+    [C<TLSv1>]
+    [C<TLSv1.1>]
+    [C<TLSv1.2>]>
+
+
+B<default:> I<TLSv1 TLSv1.1 TLSv1.2>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables the specified protocols.
+The C<TLSv1.1> and C<TLSv1.2> parameters work
+only when the OpenSSL library of version 1.0.1 or higher is used.
+
+B<NOTE>
+
+The C<TLSv1.1> and C<TLSv1.2> parameters are
+supported starting from versions 1.1.13 and 1.0.12,
+so when the OpenSSL version 1.0.1 or higher
+is used on older nginx versions, these protocols work, but cannot
+be disabled.
+
+
+
+
+
+
+
+
+=head2 ssl_session_cache
+
+
+B<syntax:> ssl_session_cache I<
+    C<off> E<verbar>
+    C<none> E<verbar>
+    [C<builtin>[:I<C<size>>]]
+    [C<shared>:I<C<name>>:I<C<size>>]>
+
+
+B<default:> I<none>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the types and sizes of caches that store session parameters.
+A cache can be of any of the following types:
+
+=over
+
+
+
+=item C<off>
+
+
+
+
+the use of a session cache is strictly prohibited:
+nginx explicitly tells a client that sessions may not be reused.
+
+
+
+=item C<none>
+
+
+
+
+the use of a session cache is gently disallowed:
+nginx tells a client that sessions may be reused, but does not
+actually store session parameters in the cache.
+
+
+
+=item C<builtin>
+
+
+
+
+a cache built in OpenSSL; used by one worker process only.
+The cache size is specified in sessions.
+If size is not given, it is equal to 20480 sessions.
+Use of the built-in cache can cause memory fragmentation.
+
+
+
+=item C<shared>
+
+
+
+
+a cache shared between all worker processes.
+The cache size is specified in bytes; one megabyte can store
+about 4000 sessions.
+Each shared cache should have an arbitrary name.
+A cache with the same name can be used in several virtual servers.
+
+
+
+
+=back
+
+
+
+
+
+
+
+Both cache types can be used simultaneously, for example:
+
+    
+    ssl_session_cache builtin:1000 shared:SSL:10m;
+
+
+but using only shared cache without the built-in cache should
+be more efficient.
+
+
+
+
+
+
+
+=head2 ssl_session_ticket_key
+
+
+B<syntax:> ssl_session_ticket_key I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.5.7.
+
+
+
+
+
+Sets a I<C<file>> with the secret key used to encrypt
+and decrypt TLS session tickets.
+The directive is necessary if the same key has to be shared between
+multiple servers.
+By default, a randomly generated key is used.
+
+
+
+
+
+If several keys are specified, only the first key is
+used to encrypt TLS session tickets.
+This allows configuring key rotation, for example:
+
+    
+    ssl_session_ticket_key current.key;
+    ssl_session_ticket_key previous.key;
+
+
+
+
+
+
+
+The I<C<file>> must contain 80 or 48 bytes
+of random data and can be created using the following command:
+
+    
+    openssl rand 80 > ticket.key
+
+
+Depending on the file size either AES256 (for 80-byte keys, 1.11.8)
+or AES128 (for 48-byte keys) is used for encryption.
+
+
+
+
+
+
+
+=head2 ssl_session_tickets
+
+
+B<syntax:> ssl_session_tickets I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.5.9.
+
+
+
+
+
+Enables or disables session resumption through
+L<TLS session tickets|https://tools.ietf.org/html/rfc5077>.
+
+
+
+
+
+
+
+=head2 ssl_session_timeout
+
+
+B<syntax:> ssl_session_timeout I<I<C<time>>>
+
+
+B<default:> I<5m>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Specifies a time during which a client may reuse the
+session parameters.
+
+
+
+
+
+
+
+=head2 ssl_stapling
+
+
+B<syntax:> ssl_stapling I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.3.7.
+
+
+
+
+
+Enables or disables
+L<stapling
+of OCSP responses|https://tools.ietf.org/html/rfc4366#section-3.6> by the server.
+Example:
+
+    
+    ssl_stapling on;
+    resolver 192.0.2.1;
+
+
+
+
+
+
+
+For the OCSP stapling to work, the certificate of the server certificate
+issuer should be known.
+If the L</ssl_certificate> file does
+not contain intermediate certificates,
+the certificate of the server certificate issuer should be
+present in the
+L</ssl_trusted_certificate> file.
+
+
+
+
+
+For a resolution of the OCSP responder hostname,
+the L<ngx_http_core_module> directive
+should also be specified.
+
+
+
+
+
+
+
+=head2 ssl_stapling_file
+
+
+B<syntax:> ssl_stapling_file I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.3.7.
+
+
+
+
+
+When set, the stapled OCSP response will be taken from the
+specified I<C<file>> instead of querying
+the OCSP responder specified in the server certificate.
+
+
+
+
+
+The file should be in the DER format as produced by the
+“C<openssl ocsp>” command.
+
+
+
+
+
+
+
+=head2 ssl_stapling_responder
+
+
+B<syntax:> ssl_stapling_responder I<I<C<url>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.3.7.
+
+
+
+
+
+Overrides the URL of the OCSP responder specified in the
+“L<Authority
+Information Access|https://tools.ietf.org/html/rfc5280#section-4.2.2.1>” certificate extension.
+
+
+
+
+
+Only “C<http:E<sol>E<sol>>” OCSP responders are supported:
+
+    
+    ssl_stapling_responder http://ocsp.example.com/;
+
+
+
+
+
+
+
+
+
+=head2 ssl_stapling_verify
+
+
+B<syntax:> ssl_stapling_verify I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.3.7.
+
+
+
+
+
+Enables or disables verification of OCSP responses by the server.
+
+
+
+
+
+For verification to work, the certificate of the server certificate
+issuer, the root certificate, and all intermediate certificates
+should be configured as trusted using the
+L</ssl_trusted_certificate> directive.
+
+
+
+
+
+
+
+=head2 ssl_trusted_certificate
+
+
+B<syntax:> ssl_trusted_certificate I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.3.7.
+
+
+
+
+
+Specifies a I<C<file>> with trusted CA certificates in the PEM format
+used to verify client certificates and
+OCSP responses if L</ssl_stapling> is enabled.
+
+
+
+
+
+In contrast to the certificate set by L</ssl_client_certificate>,
+the list of these certificates will not be sent to clients.
+
+
+
+
+
+
+
+=head2 ssl_verify_client
+
+
+B<syntax:> ssl_verify_client I<
+    C<on> E<verbar> C<off> E<verbar>
+    C<optional> E<verbar> C<optional_no_ca>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables verification of client certificates.
+The verification result is stored in the
+$ssl_client_verify variable.
+
+
+
+
+
+The C<optional> parameter (0.8.7+) requests the client
+certificate and verifies it if the certificate is present.
+
+
+
+
+
+The C<optional_no_ca> parameter (1.3.8, 1.2.5)
+requests the client
+certificate but does not require it to be signed by a trusted CA certificate.
+This is intended for the use in cases when a service that is external to nginx
+performs the actual certificate verification.
+The contents of the certificate is accessible through the
+$ssl_client_cert variable.
+
+
+
+
+
+
+
+=head2 ssl_verify_depth
+
+
+B<syntax:> ssl_verify_depth I<I<C<number>>>
+
+
+B<default:> I<1>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the verification depth in the client certificates chain.
+
+
+
+
+
+
+
+=head1 Error Processing
+
+
+
+The C<ngx_http_ssl_module> module supports several
+non-standard error codes that can be used for redirects using the
+L<ngx_http_core_module> directive:
+
+=over
+
+
+
+=item C<495>
+an error has occurred during the client certificate verification;
+
+
+
+=item C<496>
+a client has not presented the required certificate;
+
+
+
+=item C<497>
+a regular request has been sent to the HTTPS port.
+
+
+
+
+=back
+
+
+
+
+
+
+
+The redirection happens after the request is fully parsed and
+the variables, such as C<$request_uri>,
+C<$uri>, C<$args> and others, are available.
+
+
+
+
+=head1 Embedded Variables
+
+
+
+The C<ngx_http_ssl_module> module supports
+several embedded variables:
+
+=over
+
+
+
+=item C<$ssl_cipher>
+
+
+
+
+returns the string of ciphers used
+for an established SSL connection;
+
+
+
+=item C<$ssl_ciphers>
+
+
+
+
+returns the list of ciphers supported by the client (1.11.7).
+Known ciphers are listed by names, unknown are shown in hexadecimal,
+for example:
+
+    
+    AES128-SHA:AES256-SHA:0x00ff
+
+
+
+B<NOTE>
+
+The variable is fully supported only when using OpenSSL version 1.0.2 or higher.
+With older versions, the variable is available
+only for new sessions and lists only known ciphers.
+
+
+
+
+=item C<$ssl_client_cert>
+
+
+
+
+returns the client certificate in the PEM format
+for an established SSL connection, with each line except the first
+prepended with the tab character;
+this is intended for the use in the
+L<ngx_http_proxy_module> directive;
+
+
+
+=item C<$ssl_client_fingerprint>
+
+
+
+
+returns the SHA1 fingerprint of the client certificate
+for an established SSL connection (1.7.1);
+
+
+
+=item C<$ssl_client_i_dn>
+
+
+
+
+returns the “issuer DN” string of the client certificate
+for an established SSL connection according to
+L<RFC 2253|https://tools.ietf.org/html/rfc2253> (1.11.6);
+
+
+
+=item C<$ssl_client_i_dn_legacy>
+
+
+
+
+returns the “issuer DN” string of the client certificate
+for an established SSL connection;
+
+B<NOTE>
+
+Prior to version 1.11.6, the variable name was C<$ssl_client_i_dn>.
+
+
+
+
+=item C<$ssl_client_raw_cert>
+
+
+
+
+
+returns the client certificate in the PEM format
+for an established SSL connection;
+
+
+
+=item C<$ssl_client_s_dn>
+
+
+
+
+returns the “subject DN” string of the client certificate
+for an established SSL connection according to
+L<RFC 2253|https://tools.ietf.org/html/rfc2253> (1.11.6);
+
+
+
+=item C<$ssl_client_s_dn_legacy>
+
+
+
+
+returns the “subject DN” string of the client certificate
+for an established SSL connection;
+
+B<NOTE>
+
+Prior to version 1.11.6, the variable name was C<$ssl_client_s_dn>.
+
+
+
+
+=item C<$ssl_client_serial>
+
+
+
+
+returns the serial number of the client certificate
+for an established SSL connection;
+
+
+
+=item C<$ssl_client_v_end>
+
+
+
+
+returns the end date of the client certificate (1.11.7);
+
+
+
+=item C<$ssl_client_v_remain>
+
+
+
+
+returns the number of days
+until the client certificate expires (1.11.7);
+
+
+
+=item C<$ssl_client_v_start>
+
+
+
+
+returns the start date of the client certificate (1.11.7);
+
+
+
+=item C<$ssl_client_verify>
+
+
+
+
+returns the result of client certificate verification:
+“C<SUCCESS>”, “C<FAILED:>I<C<reason>>”,
+and “C<NONE>” if a certificate was not present;
+
+B<NOTE>
+
+Prior to version 1.11.7, the “C<FAILED>” result
+did not contain the I<C<reason>> string.
+
+
+
+
+=item C<$ssl_curves>
+
+
+
+
+returns the list of curves supported by the client (1.11.7).
+Known curves are listed by names, unknown are shown in hexadecimal,
+for example:
+
+    
+    0x001d:prime256v1:secp521r1:secp384r1
+
+
+
+B<NOTE>
+
+The variable is supported only when using OpenSSL version 1.0.2 or higher.
+With older versions, the variable value will be an empty string.
+
+
+B<NOTE>
+
+The variable is available only for new sessions.
+
+
+
+
+=item C<$ssl_protocol>
+
+
+
+
+returns the protocol of an established SSL connection;
+
+
+
+=item C<$ssl_server_name>
+
+
+
+
+returns the server name requested through
+L<SNI|http://en.wikipedia.org/wiki/Server_Name_Indication>
+(1.7.0);
+
+
+
+=item C<$ssl_session_id>
+
+
+
+
+returns the session identifier of an established SSL connection;
+
+
+
+=item C<$ssl_session_reused>
+
+
+
+
+returns “C<r>” if an SSL session was reused,
+or “C<.>” otherwise (1.5.11).
+
+
+
+
+=back
+
+
+
+
+
+

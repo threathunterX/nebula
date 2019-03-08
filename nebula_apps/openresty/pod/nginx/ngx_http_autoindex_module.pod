@@ -1,0 +1,185 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_autoindex_module - Module ngx_http_autoindex_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_autoindex_module> module processes requests
+ending with the slash character (‘C<E<sol>>’) and produces
+a directory listing.
+Usually a request is passed to the C<ngx_http_autoindex_module>
+module when the
+L<ngx_http_index_module|ngx_http_index_module> module
+cannot find an index file.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location / {
+        autoindex on;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 autoindex
+
+
+B<syntax:> autoindex I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Enables or disables the directory listing output.
+
+
+
+
+
+
+
+=head2 autoindex_exact_size
+
+
+B<syntax:> autoindex_exact_size I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+For the HTML format,
+specifies whether exact file sizes should be output in the directory listing,
+or rather rounded to kilobytes, megabytes, and gigabytes.
+
+
+
+
+
+
+
+=head2 autoindex_format
+
+
+B<syntax:> autoindex_format I<
+    C<html> E<verbar>
+    C<xml> E<verbar>
+    C<json> E<verbar>
+    C<jsonp>>
+
+
+B<default:> I<html>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.9.
+
+
+
+
+
+Sets the format of a directory listing.
+
+
+
+
+
+When the JSONP format is used, the name of a callback function is set
+with the C<callback> request argument.
+If the argument is missing or has an empty value,
+then the JSON format is used.
+
+
+
+
+
+The XML output can be transformed using the
+L<ngx_http_xslt_module|ngx_http_xslt_module> module.
+
+
+
+
+
+
+
+=head2 autoindex_localtime
+
+
+B<syntax:> autoindex_localtime I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+For the HTML format,
+specifies whether times in the directory listing should be
+output in the local time zone or UTC.
+
+
+
+
+
+
+

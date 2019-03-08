@@ -1,0 +1,182 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_sub_module - Module ngx_http_sub_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_sub_module> module is a filter
+that modifies a response by replacing one specified string by another.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+C<--with-http_sub_module>
+configuration parameter.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location / {
+        sub_filter '<a href="http://127.0.0.1:8080/'  '<a href="https://$host/';
+        sub_filter '<img src="http://127.0.0.1:8080/' '<img src="https://$host/';
+        sub_filter_once on;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 sub_filter
+
+
+B<syntax:> sub_filter I<I<C<string>> I<C<replacement>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets a string to replace and a replacement string.
+The string to replace is matched ignoring the case.
+The string to replace (1.9.4) and replacement string can contain variables.
+Several C<sub_filter> directives
+can be specified on one configuration level (1.9.4).
+These directives are inherited from the previous level if and only if there are
+no C<sub_filter> directives defined on the current level.
+
+
+
+
+
+
+
+=head2 sub_filter_last_modified
+
+
+B<syntax:> sub_filter_last_modified I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.5.1.
+
+
+
+
+
+Allows preserving the C<Last-Modified> header field
+from the original response during replacement
+to facilitate response caching.
+
+
+
+
+
+By default, the header field is removed as contents of the response
+are modified during processing.
+
+
+
+
+
+
+
+=head2 sub_filter_once
+
+
+B<syntax:> sub_filter_once I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Indicates whether to look for each string to replace
+once or repeatedly.
+
+
+
+
+
+
+
+=head2 sub_filter_types
+
+
+B<syntax:> sub_filter_types I<I<C<mime-type>> ...>
+
+
+B<default:> I<textE<sol>html>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Enables string replacement in responses with the specified MIME types
+in addition to “C<textE<sol>html>”.
+The special value “C<*>” matches any MIME type (0.8.29).
+
+
+
+
+
+
+

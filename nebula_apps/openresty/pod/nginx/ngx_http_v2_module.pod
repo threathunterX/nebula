@@ -1,0 +1,380 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_v2_module - Module ngx_http_v2_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_v2_module> module (1.9.5) provides
+support for L<HTTPE<sol>2|https://tools.ietf.org/html/rfc7540>
+and supersedes the
+L<ngx_http_spdy_module|ngx_http_spdy_module> module.
+
+
+
+
+
+This module is not built by default, it should be enabled with
+the C<--with-http_v2_module>
+configuration parameter.
+
+
+
+
+=head1 Known Issues
+
+
+
+Before version 1.9.14,
+buffering of a client request body could not be disabled
+regardless of
+L<ngx_http_proxy_module>,
+L<ngx_http_fastcgi_module>,
+L<ngx_http_uwsgi_module>, and
+L<ngx_http_scgi_module>
+directive values.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    server {
+        listen 443 ssl http2;
+    
+        ssl_certificate server.crt;
+        ssl_certificate_key server.key;
+    }
+
+
+Note that accepting HTTPE<sol>2 connections over TLS requires
+the “Application-Layer Protocol Negotiation” (ALPN) TLS extension
+support, which is available only since
+L<OpenSSL|http://www.openssl.org> version 1.0.2.
+Using the “Next Protocol Negotiation” (NPN) TLS extension for this purpose
+(available since OpenSSL version 1.0.1) is not guaranteed to work.
+
+
+
+
+
+Also note that if the
+L<ngx_http_ssl_module> directive
+is set to the value “C<on>”,
+the L<ciphers|ngx_http_ssl_module>
+should be configured to comply with
+L<RFC 7540, Appendix A|https://tools.ietf.org/html/rfc7540#appendix-A>
+black list and supported by clients.
+
+
+
+
+=head1 Directives
+
+=head2 http2_chunk_size
+
+
+B<syntax:> http2_chunk_size I<I<C<size>>>
+
+
+B<default:> I<8k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the maximum size of chunks
+into which the response body is sliced.
+A too low value results in higher overhead.
+A too high value impairs prioritization due to
+L<HOL blocking|http://en.wikipedia.org/wiki/Head-of-line_blocking>.
+
+
+
+
+
+
+
+=head2 http2_body_preread_size
+
+
+B<syntax:> http2_body_preread_size I<I<C<size>>>
+
+
+B<default:> I<64k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.11.0.
+
+
+
+
+
+Sets the I<C<size>> of the buffer per each request
+in which the request body may be saved
+before it is started to be processed.
+
+
+
+
+
+
+
+=head2 http2_idle_timeout
+
+
+B<syntax:> http2_idle_timeout I<I<C<time>>>
+
+
+B<default:> I<3m>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the timeout of inactivity after which the connection is closed.
+
+
+
+
+
+
+
+=head2 http2_max_concurrent_streams
+
+
+B<syntax:> http2_max_concurrent_streams I<I<C<number>>>
+
+
+B<default:> I<128>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the maximum number of concurrent HTTPE<sol>2 streams
+in a connection.
+
+
+
+
+
+
+
+=head2 http2_max_field_size
+
+
+B<syntax:> http2_max_field_size I<I<C<size>>>
+
+
+B<default:> I<4k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Limits the maximum size of
+an L<HPACK|https://tools.ietf.org/html/rfc7541>-compressed
+request header field.
+The limit applies equally to both name and value.
+Note that if Huffman encoding is applied,
+the actual size of decompressed name and value strings may be larger.
+For most requests, the default limit should be enough.
+
+
+
+
+
+
+
+=head2 http2_max_header_size
+
+
+B<syntax:> http2_max_header_size I<I<C<size>>>
+
+
+B<default:> I<16k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Limits the maximum size of the entire request header list after
+L<HPACK|https://tools.ietf.org/html/rfc7541> decompression.
+For most requests, the default limit should be enough.
+
+
+
+
+
+
+
+=head2 http2_max_requests
+
+
+B<syntax:> http2_max_requests I<I<C<number>>>
+
+
+B<default:> I<1000>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.11.6.
+
+
+
+
+
+Sets the maximum number of requests that can be
+served through one HTTPE<sol>2 connection,
+after which the connection is closed
+and the client should use a new connection.
+
+
+
+
+
+
+
+=head2 http2_recv_buffer_size
+
+
+B<syntax:> http2_recv_buffer_size I<I<C<size>>>
+
+
+B<default:> I<256k>
+
+
+B<context:> I<http>
+
+
+
+
+
+Sets the size of the per
+L<worker|ngx_core_module>
+input buffer.
+
+
+
+
+
+
+
+=head2 http2_recv_timeout
+
+
+B<syntax:> http2_recv_timeout I<I<C<time>>>
+
+
+B<default:> I<30s>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the timeout for expecting more data from the client,
+after which the connection is closed.
+
+
+
+
+
+
+
+=head1 Embedded Variables
+
+
+
+The C<ngx_http_v2_module> module
+supports the following embedded variables:
+
+=over
+
+
+
+=item C<$http2>
+
+
+
+
+negotiated protocol identifier:
+“C<h2>” for HTTPE<sol>2 over TLS,
+“C<h2c>” for HTTPE<sol>2 over cleartext TCP,
+or an empty string otherwise.
+
+
+
+
+=back
+
+
+
+
+
+

@@ -1,0 +1,15 @@
+nebula.profile.aerospike.namespace = profiles
+nebula.profile.aerospile.user.setname = uids
+nebula.profile.aerospile.ip.setname = ips
+nebula.profile.aerospile.did.setname = dids
+nebula.profile.aerospike.global.setname = globals
+nebula.profile.aerospike.others.setname = others
+nebula.profile.aerospike.page.setname = pages
+nebula.profile.online.rpc.mode = redis
+nebula.profile.config.type=http
+nebula.profile.variable.url=http://127.0.0.1:9001/platform/variables?modules=profile&auth=feb2d59522d9794e065cf1bb0a6f53d0
+nebula.profile.strategy.url=http://127.0.0.1:9001/nebula/strategies?auth=feb2d59522d9794e065cf1bb0a6f53d0
+nebula.profile.page.crawler.follow_keywords=http://127.0.0.1:9001/platform/follow_keyword?keyword_type=page&auth=feb2d59522d9794e065cf1bb0a6f53d0
+USER(register_channel) = others__register__uid_create__profile
+nebula.profile.sentry.need_sentry = true
+nebula.profile.version = 2.10

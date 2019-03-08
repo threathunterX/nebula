@@ -1,0 +1,219 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_geo_module - Module ngx_stream_geo_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_geo_module> module (1.11.3) creates variables
+with values depending on the client IP address.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    geo $geo {
+        default        0;
+    
+        127.0.0.1      2;
+        192.168.1.0/24 1;
+        10.1.0.0/16    1;
+    
+        ::1            2;
+        2001:0db8::/32 1;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 geo
+
+
+B<syntax:> geo I<[I<C<$address>>] I<C<$variable>> { B<...> } >
+
+
+
+B<context:> I<stream>
+
+
+
+
+
+Describes the dependency of values of the specified variable
+on the client IP address.
+By default, the address is taken from the C<$remote_addr> variable,
+but it can also be taken from another variable, for example:
+
+    
+    geo $arg_remote_addr $geo {
+        ...;
+    }
+
+
+
+
+
+
+
+
+B<NOTE>
+
+Since variables are evaluated only when used, the mere existence
+of even a large number of declared “C<geo>” variables
+does not cause any extra costs for connection processing.
+
+
+
+
+
+
+If the value of a variable does not represent a valid IP address
+then the “C<255.255.255.255>” address is used.
+
+
+
+
+
+Addresses are specified either as prefixes in CIDR notation
+(including individual addresses) or as ranges.
+
+
+
+
+
+The following special parameters are also supported:
+
+=over
+
+
+
+=item C<delete>
+
+
+
+
+deletes the specified network.
+
+
+
+=item C<default>
+
+
+
+
+a value set to the variable if the client address does not
+match any of the specified addresses.
+When addresses are specified in CIDR notation,
+“C<0.0.0.0E<sol>0>” and “C<::E<sol>0>”
+can be used instead of C<default>.
+When C<default> is not specified, the default
+value will be an empty string.
+
+
+
+=item C<include>
+
+
+
+
+includes a file with addresses and values.
+There can be several inclusions.
+
+
+
+=item C<ranges>
+
+
+
+
+indicates that addresses are specified as ranges.
+This parameter should be the first.
+To speed up loading of a geo base, addresses should be put in ascending order.
+
+
+
+
+=back
+
+
+
+
+
+
+
+Example:
+
+    
+    geo $country {
+        default        ZZ;
+        include        conf/geo.conf;
+        delete         127.0.0.0/16;
+    
+        127.0.0.0/24   US;
+        127.0.0.1/32   RU;
+        10.1.0.0/16    RU;
+        192.168.1.0/24 UK;
+    }
+
+
+
+
+
+
+
+The F<confE<sol>geo.conf> file could contain the following lines:
+
+    
+    10.2.0.0/16    RU;
+    192.168.2.0/24 RU;
+
+
+
+
+
+
+
+A value of the most specific match is used.
+For example, for the 127.0.0.1 address the value “C<RU>”
+will be chosen, not “C<US>”.
+
+
+
+
+
+Example with ranges:
+
+    
+    geo $country {
+        ranges;
+        default                   ZZ;
+        127.0.0.0-127.0.0.0       US;
+        127.0.0.1-127.0.0.1       RU;
+        127.0.0.1-127.0.0.255     US;
+        10.1.0.0-10.1.255.255     RU;
+        192.168.1.0-192.168.1.255 UK;
+    }
+
+
+
+
+
+
+
+
+

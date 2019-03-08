@@ -1,0 +1,320 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_xslt_module - Module ngx_http_xslt_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_xslt_module> (0.7.8+) is a filter
+that transforms XML responses using one or more XSLT stylesheets.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+C<--with-http_xslt_module>
+configuration parameter.
+
+B<NOTE>
+
+This module requires the
+L<libxml2|http://xmlsoft.org> and
+L<libxslt|http://xmlsoft.org/XSLT/> libraries.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location / {
+        xml_entities    /site/dtd/entities.dtd;
+        xslt_stylesheet /site/xslt/one.xslt param=value;
+        xslt_stylesheet /site/xslt/two.xslt;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 xml_entities
+
+
+B<syntax:> xml_entities I<I<C<path>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Specifies the DTD file that declares character entities.
+This file is compiled at the configuration stage.
+For technical reasons, the module is unable to use the
+external subset declared in the processed XML, so it is
+ignored and a specially defined file is used instead.
+This file should not describe the XML structure.
+It is enough to declare just the required character entities, for example:
+
+    
+    <!ENTITY nbsp "&#xa0;">
+
+
+
+
+
+
+
+
+
+=head2 xslt_last_modified
+
+
+B<syntax:> xslt_last_modified I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.5.1.
+
+
+
+
+
+Allows preserving the C<Last-Modified> header field
+from the original response during XSLT transformations
+to facilitate response caching.
+
+
+
+
+
+By default, the header field is removed as contents of the response
+are modified during transformations and may contain dynamically generated
+elements or parts that are changed independently of the original response.
+
+
+
+
+
+
+
+=head2 xslt_param
+
+
+B<syntax:> xslt_param I<I<C<parameter>> I<C<value>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.1.18.
+
+
+
+
+
+Defines the parameters for XSLT stylesheets.
+The I<C<value>> is treated as an XPath expression.
+The I<C<value>> can contain variables.
+To pass a string value to a stylesheet,
+the L</xslt_string_param> directive can be used.
+
+
+
+
+
+There could be several C<xslt_param> directives.
+These directives are inherited from the previous level if and
+only if there are no
+C<xslt_param> and L</xslt_string_param>
+directives defined on the current level.
+
+
+
+
+
+
+
+=head2 xslt_string_param
+
+
+B<syntax:> xslt_string_param I<I<C<parameter>> I<C<value>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.1.18.
+
+
+
+
+
+Defines the string parameters for XSLT stylesheets.
+XPath expressions in the I<C<value>> are not interpreted.
+The I<C<value>> can contain variables.
+
+
+
+
+
+There could be several C<xslt_string_param> directives.
+These directives are inherited from the previous level if and
+only if there are no
+L</xslt_param> and C<xslt_string_param>
+directives defined on the current level.
+
+
+
+
+
+
+
+=head2 xslt_stylesheet
+
+
+B<syntax:> xslt_stylesheet I<
+    I<C<stylesheet>>
+    [I<C<parameter>>=I<C<value>> ...]>
+
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines the XSLT stylesheet and its optional parameters.
+A stylesheet is compiled at the configuration stage.
+
+
+
+
+
+Parameters can either be specified separately, or grouped in a
+single line using the “C<:>” delimiter.
+If a parameter includes the “C<:>” character,
+it should be escaped as “C<%3A>”.
+Also, C<libxslt> requires to enclose parameters
+that contain non-alphanumeric characters into single or double quotes,
+for example:
+
+    
+    param1='http%3A//www.example.com':param2=value2
+
+
+
+
+
+
+
+The parameters description can contain variables, for example,
+the whole line of parameters can be taken from a single variable:
+
+    
+    location / {
+        xslt_stylesheet /site/xslt/one.xslt
+                        $arg_xslt_params
+                        param1='$value1':param2=value2
+                        param3=value3;
+    }
+
+
+
+
+
+
+
+It is possible to specify several stylesheets.
+They will be applied sequentially in the specified order.
+
+
+
+
+
+
+
+=head2 xslt_types
+
+
+B<syntax:> xslt_types I<I<C<mime-type>> ...>
+
+
+B<default:> I<textE<sol>xml>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Enables transformations in responses with the specified MIME types
+in addition to “C<textE<sol>xml>”.
+The special value “C<*>” matches any MIME type (0.8.29).
+If the transformation result is an HTML response, its MIME type
+is changed to “C<textE<sol>html>”.
+
+
+
+
+
+
+

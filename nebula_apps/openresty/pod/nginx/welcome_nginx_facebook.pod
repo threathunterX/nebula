@@ -1,0 +1,245 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+welcome_nginx_facebook
+
+
+=head1
+
+
+
+B<Q:>
+I am trying to open Facebook, Yahoo!, Yandex, Google, or some
+other well known web site and instead I am getting a blank web page
+with a message referring to nginx: E<ldquo>Welcome to nginx!E<rdquo> or
+E<ldquo>404 Not Found E<sol> nginxE<rdquo>.
+
+
+
+
+
+I suspect something is wrong and there is probably a malicious attempt
+to direct me to a rogue web page (to break into my computer, do
+phishing etc.). Why is that, and what has nginx to do with my attempts
+to connect to Facebook (Yahoo!, Google, etc.) ?
+
+
+
+
+
+E<nbsp>
+
+
+
+
+
+B<A:>
+First of all, the E<ldquo>Welcome to nginx!E<rdquo> page you see is
+NOT our website. At nginx, we write and distribute a B<free>
+L<open source|http://en.wikipedia.org/wiki/Open-source_software> web server software. A web page saying
+E<ldquo>Welcome to nginx!E<rdquo> is just a diagnostics response that
+can be produced by any of the websites out there, running nginx
+web server. Currently, nginx is the 2nd most popular open source
+web server in the world, it’s being used by over 126,000,000 (or
+14% of the Internet) websites. Most of these websites are
+legitimate, but some aren’t. Our software was created with a good
+reason of enabling performance and scalability on the Internet,
+it is licensed under L<popular open source license|http://nginx.org/LICENSE>, and has nothing to do with any
+kind of threatening or malicious activity per se E<8212>
+nginx is NOT a malware, and it is NOT on your computer. But someone’s
+malware could have indeed tampered with your computer or router,
+redirecting you to a fraudulent Internet server.
+
+
+
+
+
+We recommend running an anti-virus check on your computer, and
+we recommend to check and verify your entire system setup with the
+help of your ISP, or another support personnel:
+
+
+
+
+
+(Disclaimer: at nginx we are not responsible for any negative
+impact or effects that the actions below might cause. Use the
+following recommendations at your own risk, especially if
+you aren’t an experienced user of your operating system andE<sol>or
+Internet applications. In no event shall nginx be liable for
+any direct, indirect, incidental, special, exemplary, or
+consequential damages, including, but not limited to loss of
+use, data, or profits; or business interruption).
+
+
+
+
+
+
+=over
+
+
+
+=item *
+
+Check your TCPE<sol>IP settings and see if the DNS servers
+configuration matches the valid one (suggested by your Internet
+service provider or IT support personnel).
+
+
+
+=item *
+
+Use L<Google
+Public DNS|http://developers.google.com/speed/public-dns/>, and see if it fixes the problem. From Google’s
+description of its Public DNS E<8212> "Google Public DNS is a free,
+global Domain Name System (DNS) resolution service,
+that you can use as an alternative to your current DNS
+provider. [..] By using Google Public DNS you can: Speed up your
+browsing experience. B<Improve your security>."
+
+
+
+=item *
+
+Clear your DNS resolver cache. On Microsoft Windows XP go to
+Start E<gt> Run, and then type the following command:
+"ipconfig E<sol>flushdns". On Microsoft Vista, Windows 7, and
+Windows 8 click on Start logo, follow All Programs E<gt> Accessories,
+right-click on Command Prompt, choose "Run As Administrator",
+type in "ipconfig E<sol>flushdns" and hit Enter.
+
+
+
+=item *
+
+Click the "page reload" button in your browser. Clear browser
+data (cache, cookies etc.). E.g. with Chrome find and click
+"Clear Browsing Data" (Settings E<gt> Under the Hood). With Internet
+Explorer find Tools E<gt> Internet Options E<gt> General.
+B<Caution:> you may be deleting saved passwords information
+here, so do it carefully and check what exact actions you are
+performing.
+
+
+
+=item *
+
+Check if the "hosts" file doesn’t contain entries other
+than "127.0.0.1 localhost", and if so E<8212> if these entries are for
+the web site you’re trying to reach. The "hosts" files is located in
+C:\WINDOWS\system32\drivers\etc directory. Typically there should
+be just one entry in it, for "127.0.0.1 localhost", that’s it. The
+"hosts" file can be viewed and edited with your standard
+Notepad application.
+
+
+
+=item *
+
+Check the plugins and extensions installed with your browser.
+Re-install your browser or try an alternative one if possible.
+
+
+=back
+
+
+
+
+
+
+
+Something must be wrong with your B<operating
+system> settings, B<home router> setup, or B<browser>
+configuration, if you are trying to access a well known web site
+and what you get instead is E<ldquo>Welcome to nginx!E<rdquo>.
+This should NOT happen if your computers and network are
+clean and safe.
+
+
+
+
+
+If changing DNS servers to Google Public DNS, flushing DNS resolver
+cache, fixing your browser configuration, or cleaning "hosts" file
+(when applicable) have helped, it might be that there’s a malware
+somewhere on your PC or around. Find and clean it using
+your preferred anti-virus and anti-malware tools.
+
+
+
+
+
+Additional articles that might be helpful:
+
+
+
+
+
+DCWG.org:
+
+
+
+
+L<How can you detect if your computer has been violated and infected
+with DNS Changer?|http://www.dcwg.org/detect/>
+
+
+
+
+
+L<How to clean up or fix malicious software (E<amp>ldquo;malwareE<amp>rdquo;)
+associated with DNS Changer|http://www.dcwg.org/fix/>
+
+
+
+
+
+Microsoft:
+
+
+
+
+L<Malicious Software Removal Tool|http://www.microsoft.com/security/pc-security/malware-removal.aspx>
+
+
+
+
+
+L<How can I reset the Hosts file back to the default?|http://support.microsoft.com/kb/972034>
+
+
+
+
+
+L<How to reset Internet Protocol (TCPE<sol>IP)|http://support.microsoft.com/kb/299357>
+
+
+
+
+
+Firefox Help:
+
+
+
+
+L<Disable or remove Add-ons|http://support.mozilla.org/en-US/kb/disable-or-remove-add-ons>
+
+
+
+
+
+Tech-Recipes:
+
+
+
+
+L<DNS Cache Flush, Clear, or Reset in Vista,
+Windows 7, and Windows 8|http://www.tech-recipes.com/rx/1600/vista_dns_cache_flush/>
+
+
+
+

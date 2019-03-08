@@ -1,0 +1,14 @@
+*/1 * * * * root echo "[$(date '+\%Y-\%m-\%d \%H:\%M:\%S')] crond running ..."  >> /data/logs/crond/crond.log
+
+2 * * * * root /home/threathunter/nebula/nebula_offline_slot/cron_start_sync.sh start 2>>/data/logs/offline/cron_err.log 1>>/data/logs/offline/cron_info.log
+
+6 0 * * * root python /home/threathunter/nebula/python_lib/nebula_utils/nebula_utils/bin/nebula_clean.py >> /data/logs/utils/nebula_clean.log 2>&1
+
+33 * * * * root df /data/persistent/ | tail -1 | awk '{print $(NF-1)}' | awk -F"\%" '{print $1}' | awk '$1>80{exit 1}'  || ls -d /data/persistent/* | head -5 | xargs rm -rf
+
+*/5 * * * * root echo -e "profile_send.1\nprofilenoticechecker" | xargs -n 1 -I {} bash -c 'COMMAND=" redis-cli -h redis llen {}" ;  LISTLEN=`eval $COMMAND`; [ "$LISTLEN" -gt 4000 ] && redis-cli -h redis ltrim {} -4000 -1'
+
+* 1 1 * * root  rm /data/tmp/log_query_*
+
+1 * * * * root python /home/threathunter/nebula/nebula_db_writer/cron_jobs.py notice-stat >> /data/logs/db_writer/notice_stat.log 2>&1
+

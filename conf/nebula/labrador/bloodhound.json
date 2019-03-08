@@ -1,0 +1,41 @@
+[
+{
+"name":"test",
+"source":"com.threathunter.bloodhound.source.RedisListPoolableSource",
+"channel":"com.threathunter.bloodhound.channel.MemoryChannel",  
+"sink":"com.threathunter.bloodhound.sink.BabelSink",
+"inceptors" : ["com.threathunter.bloodhound.interceptor.Base64DecoderInterceptor"],
+    "source_config":{
+        "host":"127.0.0.1",
+        "port":"6379",
+        "database":"0",
+        "password":"",
+        "max_active" : "3",
+        "max_idle" : "2",
+        "max_wait" : "2000",
+        "test_on_borrow" : "true",
+        "list_todo_name" : "request_data",
+        "rpop" : "true",
+        "batch_size" : "10",
+        "timeout" : "2000",
+        "charset" : "utf-8"
+    },
+    "channel_config":{
+        "queue_size":"500",
+        "group_size":"15",
+        "execute_interval": "1000",
+        "pop_interval" : "50",
+        "interval":"5",
+        "core_pool_size" : "5",
+        "max_pool_size" : "10",
+        "keep_alive_time" : "60",
+        "sleep_interval" : "5"
+    },
+    "sink_config":{
+        "charset" : "utf-8",
+        "app_name" : "nebula",
+        "meta_file" : "babel/httplog_redis.service",
+        "client_name" : "bloodhound_babel_sink"
+    }
+}
+]

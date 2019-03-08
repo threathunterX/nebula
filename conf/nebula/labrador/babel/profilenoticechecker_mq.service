@@ -1,0 +1,11 @@
+{
+  "name": "profilenoticechecker",
+  "callmode": "notify",
+  "delivermode": "shuffle",
+  "serverimpl": "rabbitmq",
+  "coder": "mail",
+  "options": {
+    "cdc": "sh",
+    "sdc": "sh"
+  }
+}

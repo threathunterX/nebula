@@ -1,0 +1,515 @@
+=encoding utf-8
+
+
+=head1 Name
+
+lua-resty-lock - Simple shm-based nonblocking lock API
+
+
+=head1 Status
+
+This library is still under early development and is production ready.
+
+
+=head1 Synopsis
+
+
+    # nginx.conf
+    
+    http {
+        # you do not need the following line if you are using the
+        # OpenResty bundle:
+        lua_package_path "/path/to/lua-resty-lock/lib/?.lua;;";
+    
+        lua_shared_dict my_locks 100k;
+    
+        server {
+            ...
+    
+            location = /t {
+                content_by_lua '
+                    local resty_lock = require "resty.lock"
+                    for i = 1, 2 do
+                        local lock, err = resty_lock:new("my_locks")
+                        if not lock then
+                            ngx.say("failed to create lock: ", err)
+                        end
+    
+                        local elapsed, err = lock:lock("my_key")
+                        ngx.say("lock: ", elapsed, ", ", err)
+    
+                        local ok, err = lock:unlock()
+                        if not ok then
+                            ngx.say("failed to unlock: ", err)
+                        end
+                        ngx.say("unlock: ", ok)
+                    end
+                ';
+            }
+        }
+    }
+
+
+=head1 Description
+
+This library implements a simple mutex lock in a similar way to ngx_proxy module's L<proxy_cache_lock directive|http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_lock>.
+
+Under the hood, this library uses L<ngx_lua|https://github.com/openresty/lua-nginx-module> module's shared memory dictionaries. The lock waiting is nonblocking because we use stepwise L<ngx.sleep|https://github.com/openresty/lua-nginx-module#ngxsleep> to poll the lock periodically.
+
+
+
+
+=head1 Methods
+
+To load this library,
+
+
+=over
+
+
+=item 1.
+
+you need to specify this library's path in ngx_lua's L<lua_package_path|https://github.com/openresty/lua-nginx-module#lua_package_path> directive. For example, C<lua_package_path "/path/to/lua-resty-lock/lib/?.lua;;";>.
+
+=item 2.
+
+you use C<require> to load the library into a local Lua variable:
+
+
+=back
+
+
+        local lock = require "resty.lock"
+
+
+
+
+=head2 new
+
+C<syntax: obj, err = lock:new(dict_name)>
+
+C<syntax: obj, err = lock:new(dict_name, opts)>
+
+Creates a new lock object instance by specifying the shared dictionary name (created by L<lua_shared_dict|http://https://github.com/openresty/lua-nginx-module#lua_shared_dict>) and an optional options table C<opts>.
+
+In case of failure, returns C<nil> and a string describing the error.
+
+The options table accepts the following options:
+
+
+=over
+
+
+=item *
+
+C<exptime>
+Specifies expiration time (in seconds) for the lock entry in the shared memory dictionary. You can specify up to C<0.001> seconds. Default to 30 (seconds). Even if the invoker does not call C<unlock> or the object holding the lock is not GC'd, the lock will be released after this time. So deadlock won't happen even when the worker process holding the lock crashes.
+
+=item *
+
+C<timeout>
+Specifies the maximal waiting time (in seconds) for the L<lock> method calls on the current object instance. You can specify up to C<0.001> seconds. Default to 5 (seconds). This option value cannot be bigger than C<exptime>. This timeout is to prevent a L<lock> method call from waiting forever.
+You can specify C<0> to make the L<lock> method return immediately without waiting if it cannot acquire the lock right away.
+
+=item *
+
+C<step>
+Specifies the initial step (in seconds) of sleeping when waiting for the lock. Default to C<0.001> (seconds). When the L<lock> method is waiting on a busy lock, it sleeps by steps. The step size is increased by a ratio (specified by the C<ratio> option) until reaching the step size limit (specified by the C<max_step> option).
+
+=item *
+
+C<ratio>
+Specifies the step increasing ratio. Default to 2, that is, the step size doubles at each waiting iteration.
+
+=item *
+
+C<max_step>
+Specifies the maximal step size (i.e., sleep interval, in seconds) allowed. See also the C<step> and C<ratio> options). Default to 0.5 (seconds).
+
+
+=back
+
+
+
+
+=head2 lock
+
+C<syntax: elapsed, err = obj:lock(key)>
+
+Tries to lock a key across all the Nginx worker processes in the current Nginx server instance. Different keys are different locks.
+
+The length of the key string must not be larger than 65535 bytes.
+
+Returns the waiting time (in seconds) if the lock is successfully acquired. Otherwise returns C<nil> and a string describing the error.
+
+The waiting time is not from the wallclock, but rather is from simply adding up all the waiting "steps". A nonzero C<elapsed> return value indicates that someone else has just hold this lock. But a zero return value cannot gurantee that no one else has just acquired and released the lock.
+
+When this method is waiting on fetching the lock, no operating system threads will be blocked and the current Lua "light thread" will be automatically yielded behind the scene.
+
+It is strongly recommended to always call the L<unlock()> method to actively release the lock as soon as possible.
+
+If the L<unlock()> method is never called after this method call, the lock will get released when
+
+
+=over
+
+
+=item 1.
+
+the current C<resty.lock> object instance is collected automatically by the Lua GC.
+
+=item 2.
+
+the C<exptime> for the lock entry is reached.
+
+
+=back
+
+Common errors for this method call is
+
+=over
+
+
+=item *
+
+"timeout"
+: The timeout threshold specified by the C<timeout> option of the L<new> method is exceeded.
+
+=item *
+
+"locked"
+: The current C<resty.lock> object instance is already holding a lock (not necessarily of the same key).
+
+
+=back
+
+Other possible errors are from ngx_lua's shared dictionary API.
+
+
+
+
+=head2 unlock
+
+C<syntax: ok, err = obj:unlock()>
+
+Releases the lock held by the current C<resty.lock> object instance.
+
+Returns C<1> on success. Returns C<nil> and a string describing the error otherwise.
+
+If you call C<unlock> when no lock is currently held, the error "unlocked" will be returned.
+
+
+
+
+=head1 For Multiple Lua Light Threads
+
+It is always a bad idea to share a single C<resty.lock> object instance across multiple ngx_lua "light threads" because the object itself is stateful and is vulnerable to race conditions. It is highly recommended to always allocate a separate C<resty.lock> object instance for each "light thread" that needs one.
+
+
+
+
+=head1 For Cache Locks
+
+One common use case for this library is avoid the so-called "dog-pile effect", that is, to limit concurrent backend queries for the same key when a cache miss happens. This usage is similar to the standard ngx_proxy module's L<proxy_cache_lock|http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_lock> directive.
+
+The basic workflow for a cache lock is as follows:
+
+
+=over
+
+
+=item 1.
+
+Check the cache for a hit with the key. If a cache miss happens, proceed to step 2.
+
+=item 2.
+
+Instantiate a C<resty.lock> object, call the L<lock> method on the key, and check the 1st return value, i.e., the lock waiting time. If it is C<nil>, handle the error; otherwise proceed to step 3.
+
+=item 3.
+
+Check the cache again for a hit. If it is still a miss, proceed to step 4; otherwise release the lock by calling L<unlock> and then return the cached value.
+
+=item 4.
+
+Query the backend (the data source) for the value, put the result into the cache, and then release the lock currently held by calling L<unlock>.
+
+
+=back
+
+Below is a kinda complete code example that demonstrates the idea.
+
+
+        local resty_lock = require "resty.lock"
+        local cache = ngx.shared.my_cache
+    
+        -- step 1:
+        local val, err = cache:get(key)
+        if val then
+            ngx.say("result: ", val)
+            return
+        end
+    
+        if err then
+            return fail("failed to get key from shm: ", err)
+        end
+    
+        -- cache miss!
+        -- step 2:
+        local lock, err = resty_lock:new("my_locks")
+        if not lock then
+            return fail("failed to create lock: ", err)
+        end
+    
+        local elapsed, err = lock:lock(key)
+        if not elapsed then
+            return fail("failed to acquire the lock: ", err)
+        end
+    
+        -- lock successfully acquired!
+    
+        -- step 3:
+        -- someone might have already put the value into the cache
+        -- so we check it here again:
+        val, err = cache:get(key)
+        if val then
+            local ok, err = lock:unlock()
+            if not ok then
+                return fail("failed to unlock: ", err)
+            end
+    
+            ngx.say("result: ", val)
+            return
+        end
+    
+        --- step 4:
+        local val = fetch_redis(key)
+        if not val then
+            local ok, err = lock:unlock()
+            if not ok then
+                return fail("failed to unlock: ", err)
+            end
+    
+            -- FIXME: we should handle the backend miss more carefully
+            -- here, like inserting a stub value into the cache.
+    
+            ngx.say("no value found")
+            return
+        end
+    
+        -- update the shm cache with the newly fetched value
+        local ok, err = cache:set(key, val, 1)
+        if not ok then
+            local ok, err = lock:unlock()
+            if not ok then
+                return fail("failed to unlock: ", err)
+            end
+    
+            return fail("failed to update shm cache: ", err)
+        end
+    
+        local ok, err = lock:unlock()
+        if not ok then
+            return fail("failed to unlock: ", err)
+        end
+    
+        ngx.say("result: ", val)
+
+Here we assume that we use the ngx_lua shared memory dictionary to cache the Redis query results and we have the following configurations in C<nginx.conf>:
+
+
+        # you may want to change the dictionary size for your cases.
+        lua_shared_dict my_cache 10m;
+        lua_shared_dict my_locks 1m;
+
+The C<my_cache> dictionary is for the data cache while the C<my_locks> dictionary is for C<resty.lock> itself.
+
+Several important things to note in the example above:
+
+
+=over
+
+
+=item 1.
+
+You need to release the lock as soon as possible, even when some other unrelated errors happen.
+
+=item 2.
+
+You need to update the cache with the result got from the backend I<before> releasing the lock so other threads already waiting on the lock can get cached value when they get the lock afterwards.
+
+=item 3.
+
+When the backend returns no value at all, we should handle the case carefully by inserting some stub value into the cache.
+
+
+=back
+
+
+
+
+=head1 Prerequisites
+
+
+=over
+
+
+=item *
+
+L<LuaJIT|http://luajit.org> 2.0+
+
+=item *
+
+L<ngx_lua|https://github.com/openresty/lua-nginx-module> 0.8.10+
+
+
+=back
+
+
+
+
+=head1 Installation
+
+It is recommended to use the latest L<OpenResty bundle|http://openresty.org> directly where this library
+is bundled and enabled by default. At least OpenResty 1.4.2.9 is required. And you need to enable LuaJIT when building your OpenResty
+bundle by passing the C<--with-luajit> option to its C<./configure> script. No extra Nginx configuration is required.
+
+If you want to use this library with your own Nginx build (with ngx_lua), then you need to
+ensure you are using at least ngx_lua 0.8.10. Also, You need to configure
+the L<lua_package_path|https://github.com/openresty/lua-nginx-module#lua_package_path> directive to
+add the path of your lua-resty-lock source tree to ngx_lua's Lua module search path, as in
+
+
+        # nginx.conf
+        http {
+            lua_package_path "/path/to/lua-resty-lock/lib/?.lua;;";
+            ...
+        }
+
+and then load the library in Lua:
+
+
+        local resty_lock = require "resty.lock"
+
+
+
+
+=head1 TODO
+
+
+=over
+
+
+=item *
+
+We should simplify the current implementation when LuaJIT 2.1 gets support for C<__gc> metamethod on normal Lua tables. Right now we are using an FFI cdata and a ref/unref memo table to work around this, which is rather ugly and a bit inefficient.
+
+
+=back
+
+
+
+
+=head1 Community
+
+
+
+
+=head2 English Mailing List
+
+The L<openresty-en|https://groups.google.com/group/openresty-en> mailing list is for English speakers.
+
+
+
+
+=head2 Chinese Mailing List
+
+The L<openresty|https://groups.google.com/group/openresty> mailing list is for Chinese speakers.
+
+
+
+
+=head1 Bugs and Patches
+
+Please report bugs or submit patches by
+
+
+=over
+
+
+=item 1.
+
+creating a ticket on the L<GitHub Issue Tracker|https://github.com/openresty/lua-resty-lock/issues>,
+
+=item 2.
+
+or posting to the L<OpenResty community>.
+
+
+=back
+
+
+
+
+=head1 Author
+
+Yichun "agentzh" Zhang (章亦春) E<lt>agentzh@gmail.comE<gt>, OpenResty Inc.
+
+
+
+
+=head1 Copyright and License
+
+This module is licensed under the BSD license.
+
+Copyright (C) 2013-2017, by Yichun "agentzh" Zhang, OpenResty Inc.
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+
+=back
+
+
+=over
+
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+the ngx_lua module: https://github.com/openresty/lua-nginx-module
+
+=item *
+
+OpenResty: http://openresty.org
+
+
+=back
+
+

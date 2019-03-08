@@ -1,0 +1,71 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_random_index_module - Module ngx_http_random_index_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_random_index_module> module processes requests
+ending with the slash character (‘C<E<sol>>’) and picks a random
+file in a directory to serve as an index file.
+The module is processed before the
+L<ngx_http_index_module|ngx_http_index_module>
+module.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+C<--with-http_random_index_module>
+configuration parameter.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location / {
+        random_index on;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 random_index
+
+
+B<syntax:> random_index I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<location>
+
+
+
+
+
+Enables or disables module processing in a surrounding location.
+
+
+
+
+
+
+

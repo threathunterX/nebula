@@ -1,0 +1,14 @@
+
+{
+    "name": "keystatquery",
+    "callmode": "rpc",
+    "delivermode": "sharding",
+    "serverimpl": "redis",
+    "coder": "mail",
+    "options": {
+        "cdc": "sh",
+        "sdc": "sh",
+        "servercardinality": 1,
+        "serverseq": 1
+    }
+}

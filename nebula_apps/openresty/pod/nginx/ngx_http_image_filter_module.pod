@@ -1,0 +1,413 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_image_filter_module - Module ngx_http_image_filter_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_image_filter_module> module (0.7.54+) is a filter
+that transforms images in JPEG, GIF, PNG, and WebP formats.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+C<--with-http_image_filter_module>
+configuration parameter.
+
+B<NOTE>
+
+This module utilizes the
+L<libgd|http://libgd.org> library.
+It is recommended to use the latest available version of the library.
+
+
+B<NOTE>
+
+The WebP format support appeared in version 1.11.6.
+To transform images in this format,
+the C<libgd> library must be compiled with the WebP support.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location /img/ {
+        proxy_pass   http://backend;
+        image_filter resize 150 100;
+        image_filter rotate 90;
+        error_page   415 = /empty;
+    }
+    
+    location = /empty {
+        empty_gif;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 image_filter
+
+
+B<syntax:> image_filter I<C<off>>
+
+
+B<syntax:> image_filter I<C<test>>
+
+
+B<syntax:> image_filter I<C<size>>
+
+
+B<syntax:> image_filter I<
+    C<rotate>
+    C<90> E<verbar> C<180> E<verbar>
+    C<270>>
+
+
+B<syntax:> image_filter I<
+    C<resize>
+    I<C<width>>
+    I<C<height>>>
+
+
+B<syntax:> image_filter I<
+    C<crop>
+    I<C<width>>
+    I<C<height>>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the type of transformation to perform on images:
+
+=over
+
+
+
+=item C<off>
+
+
+
+
+turns off module processing in a surrounding location.
+
+
+
+=item C<test>
+
+
+
+
+ensures that responses are images in either JPEG, GIF, PNG, or WebP format.
+Otherwise, the
+C<415> (C<Unsupported Media Type>)
+error is returned.
+
+
+
+=item C<size>
+
+
+
+
+outputs information about images in a JSON format, e.g.:
+
+    
+    { "img" : { "width": 100, "height": 100, "type": "gif" } }
+
+
+In case of an error, the output is as follows:
+
+    
+    {}
+
+
+
+
+
+=item C<rotate>
+C<90>E<verbar>C<180>E<verbar>C<270>
+
+
+
+
+
+rotates images counter-clockwise by the specified number of degrees.
+Parameter value can contain variables.
+This mode can be used either alone or along with the
+C<resize> and C<crop> transformations.
+
+
+
+=item C<resize>
+I<C<width>>
+I<C<height>>
+
+
+
+
+
+proportionally reduces an image to the specified sizes.
+To reduce by only one dimension, another dimension can be specified as
+“C<->”.
+In case of an error, the server will return code
+C<415> (C<Unsupported Media Type>).
+Parameter values can contain variables.
+When used along with the C<rotate> parameter,
+the rotation happens I<after> reduction.
+
+
+
+=item C<crop>
+I<C<width>>
+I<C<height>>
+
+
+
+
+
+proportionally reduces an image to the larger side size
+and crops extraneous edges by another side.
+To reduce by only one dimension, another dimension can be specified as
+“C<->”.
+In case of an error, the server will return code
+C<415> (C<Unsupported Media Type>).
+Parameter values can contain variables.
+When used along with the C<rotate> parameter,
+the rotation happens I<before> reduction.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 image_filter_buffer
+
+
+B<syntax:> image_filter_buffer I<I<C<size>>>
+
+
+B<default:> I<1M>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the maximum size of the buffer used for reading images.
+When the size is exceeded the server returns error
+C<415> (C<Unsupported Media Type>).
+
+
+
+
+
+
+
+=head2 image_filter_interlace
+
+
+B<syntax:> image_filter_interlace I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.3.15.
+
+
+
+
+
+If enabled, final images will be interlaced.
+For JPEG, final images will be in “progressive JPEG” format.
+
+
+
+
+
+
+
+=head2 image_filter_jpeg_quality
+
+
+B<syntax:> image_filter_jpeg_quality I<I<C<quality>>>
+
+
+B<default:> I<75>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the desired I<C<quality>> of the transformed JPEG images.
+Acceptable values are in the range from 1 to 100.
+Lesser values usually imply both lower image quality and less data to transfer.
+The maximum recommended value is 95.
+Parameter value can contain variables.
+
+
+
+
+
+
+
+=head2 image_filter_sharpen
+
+
+B<syntax:> image_filter_sharpen I<I<C<percent>>>
+
+
+B<default:> I<0>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Increases sharpness of the final image.
+The sharpness percentage can exceed 100.
+The zero value disables sharpening.
+Parameter value can contain variables.
+
+
+
+
+
+
+
+=head2 image_filter_transparency
+
+
+B<syntax:> image_filter_transparency I<C<on>E<verbar>C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines whether transparency should be preserved when transforming
+GIF images or PNG images with colors specified by a palette.
+The loss of transparency results in images of a better quality.
+The alpha channel transparency in PNG is always preserved.
+
+
+
+
+
+
+
+=head2 image_filter_webp_quality
+
+
+B<syntax:> image_filter_webp_quality I<I<C<quality>>>
+
+
+B<default:> I<80>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.11.6.
+
+
+
+
+
+Sets the desired I<C<quality>> of the transformed WebP images.
+Acceptable values are in the range from 1 to 100.
+Lesser values usually imply both lower image quality and less data to transfer.
+Parameter value can contain variables.
+
+
+
+
+
+
+

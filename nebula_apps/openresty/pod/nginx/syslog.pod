@@ -1,0 +1,126 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+syslog - Logging to syslog
+
+
+=head1
+
+
+
+The
+L<ngx_core_module>
+and
+L<ngx_http_log_module>
+directives support logging to syslog.
+The following parameters configure logging to syslog:
+
+=over
+
+
+
+=item C<server=>I<C<address>>
+
+
+
+
+Defines the address of a syslog server.
+The address can be specified as a domain name or IP address,
+with an optional port, or as a UNIX-domain socket path
+specified after the “C<unix:>” prefix.
+If port is not specified, the UDP port 514 is used.
+If a domain name resolves to several IP addresses, the first resolved
+address is used.
+
+
+
+=item C<facility=>I<C<string>>
+
+
+
+
+Sets facility of syslog messages, as defined in
+L<RFC 3164|https://tools.ietf.org/html/rfc3164#section-4.1.1>.
+Facility can be one of “C<kern>”, “C<user>”,
+“C<mail>”, “C<daemon>”,
+“C<auth>”, “C<intern>”,
+“C<lpr>”, “C<news>”, “C<uucp>”,
+“C<clock>”, “C<authpriv>”,
+“C<ftp>”, “C<ntp>”, “C<audit>”,
+“C<alert>”, “C<cron>”,
+“C<local0>”..“C<local7>”.
+Default is “C<local7>”.
+
+
+
+=item C<severity=>I<C<string>>
+
+
+
+
+Sets severity of syslog messages for
+L<ngx_http_log_module>,
+as defined in
+L<RFC 3164|https://tools.ietf.org/html/rfc3164#section-4.1.1>.
+Possible values are the same as for the second parameter (level) of the
+L<ngx_core_module> directive.
+Default is “C<info>”.
+
+B<NOTE>
+
+Severity of error messages is determined by nginx, thus the parameter
+is ignored in the C<error_log> directive.
+
+
+
+
+=item C<tag=>I<C<string>>
+
+
+
+
+Sets the tag of syslog messages.
+Default is “C<nginx>”.
+
+
+
+=item C<nohostname>
+
+
+
+
+Disables adding the “hostname” field into the syslog message header (1.9.7).
+
+
+=back
+
+
+Example syslog configuration:
+
+    
+    error_log syslog:server=192.168.1.1 debug;
+    
+    access_log syslog:server=unix:/var/log/nginx.sock,nohostname;
+    access_log syslog:server=[2001:db8::1]:12345,facility=local7,tag=nginx,severity=info combined;
+
+
+
+
+
+
+
+
+B<NOTE>
+
+Logging to syslog is available since version 1.7.1.
+As part of our
+commercial subscription
+logging to syslog is available since version 1.5.3.
+
+
+
+
+

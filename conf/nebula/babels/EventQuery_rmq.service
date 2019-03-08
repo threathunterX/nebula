@@ -1,0 +1,15 @@
+
+{
+    "name": "eventquery",
+    "callmode": "rpc",
+    "delivermode": "sharding",
+    "serverimpl": "rabbitmq",
+    "coder": "mail",
+    "options": {
+        "serversubname": "onlinekv",
+        "servercardinality": 1,
+        "serverseq": 1,
+        "sdc":"sh",
+        "cdc":"sh"
+    }
+}

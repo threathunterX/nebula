@@ -1,0 +1,12 @@
+{
+    "name": "notice_notify",
+    "callmode": "notify",
+    "delivermode": "topic",
+    "serverimpl": "redis",
+    "coder": "mail",
+    "options": {
+        "cdc": "sh",
+        "sdc": "sh",
+        "serversubname": "web"
+    }
+}

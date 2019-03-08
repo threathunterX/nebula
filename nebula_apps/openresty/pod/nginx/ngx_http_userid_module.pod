@@ -1,0 +1,412 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_userid_module - Module ngx_http_userid_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_userid_module> module sets cookies
+suitable for client identification.
+Received and set cookies can be logged using the embedded variables
+$uid_got and
+$uid_set.
+This module is compatible with the
+L<mod_uid|http://www.lexa.ru/programs/mod-uid-eng.html>
+module for Apache.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    userid         on;
+    userid_name    uid;
+    userid_domain  example.com;
+    userid_path    /;
+    userid_expires 365d;
+    userid_p3p     'policyref="/w3c/p3p.xml", CP="CUR ADM OUR NOR STA NID"';
+
+
+
+
+
+
+=head1 Directives
+
+=head2 userid
+
+
+B<syntax:> userid I<
+    C<on> E<verbar>
+    C<v1> E<verbar>
+    C<log> E<verbar>
+    C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Enables or disables setting cookies and logging the received cookies:
+
+=over
+
+
+
+=item C<on>
+
+
+
+
+enables the setting of version 2 cookies
+and logging of the received cookies;
+
+
+
+=item C<v1>
+
+
+
+
+enables the setting of version 1 cookies
+and logging of the received cookies;
+
+
+
+=item C<log>
+
+
+
+
+disables the setting of cookies,
+but enables logging of the received cookies;
+
+
+
+=item C<off>
+
+
+
+
+disables the setting of cookies and logging of the received cookies.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 userid_domain
+
+
+B<syntax:> userid_domain I<I<C<name>> E<verbar> C<none>>
+
+
+B<default:> I<none>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines a domain for which the cookie is set.
+The C<none> parameter disables setting of a domain for the
+cookie.
+
+
+
+
+
+
+
+=head2 userid_expires
+
+
+B<syntax:> userid_expires I<I<C<time>> E<verbar> C<max> E<verbar>
+    C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets a time during which a browser should keep the cookie.
+The parameter C<max> will cause the cookie to expire on
+“C<31 Dec 2037 23:55:55 GMT>”.
+The parameter C<off> will cause the cookie to expire at
+the end of a browser session.
+
+
+
+
+
+
+
+=head2 userid_mark
+
+
+B<syntax:> userid_mark I<
+    I<C<letter>> E<verbar> I<C<digit>> E<verbar>
+    C<=> E<verbar>
+    C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+If the parameter is not C<off>, enables the cookie marking
+mechanism and sets the character used as a mark.
+This mechanism is used to add or change
+L</userid_p3p> andE<sol>or a cookie expiration time while
+preserving the client identifier.
+A mark can be any letter of the English alphabet (case-sensitive),
+digit, or the “C<=>” character.
+
+
+
+
+
+If the mark is set, it is compared with the first padding symbol
+in the base64 representation of the client identifier passed in a cookie.
+If they do not match, the cookie is resent with the specified mark,
+expiration time, and C<P3P> header.
+
+
+
+
+
+
+
+=head2 userid_name
+
+
+B<syntax:> userid_name I<I<C<name>>>
+
+
+B<default:> I<uid>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the cookie name.
+
+
+
+
+
+
+
+=head2 userid_p3p
+
+
+B<syntax:> userid_p3p I<I<C<string>> E<verbar> C<none>>
+
+
+B<default:> I<none>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets a value for the C<P3P> header field that will be
+sent along with the cookie.
+If the directive is set to the special value C<none>,
+the C<P3P> header will not be sent in a response.
+
+
+
+
+
+
+
+=head2 userid_path
+
+
+B<syntax:> userid_path I<I<C<path>>>
+
+
+B<default:> I<E<sol>>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines a path for which the cookie is set.
+
+
+
+
+
+
+
+=head2 userid_service
+
+
+B<syntax:> userid_service I<I<C<number>>>
+
+
+B<default:> I<IP address of the server>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+If identifiers are issued by multiple servers (services),
+each service should be assigned its own I<C<number>>
+to ensure that client identifiers are unique.
+For version 1 cookies, the default value is zero.
+For version 2 cookies, the default value is the number composed from the last
+four octets of the server’s IP address.
+
+
+
+
+
+
+
+=head1 Embedded Variables
+
+
+
+The C<ngx_http_userid_module> module
+supports the following embedded variables:
+
+=over
+
+
+
+=item C<$uid_got>
+
+
+
+
+The cookie name and received client identifier.
+
+
+
+=item C<$uid_reset>
+
+
+
+
+If the variable is set to a non-empty string that is not “C<0>”,
+the client identifiers are reset.
+The special value “C<log>” additionally leads to the output of
+messages about the reset identifiers to the
+L<ngx_core_module>.
+
+
+
+=item C<$uid_set>
+
+
+
+
+The cookie name and sent client identifier.
+
+
+
+
+=back
+
+
+
+
+
+

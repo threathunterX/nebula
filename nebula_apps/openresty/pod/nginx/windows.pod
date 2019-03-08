@@ -1,0 +1,160 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+windows - nginx for Windows
+
+
+=head1
+
+
+
+Version of nginx for Windows uses the native Win32 API (not the Cygwin emulation
+layer).
+Only the C<select> connection processing method is currently used,
+so high performance and scalability should not be expected.
+Due to this and some other known issues version of nginx for Windows
+is considered to be a I<beta> version.
+At this time, it provides almost the same functionality as a UNIX version
+of nginx except for
+XSLT filter, image filter, GeoIP module, and embedded Perl language.
+
+
+
+
+
+To install nginxE<sol>Windows, L<download|download>
+the latest mainline version distribution (1.9.7),
+since the mainline branch of nginx contains all known fixes.
+Then unpack the distribution, go to the
+nginx-1.9.7
+directory, and run C<nginx>.
+Here is an example for the drive C: root directory:
+
+
+    
+    cd c:\
+    unzip nginx-<mainline_version/>.zip
+    cd nginx-<mainline_version/>
+    start nginx
+
+
+
+Run the C<tasklist> command-line utility
+to see nginx processes:
+
+
+    
+    C:\nginx-<mainline_version/>>tasklist /fi "imagename eq nginx.exe"
+    
+    Image Name           PID Session Name     Session#    Mem Usage
+    =============== ======== ============== ========== ============
+    nginx.exe            652 Console                 0      2 780 K
+    nginx.exe           1332 Console                 0      3 112 K
+
+
+
+One of the processes is the master process and another is the worker process.
+If nginx does not start, look for the reason in
+the error log file F<logs\error.log>.
+If the log file has not been created, the reason for this should be reported
+in the Windows Event Log.
+If an error page is displayed instead of the expected page, also look
+for the reason in the F<logs\error.log> file.
+
+
+
+
+
+nginxE<sol>Windows uses the directory where it has been run as the prefix
+for relative paths in the configuration.
+In the example above, the prefix is
+F<C:\nginx-1.9.7\>.
+Paths in a configuration file must be specified in UNIX-style using
+forward slashes:
+
+
+    
+    access_log   logs/site.log;
+    root         C:/web/html;
+
+
+
+
+
+
+
+nginxE<sol>Windows runs as a standard console application (not a service),
+and it can be managed using the following commands:
+
+
+
+
+
+
+
+=head1 Known issues
+
+
+=over
+
+
+
+
+=item *
+
+Although several workers can be started, only one of them
+actually does any work.
+
+
+
+=item *
+
+A worker can handle no more than 1024 simultaneous connections.
+
+
+
+=item *
+
+The UDP proxy functionality is not supported.
+
+
+
+=back
+
+
+
+
+=head1 Possible future enhancements
+
+
+=over
+
+
+
+
+=item *
+
+Running as a service.
+
+
+
+=item *
+
+Using the IE<sol>O completion ports as a connection processing method.
+
+
+
+=item *
+
+Using multiple worker threads inside a single worker process.
+
+
+
+=back
+
+
+
+

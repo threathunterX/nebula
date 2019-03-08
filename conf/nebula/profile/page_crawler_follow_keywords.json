@@ -1,0 +1,24 @@
+{
+  "status": 200,
+  "msg": "ok",
+  "values": [
+    {
+      "is_followed": true,
+      "is_ignored": false,
+      "keyword": "page5",
+      "keyword_type": "page"
+    },
+    {
+      "is_followed": true,
+      "is_ignored": false,
+      "keyword": "page6",
+      "keyword_type": "page"
+    },
+    {
+      "is_followed": false,
+      "is_ignored": true,
+      "keyword": "page6",
+      "keyword_type": "page"
+    }
+  ]
+}

@@ -1,0 +1,1419 @@
+=encoding utf-8
+
+
+=head1 Name
+
+B<ngx_srcache> - Transparent subrequest-based caching layout for arbitrary nginx locations
+
+I<This module is not distributed with the Nginx source.> See L<the installation instructions>.
+
+
+=head1 Status
+
+This module is production ready.
+
+
+=head1 Version
+
+This document describes srcache-nginx-module L<v0.31|https://github.com/openresty/srcache-nginx-module/tags> released on 15 May 2016.
+
+
+=head1 Synopsis
+
+
+     upstream my_memcached {
+         server 10.62.136.7:11211;
+         keepalive 10;
+     }
+    
+     location = /memc {
+         internal;
+    
+         memc_connect_timeout 100ms;
+         memc_send_timeout 100ms;
+         memc_read_timeout 100ms;
+         memc_ignore_client_abort on;
+    
+         set $memc_key $query_string;
+         set $memc_exptime 300;
+    
+         memc_pass my_memcached;
+     }
+    
+     location /foo {
+         set $key $uri$args;
+         srcache_fetch GET /memc $key;
+         srcache_store PUT /memc $key;
+         srcache_store_statuses 200 301 302;
+    
+         # proxy_pass/fastcgi_pass/drizzle_pass/echo/etc...
+         # or even static files on the disk
+     }
+
+
+     location = /memc2 {
+         internal;
+    
+         memc_connect_timeout 100ms;
+         memc_send_timeout 100ms;
+         memc_read_timeout 100ms;
+         memc_ignore_client_abort on;
+    
+         set_unescape_uri $memc_key $arg_key;
+         set $memc_exptime $arg_exptime;
+    
+         memc_pass unix:/tmp/memcached.sock;
+     }
+    
+     location /bar {
+         set_escape_uri $key $uri$args;
+         srcache_fetch GET /memc2 key=$key;
+         srcache_store PUT /memc2 key=$key&exptime=$srcache_expire;
+    
+         # proxy_pass/fastcgi_pass/drizzle_pass/echo/etc...
+         # or even static files on the disk
+     }
+
+
+     map $request_method $skip_fetch {
+         default     0;
+         POST        1;
+         PUT         1;
+     }
+    
+     server {
+         listen 8080;
+    
+         location /api/ {
+             set $key "$uri?$args";
+    
+             srcache_fetch GET /memc $key;
+             srcache_store PUT /memc $key;
+    
+             srcache_methods GET PUT POST;
+             srcache_fetch_skip $skip_fetch;
+    
+             # proxy_pass/drizzle_pass/content_by_lua/echo/...
+         }
+     }
+
+
+
+
+=head1 Description
+
+This module provides a transparent caching layer for arbitrary nginx locations (like those use an upstream or even serve static disk files). The caching behavior is mostly compatible with L<RFC 2616|http://www.ietf.org/rfc/rfc2616.txt>.
+
+Usually, L<memc-nginx-module|https://github.com/openresty/memc-nginx-module> is used together with this module to provide a concrete caching storage backend. But technically, any modules that provide a REST interface can be used as the fetching and storage subrequests used by this module.
+
+For main requests, the L<srcache_fetch> directive works at the end of the access phase, so the L<standard access module|http://nginx.org/en/docs/http/ngx_http_access_module.html>'s L<allow|http://nginx.org/en/docs/http/ngx_http_access_module.html#allow> and L<deny|http://nginx.org/en/docs/http/ngx_http_access_module.html#deny> direcives run I<before> ours, which is usually the desired behavior for security reasons.
+
+The workflow of this module looks like below:
+
+!L<srcache flowchart|http://agentzh.org/misc/image/srcache-flowchart.png "srcache flowchart">
+
+
+
+
+=head2 Subrequest caching
+
+For I<subrequests>, we explicitly B<disallow> the use of this module because it's too difficult to get right. There used to be an implementation but it was buggy and I finally gave up fixing it and abandoned it.
+
+However, if you're using L<lua-nginx-module|https://github.com/openresty/lua-nginx-module>, it's easy to do subrequest caching in Lua all by yourself. That is, first issue a subrequest to an L<memc-nginx-module|https://github.com/openresty/memc-nginx-module> location to do an explicit cache lookup, if cache hit, just use the cached data returned; otherwise, fall back to the true backend, and finally do a cache insertion to feed the data into the cache.
+
+Using this module for main request caching and Lua for subrequest caching is the approach that we're taking in our business. This hybrid solution works great in production.
+
+
+
+
+=head2 Distributed Memcached Caching
+
+Here is a simple example demonstrating a distributed memcached caching mechanism built atop this module. Suppose we do have three different memcached nodes and we use simple modulo to hash our keys.
+
+
+     http {
+         upstream moon {
+             server 10.62.136.54:11211;
+             server unix:/tmp/memcached.sock backup;
+         }
+    
+         upstream earth {
+             server 10.62.136.55:11211;
+         }
+    
+         upstream sun {
+             server 10.62.136.56:11211;
+         }
+    
+         upstream_list universe moon earth sun;
+    
+         server {
+             memc_connect_timeout 100ms;
+             memc_send_timeout 100ms;
+             memc_read_timeout 100ms;
+    
+             location = /memc {
+                 internal;
+    
+                 set $memc_key $query_string;
+                 set_hashed_upstream $backend universe $memc_key;
+                 set $memc_exptime 3600; # in seconds
+                 memc_pass $backend;
+             }
+    
+             location / {
+                 set $key $uri;
+                 srcache_fetch GET /memc $key;
+                 srcache_store PUT /memc $key;
+    
+                 # proxy_pass/fastcgi_pass/content_by_lua/drizzle_pass/...
+             }
+         }
+     }
+
+Here's what is going on in the sample above:
+
+=over
+
+
+=item 1.
+
+We first define three upstreams, C<moon>, C<earth>, and C<sun>. These are our three memcached servers.
+
+=item 2.
+
+And then we group them together as an upstream list entity named C<universe> with the C<upstream_list> directive provided by L<set-misc-nginx-module|https://github.com/openresty/set-misc-nginx-module>.
+
+=item 3.
+
+After that, we define an internal location named C</memc> for talking to the memcached cluster.
+
+=item 4.
+
+In this C</memc> location, we first set the C<$memc_key> variable with the query string (C<$args>), and then use the L<set_hashed_upstream|https://github.com/openresty/set-misc-nginx-module#set_hashed_upstream> directive to hash our L<$memc_key|https://github.com/openresty/memc-nginx-module#memc_key> over the upsteam list C<universe>, so as to obtain a concrete upstream name to be assigned to the variable C<$backend>.
+
+=item 5.
+
+We pass this C<$backend> variable into the L<memc_pass|https://github.com/openresty/memc-nginx-module#memc_pass> directive. The C<$backend> variable can hold a value among C<moon>, C<earth>, and C<sun>.
+
+=item 6.
+
+Also, we define the memcached caching expiration time to be 3600 seconds (i.e., an hour) by overriding the L<$memc_exptime|https://github.com/openresty/memc-nginx-module#memc_exptime> variable.
+
+=item 7.
+
+In our main public location C</>, we configure the C<$uri> variable as our cache key, and then configure L<srcache_fetch> for cache lookups and L<srcache_store> for cache updates. We're using two subrequests to our C</memc> location defined earlier in these two directives.
+
+
+=back
+
+One can use L<lua-nginx-module|https://github.com/openresty/lua-nginx-module>'s L<set_by_lua|https://github.com/openresty/lua-nginx-module#set_by_lua> or L<rewrite_by_lua|https://github.com/openresty/lua-nginx-module#rewrite_by_lua> directives to inject custom Lua code to compute the C<$backend> and/or C<$key> variables in the sample above.
+
+One thing that should be taken care of is that memcached does have restriction on key lengths, i.e., 250 bytes, so for keys that may be very long, one could use the L<set_md5|https://github.com/openresty/set-misc-nginx-module#set_md5> directive or its friends to pre-hash the key to a fixed-length digest before assigning it to C<$memc_key> in the C</memc> location or the like.
+
+Further, one can utilize the L<srcache_fetch_skip> and L<srcache_store_skip> directives to control what to cache and what not on a per-request basis, and Lua can also be used here in a similar way. So the possibility is really unlimited.
+
+To maximize speed, we often enable TCP (or Unix Domain Socket) connection pool for our memcached upstreams provided by L<HttpUpstreamKeepaliveModule|http://wiki.nginx.org/HttpUpstreamKeepaliveModule>, for example,
+
+
+     upstream moon {
+         server 10.62.136.54:11211;
+         server unix:/tmp/memcached.sock backup;
+         keepalive 10;
+     }
+
+where we define a connection pool which holds up to 10 keep-alive connections (per nginx worker process) for our C<moon> upstream (cluster).
+
+
+
+
+=head2 Caching with Redis
+
+One annoyance with Memcached backed caching is Memcached server's 1 MB value size limit. So it is often desired to use some more permissive backend storage services like Redis to serve as this module's backend.
+
+Here is a working example by using Redis:
+
+
+     location /api {
+         default_type text/css;
+    
+         set $key $uri;
+         set_escape_uri $escaped_key $key;
+    
+         srcache_fetch GET /redis $key;
+         srcache_store PUT /redis2 key=$escaped_key&exptime=120;
+    
+         # fastcgi_pass/proxy_pass/drizzle_pass/postgres_pass/echo/etc
+     }
+    
+     location = /redis {
+         internal;
+    
+         set_md5 $redis_key $args;
+         redis_pass 127.0.0.1:6379;
+     }
+    
+     location = /redis2 {
+         internal;
+    
+         set_unescape_uri $exptime $arg_exptime;
+         set_unescape_uri $key $arg_key;
+         set_md5 $key;
+    
+         redis2_query set $key $echo_request_body;
+         redis2_query expire $key $exptime;
+         redis2_pass 127.0.0.1:6379;
+     }
+
+This example makes use of the L<$echo_request_body|https://github.com/openresty/echo-nginx-module#echo_request_body> variable provided by L<echo-nginx-module|https://github.com/openresty/echo-nginx-module>. Note that you need the latest version of L<echo-nginx-module|https://github.com/openresty/echo-nginx-module>, C<v0.38rc2> because earlier versions may not work reliably.
+
+Also, you need both L<HttpRedisModule|http://wiki.nginx.org/HttpRedisModule> and L<redis2-nginx-module|https://github.com/openresty/redis2-nginx-module>. The former is used in the L<srcache_fetch> subrequest and the latter is used in the L<srcache_store> subrequest.
+
+The Nginx core also has a bug that could prevent L<redis2-nginx-module|https://github.com/openresty/redis2-nginx-module>'s pipelining support from working properly in certain extreme conditions. And the following patch fixes this:
+
+http://mailman.nginx.org/pipermail/nginx-devel/2012-March/002040.html
+
+Note that, however, if you are using the L<OpenResty|http://openresty.org/> 1.0.15.3 bundle or later, then you already have everything that you need here in the bundle.
+
+
+
+
+=head2 Cache Key Preprocessing
+
+It is often desired to preprocess the cache key to exclude random noises that may hurt the cache hit rate. For example, random session IDs in the URI arguments are usually desired to get removed.
+
+Consider the following URI querystring
+
+    SID=BC3781C3-2E02-4A11-89CF-34E5CFE8B0EF&UID=44332&L=EN&M=1&H=1&UNC=0&SRC=LK&RT=62
+
+we want to remove the C<SID> and C<UID> arguments from it. It is easy to achieve if you use L<lua-nginx-module|https://github.com/openresty/lua-nginx-module> at the same time:
+
+
+     location = /t {
+         rewrite_by_lua '
+             local args = ngx.req.get_uri_args()
+             args.SID = nil
+             args.UID = nil
+             ngx.req.set_uri_args(args)
+         ';
+    
+         echo $args;
+     }
+
+Here we use the L<echo|https://github.com/openresty/echo-nginx-module#echo> directive from L<echo-nginx-module|https://github.com/openresty/echo-nginx-module> to dump out
+the final value of L<$args|http://nginx.org/en/docs/http/ngx_http_core_module.html#var_args> in the end. You can replace it with your
+L<srcache-nginx-module|https://github.com/openresty/srcache-nginx-module> configurations and upstream configurations instead for
+your case. Let's test this /t interface with curl:
+
+    $ curl 'localhost:8081/t?RT=62&SID=BC3781C3-2E02-4A11-89CF-34E5CFE8B0EF&UID=44332&L=EN&M=1&H=1&UNC=0&SRC=LK'
+    M=1&UNC=0&RT=62&H=1&L=EN&SRC=LK
+
+It is worth mentioning that, if you want to retain the order of the URI
+arguments, then you can do string substitutions on the value of L<$args|http://nginx.org/en/docs/http/ngx_http_core_module.html#var_args>
+directly, for example,
+
+    location = /t {
+        rewrite_by_lua '
+            local args = ngx.var.args
+            newargs, n, err = ngx.re.gsub(args, [[\b[SU]ID=[^&]*&?]], "", "jo")
+            if n and n > 0 then
+                ngx.var.args = newargs
+            end
+        ';
+
+        echo $args;
+    }
+
+Now test it with the original curl command again, we get exactly what
+we would expect:
+
+    RT=62&L=EN&M=1&H=1&UNC=0&SRC=LK
+
+But for caching purposes, it's good to normalize the URI argument
+order so that you can increase the cache hit rate. And the hash table
+entry order used by LuaJIT or Lua can be used to normalize the order
+as a nice side effect.
+
+
+
+
+=head1 Directives
+
+
+
+
+=head2 srcache_fetch
+
+B<syntax:> I<srcache_fetch E<lt>methodE<gt> E<lt>uriE<gt> E<lt>argsE<gt>?>
+
+B<default:> I<no>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<post-access>
+
+This directive registers an access phase handler that will issue an Nginx subrequest to lookup the cache.
+
+When the subrequest returns status code other than C<200>, than a cache miss is signaled and the control flow will continue to the later phases including the content phase configured by L<ngx_http_proxy_module|http://nginx.org/en/docs/http/ngx_http_proxy_module.html>, L<ngx_http_fastcgi_module|http://nginx.org/en/docs/http/ngx_http_fastcgi_module.html>, and others. If the subrequest returns C<200 OK>, then a cache hit is signaled and this module will send the subrequest's response as the current main request's response to the client directly.
+
+This directive will always run at the end of the access phase, such that L<ngx_http_access_module|http://nginx.org/en/docs/http/ngx_http_access_module.html>'s L<allow|http://nginx.org/en/docs/http/ngx_http_access_module.html#allow> and L<deny|http://nginx.org/en/docs/http/ngx_http_access_module.html#deny> will always run I<before> this.
+
+You can use the L<srcache_fetch_skip> directive to disable cache look-up selectively.
+
+
+
+
+=head2 srcache_fetch_skip
+
+B<syntax:> I<srcache_fetch_skip E<lt>flagE<gt>>
+
+B<default:> I<srcache_fetch_skip 0>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<post-access>
+
+The C<< <flag> >> argument supports nginx variables. When this argument's value is not empty I<and> not equal to C<0>, then the fetching process will be unconditionally skipped.
+
+For example, to skip caching requests which have a cookie named C<foo> with the value C<bar>, we can write
+
+
+     location / {
+         set $key ...;
+         set_by_lua $skip '
+             if ngx.var.cookie_foo == "bar" then
+                 return 1
+             end
+             return 0
+         ';
+    
+         srcache_fetch_skip $skip;
+         srcache_store_skip $skip;
+    
+         srcache_fetch GET /memc $key;
+         srcache_store GET /memc $key;
+    
+         # proxy_pass/fastcgi_pass/content_by_lua/...
+     }
+
+where L<lua-nginx-module|https://github.com/openresty/lua-nginx-module> is used to calculate the value of the C<$skip> variable at the (earlier) rewrite phase. Similarly, the C<$key> variable can be computed by Lua using the L<set_by_lua|https://github.com/openresty/lua-nginx-module#set_by_lua> or L<rewrite_by_lua|https://github.com/openresty/lua-nginx-module#rewrite_by_lua> directive too.
+
+The standard L<map|http://nginx.org/en/docs/http/ngx_http_map_module.html#map> directive can also be used to compute the value of the C<$skip> variable used in the sample above:
+
+
+     map $cookie_foo $skip {
+         default     0;
+         bar         1;
+     }
+
+but your L<map|http://nginx.org/en/docs/http/ngx_http_map_module.html#map> statement should be put into the C<http> config block in your C<nginx.conf> file though.
+
+
+
+
+=head2 srcache_store
+
+B<syntax:> I<srcache_store E<lt>methodE<gt> E<lt>uriE<gt> E<lt>argsE<gt>?>
+
+B<default:> I<no>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<output-filter>
+
+This directive registers an output filter handler that will issue an Nginx subrequest to save the response of the current main request into a cache backend. The status code of the subrequest will be ignored.
+
+You can use the L<srcache_store_skip> and L<srcache_store_max_size> directives to disable caching for certain requests in case of a cache miss.
+
+Since the C<v0.12rc7> release, both the response status line, response headers, and response bodies will be put into the cache. By default, the following special response headers will not be cached:
+
+
+=over
+
+
+=item *
+
+Connection
+
+=item *
+
+Keep-Alive
+
+=item *
+
+Proxy-Authenticate
+
+=item *
+
+Proxy-Authorization
+
+=item *
+
+TE
+
+=item *
+
+Trailers
+
+=item *
+
+Transfer-Encoding
+
+=item *
+
+Upgrade
+
+=item *
+
+Set-Cookie
+
+
+=back
+
+You can use the L<srcache_store_pass_header> and/or L<srcache_store_hide_header> directives to control what headers to cache and what not.
+
+The original response's data chunks get emitted as soon as 
+they arrive. C<srcache_store> just copies and collects the data in an output filter without postponing them from being sent downstream.
+
+But please note that even though all the response data will be sent immediately, the current Nginx request lifetime will not finish until the srcache_store subrequest completes. That means a delay in closing the TCP connection on the server side (when HTTP keepalive is disabled, but proper HTTP clients should close the connection actively on the client side, which adds no extra delay or other issues at all) or serving the next request sent on the same TCP connection (when HTTP keepalive is in action).
+
+
+
+
+=head2 srcache_store_max_size
+
+B<syntax:> I<srcache_store_max_size E<lt>sizeE<gt>>
+
+B<default:> I<srcache_store_max_size 0>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<output-header-filter>
+
+When the response body length is exceeding this size, this module will not try to store the response body into the cache using the subrequest template that is specified in L<srcache_store>.
+
+This is particular useful when using cache storage backend that does have a hard upper limit on the input data. For example, for Memcached server, the limit is usually C<1 MB>.
+
+When C<0> is specified (the default value), there's no limit check at all.
+
+
+
+
+=head2 srcache_store_skip
+
+B<syntax:> I<srcache_store_skip E<lt>flagE<gt>>
+
+B<default:> I<srcache_store_skip 0>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<output-header-filter>
+
+The C<< <flag> >> argument supports Nginx variables. When this argument's value is not empty I<and> not equal to C<0>, then the storing process will be unconditionally skipped.
+
+Starting from the C<v0.25> release, the C<< <flag> >> expression (possibly containing Nginx variables) can be evaluated up to twice: the first time is right after the response header is being sent and when the C<< <flag> >> expression is not evaluated to true values it will be evaluated again right after the end of the response body data stream is seen. Before C<v0.25>, only the first time evaluation is performed.
+
+Here's an example using Lua to set $nocache to avoid storing URIs that contain the string "/tmp":
+
+
+     set_by_lua $nocache '
+         if string.match(ngx.var.uri, "/tmp") then
+             return 1
+         end
+         return 0';
+    
+     srcache_store_skip $nocache;
+
+
+
+
+=head2 srcache_store_statuses
+
+B<syntax:> I<srcache_store_statuses E<lt>status1E<gt> E<lt>status2E<gt> ..>
+
+B<default:> I<srcache_store_statuses 200 301 302>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<output-header-filter>
+
+This directive controls what responses to store to the cache according to their status code.
+
+By default, only C<200>, C<301>, and C<302> responses will be stored to cache and any other responses will skip L<srcache_store>.
+
+You can specify arbitrary positive numbers for the response status code that you'd like to cache, even including error code like C<404> and C<503>. For example:
+
+
+     srcache_store_statuses 200 201 301 302 404 503;
+
+At least one argument should be given to this directive.
+
+This directive was first introduced in the C<v0.13rc2> release.
+
+
+
+
+=head2 srcache_store_ranges
+
+B<syntax:> I<srcache_store_ranges on|off>
+
+B<default:> I<srcache_store_ranges off>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<output-body-filter>
+
+When this directive is turned on (default to C<off>), L<srcache_store> will also store 206 Partial Content responses generated by the standard C<ngx_http_range_filter_module>. If you turn this directive on, you MUST add C<$http_range> to your cache keys. For example,
+
+
+     location / {
+         set $key "$uri$args$http_range";
+         srcache_fetch GET /memc $key;
+         srcache_store PUT /memc $key;
+     }
+
+This directive was first introduced in the C<v0.27> release.
+
+
+
+
+=head2 srcache_header_buffer_size
+
+B<syntax:> I<srcache_header_buffer_size E<lt>sizeE<gt>>
+
+B<default:> I<srcache_header_buffer_size 4k/8k>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<output-header-filter>
+
+This directive controles the header buffer when serializing response headers for L<srcache_store>. The default size is the page size, usually C<4k> or C<8k> depending on specific platforms.
+
+Note that the buffer is not used to hold all the response headers, but just each individual header. So the buffer is merely needed to be big enough to hold the longest response header.
+
+This directive was first introduced in the C<v0.12rc7> release.
+
+
+
+
+=head2 srcache_store_hide_header
+
+B<syntax:> I<srcache_store_hide_header E<lt>headerE<gt>>
+
+B<default:> I<no>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<output-header-filter>
+
+By default, this module caches all the response headers except the following ones:
+
+
+=over
+
+
+=item *
+
+Connection
+
+=item *
+
+Keep-Alive
+
+=item *
+
+Proxy-Authenticate
+
+=item *
+
+Proxy-Authorization
+
+=item *
+
+TE
+
+=item *
+
+Trailers
+
+=item *
+
+Transfer-Encoding
+
+=item *
+
+Upgrade
+
+=item *
+
+Set-Cookie
+
+
+=back
+
+You can hide even more response headers from L<srcache_store> by listing their names (case-insensitive) by means of this directive. For examples,
+
+
+     srcache_store_hide_header X-Foo;
+     srcache_store_hide_header Last-Modified;
+
+Multiple occurrences of this directive are allowed in a single location.
+
+This directive was first introduced in the C<v0.12rc7> release.
+
+See also L<srcache_store_pass_header>.
+
+
+
+
+=head2 srcache_store_pass_header
+
+B<syntax:> I<srcache_store_pass_header E<lt>headerE<gt>>
+
+B<default:> I<no>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<output-header-filter>
+
+By default, this module caches all the response headers except the following ones:
+
+
+=over
+
+
+=item *
+
+Connection
+
+=item *
+
+Keep-Alive
+
+=item *
+
+Proxy-Authenticate
+
+=item *
+
+Proxy-Authorization
+
+=item *
+
+TE
+
+=item *
+
+Trailers
+
+=item *
+
+Transfer-Encoding
+
+=item *
+
+Upgrade
+
+=item *
+
+Set-Cookie
+
+
+=back
+
+You can force L<srcache_store> to store one or more of these response headers from L<srcache_store> by listing their names (case-insensitive) by means of this directive. For examples,
+
+
+     srcache_store_pass_header Set-Cookie;
+     srcache_store_pass_header Proxy-Autenticate;
+
+Multiple occurrences of this directive are allowed in a single location.
+
+This directive was first introduced in the C<v0.12rc7> release.
+
+See also L<srcache_store_hide_header>.
+
+
+
+
+=head2 srcache_methods
+
+B<syntax:> I<srcache_methods E<lt>methodE<gt>...>
+
+B<default:> I<srcache_methods GET HEAD>
+
+B<context:> I<http, server, location>
+
+B<phase:> I<post-access, output-header-filter>
+
+This directive specifies HTTP request methods that are considered by either L<srcache_fetch> or L<srcache_store>. HTTP request methods not listed will be skipped completely from the cache.
+
+The following HTTP methods are allowed: C<GET>, C<HEAD>, C<POST>, C<PUT>, and C<DELETE>. The C<GET> and C<HEAD> methods are always implicitly included in the list regardless of their presence in this directive.
+
+Note that since the C<v0.17> release C<HEAD> requests are always skipped by L<srcache_store> because their responses never carry a response body.
+
+This directive was first introduced in the C<v0.12rc7> release.
+
+
+
+
+=head2 srcache_ignore_content_encoding
+
+B<syntax:> I<srcache_ignore_content_encoding on|off>
+
+B<default:> I<srcache_ignore_content_encoding off>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<output-header-filter>
+
+When this directive is turned C<off> (which is the default), non-empty C<Content-Encoding> response header will cause L<srcache_store> skip storing the whole response into the cache and issue a warning into nginx's C<error.log> file like this:
+
+    [warn] 12500#0: *1 srcache_store skipped due to response header "Content-Encoding: gzip"
+                (maybe you forgot to disable compression on the backend?)
+
+Turning on this directive will ignore the C<Content-Encoding> response header and store the response as usual (and also without warning).
+
+It's recommended to always disable gzip/deflate compression on your backend server by specifying the following line in your C<nginx.conf> file:
+
+
+     proxy_set_header  Accept-Encoding  "";
+
+This directive was first introduced in the C<v0.12rc7> release.
+
+
+
+
+=head2 srcache_request_cache_control
+
+B<syntax:> I<srcache_request_cache_control on|off>
+
+B<default:> I<srcache_request_cache_control off>
+
+B<context:> I<http, server, location>
+
+B<phase:> I<post-access, output-header-filter>
+
+When this directive is turned C<on>, the request headers C<Cache-Control> and C<Pragma> will be honored by this module in the following ways:
+
+
+=over
+
+
+=item 1.
+
+L<srcache_fetch>, i.e., the cache lookup operation, will be skipped when request headers C<Cache-Control: no-cache> and/or C<Pragma: no-cache> are present.
+
+=item 2.
+
+L<srcache_store>, i.e., the cache store operation, will be skipped when the request header C<Cache-Control: no-store> is specified.
+
+
+=back
+
+Turning off this directive will disable this functionality and is considered safer for busy sites mainly relying on cache for speed.
+
+This directive was first introduced in the C<v0.12rc7> release.
+
+See also L<srcache_response_cache_control>.
+
+
+
+
+=head2 srcache_response_cache_control
+
+B<syntax:> I<srcache_response_cache_control on|off>
+
+B<default:> I<srcache_response_cache_control on>
+
+B<context:> I<http, server, location>
+
+B<phase:> I<output-header-filter>
+
+When this directive is turned C<on>, the response headers C<Cache-Control> and C<Expires> will be honored by this module in the following ways:
+
+
+=over
+
+
+=item *
+
+C<Cache-Control: private> skips L<srcache_store>,
+
+=item *
+
+C<Cache-Control: no-store> skips L<srcache_store>,
+
+=item *
+
+C<Cache-Control: no-cache> skips L<srcache_store>,
+
+=item *
+
+C<Cache-Control: max-age=0> skips L<srcache_store>,
+
+=item *
+
+and C<< Expires: <date-no-more-recently-than-now> >> skips L<srcache_store>.
+
+
+=back
+
+This directive takes priority over the L<srcache_store_no_store>, L<srcache_store_no_cache>, and L<srcache_store_private> directives.
+
+This directive was first introduced in the C<v0.12rc7> release.
+
+See also L<srcache_request_cache_control>.
+
+
+
+
+=head2 srcache_store_no_store
+
+B<syntax:> I<srcache_store_no_store on|off>
+
+B<default:> I<srcache_store_no_store off>
+
+B<context:> I<http, server, location>
+
+B<phase:> I<output-header-filter>
+
+Turning this directive on will force responses with the header C<Cache-Control: no-store> to be stored into the cache when L<srcache_response_cache_control> is turned C<on> I<and> other conditions are met. Default to C<off>.
+
+This directive was first introduced in the C<v0.12rc7> release.
+
+
+
+
+=head2 srcache_store_no_cache
+
+B<syntax:> I<srcache_store_no_cache on|off>
+
+B<default:> I<srcache_store_no_cache off>
+
+B<context:> I<http, server, location>
+
+B<phase:> I<output-header-filter>
+
+Turning this directive on will force responses with the header C<Cache-Control: no-cache> to be stored into the cache when L<srcache_response_cache_control> is turned C<on> I<and> other conditions are met. Default to C<off>.
+
+This directive was first introduced in the C<v0.12rc7> release.
+
+
+
+
+=head2 srcache_store_private
+
+B<syntax:> I<srcache_store_private on|off>
+
+B<default:> I<srcache_store_private off>
+
+B<context:> I<http, server, location>
+
+B<phase:> I<output-header-filter>
+
+Turning this directive on will force responses with the header C<Cache-Control: private> to be stored into the cache when L<srcache_response_cache_control> is turned C<on> I<and> other conditions are met. Default to C<off>.
+
+This directive was first introduced in the C<v0.12rc7> release.
+
+
+
+
+=head2 srcache_default_expire
+
+B<syntax:> I<srcache_default_expire E<lt>timeE<gt>>
+
+B<default:> I<srcache_default_expire 60s>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<output-header-filter>
+
+This directive controls the default expiration time period that is allowed for the L<$srcache_expire> variable value when neither C<Cache-Control: max-age=N> nor C<Expires> are specified in the response headers.
+
+The C<< <time> >> argument values are in seconds by default. But it's wise to always explicitly specify the time unit to avoid confusion. Time units supported are "s"(seconds), "ms"(milliseconds), "y"(years), "M"(months), "w"(weeks), "d"(days), "h"(hours), and "m"(minutes). For example,
+
+
+     srcache_default_expire 30m; # 30 minutes
+
+This time must be less than 597 hours.
+
+The semantics of a zero expiration time depends on the actual cache backend storage you are currently using, which is agnostic to this
+module. In the case of memcached, for example, zero expiration times mean that the item will never expire.
+
+This directive was first introduced in the C<v0.12rc7> release.
+
+
+
+
+=head2 srcache_max_expire
+
+B<syntax:> I<srcache_max_expire E<lt>timeE<gt>>
+
+B<default:> I<srcache_max_expire 0>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<output-header-filter>
+
+This directive controls the maximal expiration time period that is allowed for the L<$srcache_expire> variable value. This setting takes priority over other calculating methods.
+
+The C<< <time> >> argument values are in seconds by default. But it's wise to always explicitly specify the time unit to avoid confusion. Time units supported are "s"(seconds), "ms"(milliseconds), "y"(years), "M"(months), "w"(weeks), "d"(days), "h"(hours), and "m"(minutes). For example,
+
+
+     srcache_max_expire 2h;  # 2 hours
+
+This time must be less than 597 hours.
+
+When C<0> is specified, which is the default setting, then there will be I<no> limit at all.
+
+This directive was first introduced in the C<v0.12rc7> release.
+
+
+
+
+=head1 Variables
+
+
+
+
+=head2 $srcache_expire
+
+B<type:> I<integer>
+
+B<cacheable:> I<no>
+
+B<writable:> I<no>
+
+This Nginx variable gives the recommended expiration time period (in seconds) for the current response being stored into the cache. The algorithm of computing the value is as follows:
+
+
+=over
+
+
+=item 1.
+
+When the response header C<Cache-Control: max-age=N> is specified, then C<N> will be used as the expiration time,
+
+=item 2.
+
+otherwise if the response header C<Expires> is specified, then the expiration time will be obtained by subtracting the current time stamp from the time specified in the C<Expires> header,
+
+=item 3.
+
+when neither C<Cache-Control: max-age=N> nor C<Expires> headers are specified, use the value specified in the L<srcache_default_expire> directive.
+
+
+=back
+
+The final value of this variable will be the value specified by the L<srcache_max_expire> directive if the value obtained in the algorithm above exceeds the maximal value (if any).
+
+You don't have to use this variable for the expiration time.
+
+This variable was first introduced in the C<v0.12rc7> release.
+
+
+
+
+=head2 $srcache_fetch_status
+
+B<type:> I<string>
+
+B<cacheable:> I<no>
+
+B<writable:> I<no>
+
+This Nginx variable is evaluated to the status of the "fetch" phase for the caching system. Three values are possible, C<HIT>, C<MISS>, and C<BYPASS>.
+
+When the "fetch" subrequest returns status code other than C<200> or its response data is not well-formed, then this variable is evaluated to the value C<MISS>.
+
+The value of this variable is only meaningful after the C<access> request processing phase, or C<BYPASS> is always given.
+
+This variable was first introduced in the C<v0.14> release.
+
+
+
+
+=head2 $srcache_store_status
+
+B<type:> I<string>
+
+B<cacheable:> I<no>
+
+B<writable:> I<no>
+
+This Nginx variable gives the current caching status for the "store" phase. Two possible values, C<STORE> and C<BYPASS> can be obtained.
+
+Because the responses for the "store" subrequest are always discarded, so the value of this variable will always be C<STORE> as long as the "store" subrequest is actually issued.
+
+The value of this variable is only meaningful at least when the request headers of the current (main) request are being sent. The final result can only be obtained after all the response body has been sent if the C<Content-Length> response header is not specified for the main request.
+
+This variable was first introduced in the C<v0.14> release.
+
+
+
+
+=head1 Known Issues
+
+
+=over
+
+
+=item *
+
+On certain systems, enabling aio and/or sendfile may stop L<srcache_store> from working. You can disable them in the locations configured by L<srcache_store>.
+
+=item *
+
+The L<srcache_store> directive can not be used to capture the responses generated by L<echo-nginx-module|https://github.com/openresty/echo-nginx-module>'s subrequest directivees like L<echo_subrequest_async|https://github.com/openresty/echo-nginx-module#echo_subrequest_async> and L<echo_location|https://github.com/openresty/echo-nginx-module#echo_location>. You are recommended to use HttpLuaModule to initiate and capture subrequests, which should work with L<srcache_store>.
+
+
+=back
+
+
+
+
+=head1 Caveats
+
+
+=over
+
+
+=item *
+
+It is recommended to disable your backend server's gzip compression and use nginx's L<ngx_http_gzip_module|http://nginx.org/en/docs/http/ngx_http_gzip_module.html> to do the job. In case of L<ngx_http_proxy_module|http://nginx.org/en/docs/http/ngx_http_proxy_module.html>, you can use the following configure setting to disable backend gzip compression:
+
+     proxy_set_header  Accept-Encoding  "";
+
+
+=back
+
+
+=over
+
+
+=item *
+
+Do I<not> use L<ngx_http_rewrite_module|http://nginx.org/en/docs/http/ngx_http_rewrite_module.html>'s L<if|http://nginx.org/en/docs/http/ngx_http_rewrite_module.html#if> directive in the same location as this module's, because "L<if|http://nginx.org/en/docs/http/ngx_http_rewrite_module.html#if> is evil". Instead, use L<ngx_http_map_module|http://nginx.org/en/docs/http/ngx_http_map_module.html> or L<lua-nginx-module|https://github.com/openresty/lua-nginx-module> combined with this module's L<srcache_store_skip> and/or L<srcache_fetch_skip> directives. For example:
+
+     map $request_method $skip_fetch {
+         default     0;
+         POST        1;
+         PUT         1;
+     }
+    
+     server {
+         listen 8080;
+    
+         location /api/ {
+             set $key "$uri?$args";
+    
+             srcache_fetch GET /memc $key;
+             srcache_store PUT /memc $key;
+    
+             srcache_methods GET PUT POST;
+             srcache_fetch_skip $skip_fetch;
+    
+             # proxy_pass/drizzle_pass/content_by_lua/echo/...
+         }
+     }
+
+
+=back
+
+
+
+
+=head1 Trouble Shooting
+
+To debug issues, you should always check your Nginx C<error.log> file first. If no error messages are printed, you need to enable the Nginx debugging logs to get more details, as explained in L<debugging log|http://nginx.org/en/docs/debugging_log.html>.
+
+Several common pitfalls for beginners:
+
+
+=over
+
+
+=item *
+
+The original response carries a C<Cache-Control> header that explicitly disables caching and you do not configure directives like L<srcache_response_cache_control>.
+
+=item *
+
+The original response is already gzip compressed, which is not cached by default (see L<srcache_ignore_content_encoding>).
+
+=item *
+
+Memcached might return C<CLIENT_ERROR bad command line format> when using a too long key (250 chars as of version 1.4.25). It is thus safer to use C<set_md5 $key $uri$args;> instead of C<set $key $uri$args;>. The C<set_md5> directive (and more) is available from L<OpenResty's set-misc module|https://github.com/openresty/set-misc-nginx-module>.
+
+
+=back
+
+
+
+
+=head1 Installation
+
+It is recommended to install this module as well as the Nginx core and many other goodies via the L<OpenResty bundle|http://openresty.org>. It is the easiest way and most safe way to set things up. See OpenResty's L<installation instructions|http://openresty.org/#Installation> for details.
+
+Alternatively, you can build Nginx with this module all by yourself:
+
+
+=over
+
+
+=item *
+
+Grab the nginx source code from L<nginx.org|http://nginx.org>, for example, the version 1.9.15 (see L<Nginx Compatibility>),
+
+=item *
+
+and then apply the patch to your nginx source tree that fixes an important bug in the mainline Nginx core: E<lt>https://raw.github.com/openresty/openresty/master/patches/nginx-1.4.3-upstream_truncation.patchE<gt> (you do NOT need this patch if you are using nginx 1.5.3 and later versions.)
+
+=item *
+
+after that, download the latest version of the release tarball of this module from srcache-nginx-module L<file list|https://github.com/openresty/srcache-nginx-module/tags>,
+
+=item *
+
+and finally build the Nginx source with this module
+
+
+=back
+
+
+     wget 'http://nginx.org/download/nginx-1.9.15.tar.gz'
+     tar -xzvf nginx-1.9.15.tar.gz
+     cd nginx-1.9.15/
+    
+     # Here we assume you would install you nginx under /opt/nginx/.
+     ./configure --prefix=/opt/nginx \
+          --add-module=/path/to/srcache-nginx-module
+    
+     make -j2
+     make install
+
+Starting from NGINX 1.9.11, you can also compile this module as a dynamic module, by using the C<--add-dynamic-module=PATH> option instead of C<--add-module=PATH> on the
+C<./configure> command line above. And then you can explicitly load the module in your C<nginx.conf> via the L<load_module|http://nginx.org/en/docs/ngx_core_module.html#load_module>
+directive, for example,
+
+
+    load_module /path/to/modules/ngx_http_srcache_filter_module.so;
+
+
+
+
+=head1 Compatibility
+
+The following versions of Nginx should work with this module:
+
+
+=over
+
+
+=item *
+
+1.9.x (last tested: 1.9.15)
+
+=item *
+
+1.8.x
+
+=item *
+
+1.7.x (last tested: 1.7.10)
+
+=item *
+
+1.5.x (last tested: 1.5.12)
+
+=item *
+
+1.4.x (last tested: 1.4.4)
+
+=item *
+
+1.3.x (last tested: 1.3.7)
+
+=item *
+
+1.2.x (last tested: 1.2.9)
+
+=item *
+
+1.1.x (last tested: 1.1.5)
+
+=item *
+
+1.0.x (last tested: 1.0.11)
+
+=item *
+
+0.9.x (last tested: 0.9.4)
+
+=item *
+
+0.8.x E<gt>= 0.8.54 (last tested: 0.8.54)
+
+
+=back
+
+Earlier versions of Nginx like 0.7.x, 0.6.x and 0.5.x will I<not> work.
+
+If you find that any particular version of Nginx above 0.7.44 does not work with this module, please consider reporting a bug.
+
+
+
+
+=head1 Community
+
+
+
+
+=head2 English Mailing List
+
+The L<openresty-en|https://groups.google.com/group/openresty-en> mailing list is for English speakers.
+
+
+
+
+=head2 Chinese Mailing List
+
+The L<openresty|https://groups.google.com/group/openresty> mailing list is for Chinese speakers.
+
+
+
+
+=head1 Bugs and Patches
+
+Please submit bug reports, wishlists, or patches by
+
+
+=over
+
+
+=item 1.
+
+creating a ticket on the L<GitHub Issue Tracker|https://github.com/openresty/srcache-nginx-module/issues>,
+
+=item 2.
+
+or posting to the L<OpenResty community>.
+
+
+=back
+
+
+
+
+=head1 Source Repository
+
+Available on github at L<openrestyE<sol>srcache-nginx-module|https://github.com/openresty/srcache-nginx-module>.
+
+
+
+
+=head1 Test Suite
+
+This module comes with a Perl-driven test suite. The L<test cases|https://github.com/openresty/srcache-nginx-module/tree/master/test/t> are L<declarative|https://github.com/openresty/srcache-nginx-module/blob/master/test/t/main-req.t> too. Thanks to the L<Test::Nginx|http://search.cpan.org/perldoc?Test::Base> module in the Perl world.
+
+To run it on your side:
+
+     $ PATH=/path/to/your/nginx-with-srcache-module:$PATH prove -r t
+
+You need to terminate any Nginx processes before running the test suite if you have changed the Nginx server binary.
+
+Because a single nginx server (by default, C<localhost:1984>) is used across all the test scripts (C<.t> files), it's meaningless to run the test suite in parallel by specifying C<-jN> when invoking the C<prove> utility.
+
+Some parts of the test suite requires modules L<ngx_http_rewrite_module|http://nginx.org/en/docs/http/ngx_http_rewrite_module.html>, L<echo-nginx-module|https://github.com/openresty/echo-nginx-module>, L<rds-json-nginx-module|https://github.com/openresty/rds-json-nginx-module>, and L<drizzle-nginx-module|https://github.com/openresty/drizzle-nginx-module> to be enabled as well when building Nginx.
+
+
+
+
+=head1 TODO
+
+
+=over
+
+
+=item *
+
+add gzip compression and decompression support.
+
+=item *
+
+add new nginx variable C<$srcache_key> and new directives C<srcache_key_ignore_args>, C<srcache_key_filter_args>, and C<srcache_key_sort_args>.
+
+
+=back
+
+
+
+
+=head1 Getting involved
+
+You'll be very welcomed to submit patches to the author or just ask for a commit bit to the source repository on GitHub.
+
+
+
+
+=head1 Author
+
+Yichun "agentzh" Zhang (章亦春) E<lt>agentzh@gmail.comE<gt>, CloudFlare Inc.
+
+
+
+
+=head1 Copyright & License
+
+Copyright (c) 2010-2016, Yichun "agentzh" Zhang (章亦春) E<lt>agentzh@gmail.comE<gt>, CloudFlare Inc.
+
+This module is licensed under the terms of the BSD license.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+L<memc-nginx-module|https://github.com/openresty/memc-nginx-module>
+
+=item *
+
+L<lua-nginx-module|https://github.com/openresty/lua-nginx-module>
+
+=item *
+
+L<set-misc-nginx-module|https://github.com/openresty/set-misc-nginx-module>
+
+=item *
+
+The L<openresty bundle|http://openresty.org>
+
+
+=back
+

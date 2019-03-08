@@ -1,0 +1,279 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+control - Controlling nginx
+
+
+=head1
+
+
+
+nginx can be controlled with signals.
+The process ID of the master process is written to the file
+F<E<sol>usrE<sol>localE<sol>nginxE<sol>logsE<sol>nginx.pid> by default.
+This name may be changed at configuration time, or in
+F<nginx.conf> using the
+L<ngx_core_module>
+directive.
+The master process supports the following signals:
+
+B<NOTE>
+
+
+TERM, INT                          fast shutdown
+     QUIT                      graceful shutdown
+     USR1                   re-opening log files
+     USR2           upgrading an executable file
+    WINCH  graceful shutdown of worker processes
+
+
+
+
+
+
+
+Individual worker processes can be controlled with signals as well,
+though it is not required.
+The supported signals are:
+
+B<NOTE>
+
+
+TERM, INT         fast shutdown
+     QUIT     graceful shutdown
+     USR1  re-opening log files
+
+
+
+
+
+
+=head1 Changing Configuration
+
+
+
+In order for nginx to re-read the configuration file, a HUP
+signal should be sent to the master process.
+The master process first checks the syntax validity, then tries
+to apply new configuration, that is, to open log files and new
+listen sockets.
+If this fails, it rolls back changes and continues to work
+with old configuration.
+If this succeeds, it starts new worker processes, and
+sends messages to old worker processes requesting them to
+shut down gracefully.
+Old worker processes close listen sockets and continue to service
+old clients.
+After all clients are serviced, old worker processes are shut down.
+
+
+
+
+
+Let’s illustrate this by example.
+Imagine that nginx is run on FreeBSD 4.x and the command
+
+    
+    ps axw -o pid,ppid,user,%cpu,vsz,wchan,command | egrep '(nginx|PID)'
+
+
+produces the following output:
+
+    
+      PID  PPID USER    %CPU   VSZ WCHAN  COMMAND
+    33126     1 root     0.0  1148 pause  nginx: master process /usr/local/nginx/sbin/nginx
+    33127 33126 nobody   0.0  1380 kqread nginx: worker process (nginx)
+    33128 33126 nobody   0.0  1364 kqread nginx: worker process (nginx)
+    33129 33126 nobody   0.0  1364 kqread nginx: worker process (nginx)
+
+
+
+
+
+
+
+If HUP is sent to the master process, the output becomes:
+
+    
+      PID  PPID USER    %CPU   VSZ WCHAN  COMMAND
+    33126     1 root     0.0  1164 pause  nginx: master process /usr/local/nginx/sbin/nginx
+    33129 33126 nobody   0.0  1380 kqread nginx: worker process is shutting down (nginx)
+    33134 33126 nobody   0.0  1368 kqread nginx: worker process (nginx)
+    33135 33126 nobody   0.0  1368 kqread nginx: worker process (nginx)
+    33136 33126 nobody   0.0  1368 kqread nginx: worker process (nginx)
+
+
+
+
+
+
+
+One of the old worker processes with PID 33129 still continues to work.
+After some time it exits:
+
+    
+      PID  PPID USER    %CPU   VSZ WCHAN  COMMAND
+    33126     1 root     0.0  1164 pause  nginx: master process /usr/local/nginx/sbin/nginx
+    33134 33126 nobody   0.0  1368 kqread nginx: worker process (nginx)
+    33135 33126 nobody   0.0  1368 kqread nginx: worker process (nginx)
+    33136 33126 nobody   0.0  1368 kqread nginx: worker process (nginx)
+
+
+
+
+
+
+=head1 Rotating Log-files
+
+
+
+In order to rotate log files, they need to be renamed first.
+After that USR1 signal should be sent to the master process.
+The master process will then re-open all currently open log files and
+assign them an unprivileged user under which the worker processes
+are running, as an owner.
+After successful re-opening, the master process closes all open files and
+sends the message to worker process to ask them to re-open files.
+Worker processes also open new files and close old files right away.
+As a result, old files are almost immediately available for post
+processing, such as compression.
+
+
+
+
+=head1 Upgrading Executable on the Fly
+
+
+
+In order to upgrade the server executable, the new executable file
+should be put in place of an old file first.
+After that USR2 signal should be sent to the master process.
+The master process first renames its file with the process ID to a
+new file with the F<.oldbin> suffix, e.g.
+F<E<sol>usrE<sol>localE<sol>nginxE<sol>logsE<sol>nginx.pid.oldbin>,
+then starts a new executable file that in turn starts new
+worker processes:
+
+    
+      PID  PPID USER    %CPU   VSZ WCHAN  COMMAND
+    33126     1 root     0.0  1164 pause  nginx: master process /usr/local/nginx/sbin/nginx
+    33134 33126 nobody   0.0  1368 kqread nginx: worker process (nginx)
+    33135 33126 nobody   0.0  1380 kqread nginx: worker process (nginx)
+    33136 33126 nobody   0.0  1368 kqread nginx: worker process (nginx)
+    36264 33126 root     0.0  1148 pause  nginx: master process /usr/local/nginx/sbin/nginx
+    36265 36264 nobody   0.0  1364 kqread nginx: worker process (nginx)
+    36266 36264 nobody   0.0  1364 kqread nginx: worker process (nginx)
+    36267 36264 nobody   0.0  1364 kqread nginx: worker process (nginx)
+
+
+
+
+
+After that all worker processes (old and new ones) continue to accept requests.
+If the WINCH signal is sent to the first master process, it will
+send messages to its worker processes, requesting them to shut
+down gracefully, and they will start to exit:
+
+    
+      PID  PPID USER    %CPU   VSZ WCHAN  COMMAND
+    33126     1 root     0.0  1164 pause  nginx: master process /usr/local/nginx/sbin/nginx
+    33135 33126 nobody   0.0  1380 kqread nginx: worker process is shutting down (nginx)
+    36264 33126 root     0.0  1148 pause  nginx: master process /usr/local/nginx/sbin/nginx
+    36265 36264 nobody   0.0  1364 kqread nginx: worker process (nginx)
+    36266 36264 nobody   0.0  1364 kqread nginx: worker process (nginx)
+    36267 36264 nobody   0.0  1364 kqread nginx: worker process (nginx)
+
+
+
+
+
+
+
+After some time, only the new worker processes will process requests:
+
+    
+      PID  PPID USER    %CPU   VSZ WCHAN  COMMAND
+    33126     1 root     0.0  1164 pause  nginx: master process /usr/local/nginx/sbin/nginx
+    36264 33126 root     0.0  1148 pause  nginx: master process /usr/local/nginx/sbin/nginx
+    36265 36264 nobody   0.0  1364 kqread nginx: worker process (nginx)
+    36266 36264 nobody   0.0  1364 kqread nginx: worker process (nginx)
+    36267 36264 nobody   0.0  1364 kqread nginx: worker process (nginx)
+
+
+
+
+
+
+
+It should be noted that the old master process does not close its listen
+sockets, and it can be managed to start its worker processes again if needed.
+If for some reason the new executable file works unacceptably, one of the
+following can be done:
+
+=over
+
+
+
+
+=item *
+
+
+
+Send the HUP signal to the old master process.
+The old master process will start new worker processes
+without re-reading the configuration.
+After that, all new processes can be shut down gracefully,
+by sending the QUIT signal to the new master process.
+
+
+
+
+
+=item *
+
+
+
+Send the TERM signal to the new master process.
+It will then send a message to its worker processes requesting them
+to exit immediately, and they will all exit almost immediately.
+(If new processes do not exit for some reason,
+the KILL signal should be sent to them to force them to exit.)
+When the new master process exits, the old master process will start new
+worker processes automatically.
+
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+If the new master process exits then the old master process discards
+the F<.oldbin> suffix from the file name with the process ID.
+
+
+
+
+
+If upgrade was successful, then the old master process should be sent
+the QUIT signal, and only new processes will stay:
+
+    
+      PID  PPID USER    %CPU   VSZ WCHAN  COMMAND
+    36264     1 root     0.0  1148 pause  nginx: master process /usr/local/nginx/sbin/nginx
+    36265 36264 nobody   0.0  1364 kqread nginx: worker process (nginx)
+    36266 36264 nobody   0.0  1364 kqread nginx: worker process (nginx)
+    36267 36264 nobody   0.0  1364 kqread nginx: worker process (nginx)
+
+
+
+

@@ -1,0 +1,13 @@
+bind: localhost:8099      # address and port to bind on
+allow-transfers: false   # allow log file downloads
+#commands: [tail, grep]  # allowed commands
+relative-root: /tailon/  # web app root path (default: '')
+tail-lines: 10          # number of lines to tail initially
+wrap-lines: true        # initial line-wrapping state
+
+files:
+  - '/data/logs/*'
+
+http-auth: basic        # enable authentication (optional)
+users:                  # password access (optional)
+  nebula: threathunternebula

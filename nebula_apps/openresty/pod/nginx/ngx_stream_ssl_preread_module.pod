@@ -1,0 +1,114 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_ssl_preread_module - Module ngx_stream_ssl_preread_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_ssl_preread_module> module (1.11.5) allows
+extracting information from the
+L<ClientHello|https://tools.ietf.org/html/rfc5246#section-7.4.1.2>
+message without terminating SSLE<sol>TLS,
+for example, the sever name requested through
+L<SNI|https://tools.ietf.org/html/rfc6066#section-3>.
+This module is not built by default, it should be enabled with the
+C<--with-stream_ssl_preread_module>
+configuration parameter.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    map $ssl_preread_server_name $name {
+        backend.example.com      backend;
+        default                  backend2;
+    }
+    
+    upstream backend {
+        server 192.168.0.1:12345;
+        server 192.168.0.2:12345;
+    }
+    
+    upstream backend2 {
+        server 192.168.0.3:12345;
+        server 192.168.0.4:12345;
+    }
+    
+    server {
+        listen      12346;
+        proxy_pass  $name;
+        ssl_preread on;
+    }
+
+
+
+
+
+
+
+=head1 Directives
+
+=head2 ssl_preread
+
+
+B<syntax:> ssl_preread I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables extracting information from the ClientHello message at
+the L<preread|stream_processing> phase.
+
+
+
+
+
+
+
+=head1 Embedded Variables
+
+
+
+
+=over
+
+
+
+=item C<$ssl_preread_server_name>
+
+
+
+
+returns the server name requested through SNI
+
+
+
+
+=back
+
+
+
+
+
+

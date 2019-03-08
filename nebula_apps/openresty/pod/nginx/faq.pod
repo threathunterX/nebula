@@ -1,0 +1,68 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+faq - FAQ
+
+
+=head1
+
+
+
+
+=over
+
+
+
+
+=item *
+
+L<welcome_nginx_facebook>
+
+
+
+=item *
+
+L<license_copyright>
+
+
+
+=item *
+
+L<accept_failed>
+
+
+
+=item *
+
+L<variables_in_config>
+
+
+
+=item *
+
+L<daemon_master_process_off>
+
+
+
+=item *
+
+L<chunked_encoding_from_backend>
+
+
+
+=item *
+
+L<sys_errlist>
+
+
+
+=back
+
+
+
+
+
+

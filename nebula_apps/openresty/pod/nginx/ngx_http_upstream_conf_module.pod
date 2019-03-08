@@ -1,0 +1,494 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_upstream_conf_module - Module ngx_http_upstream_conf_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_upstream_conf_module> module
+allows configuring upstream server groups on-the-fly
+via a simple HTTP interface without the need of restarting nginx.
+The
+L<http|ngx_http_upstream_module>
+or
+L<stream|ngx_stream_upstream_module>
+server group must reside in the shared memory.
+
+B<NOTE>
+
+This module is available as part of our
+commercial subscription.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    upstream backend {
+        zone upstream_backend 64k;
+    
+        ...
+    }
+    
+    server {
+        location /upstream_conf {
+            <emphasis>upstream_conf</emphasis>;
+            allow 127.0.0.1;
+            deny all;
+        }
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 upstream_conf
+
+
+
+
+B<context:> I<location>
+
+
+
+
+
+Turns on the HTTP interface of upstream configuration in the surrounding
+location.
+Access to this location should be
+L<limited|ngx_http_core_module>.
+
+
+
+
+
+Configuration commands can be used to:
+
+=over
+
+
+
+
+=item *
+view the group configuration;
+
+
+=item *
+view, modify, or remove a server;
+
+
+=item *
+add a new server.
+
+
+=back
+
+
+
+B<NOTE>
+
+Since addresses in a group are not required to be unique, specific
+servers in a group are referenced by their IDs.
+IDs are assigned automatically and shown when adding a new server
+or viewing the group configuration.
+
+
+
+
+
+
+A configuration command consists of parameters passed as request arguments,
+for example:
+
+    
+    http://127.0.0.1/upstream_conf?upstream=backend
+
+
+
+
+
+
+
+The following parameters are supported:
+
+
+=over
+
+
+
+=item 
+C<stream=>
+
+
+
+
+Selects a
+L<stream|ngx_stream_upstream_module>
+upstream server group.
+Without this parameter, selects an
+L<http|ngx_http_upstream_module>
+upstream server group.
+
+
+
+=item 
+C<upstream=>I<C<name>>
+
+
+
+
+Selects a group to work with.
+This parameter is mandatory.
+
+
+
+=item 
+C<id=>I<C<number>>
+
+
+
+
+Selects a server for viewing, modifying, or removing.
+
+
+
+=item 
+C<remove=>
+
+
+
+
+Removes a server from the group.
+
+
+
+=item 
+C<add=>
+
+
+
+
+Adds a new server to the group.
+
+
+
+=item 
+C<backup=>
+
+
+
+
+Required to add a backup server.
+
+B<NOTE>
+
+Before version 1.7.2, C<backup=>
+was also required to view, modify, or remove existing backup servers.
+
+
+
+
+=item 
+C<server=>I<C<address>>
+
+
+
+
+Same as the “C<address>” parameter
+of the
+L<http|ngx_http_upstream_module>
+or
+L<stream|ngx_stream_upstream_module>
+upstream server.
+
+
+When adding a server, it is possible to specify it as a domain name.
+In this case, changes of the IP addresses that correspond to a domain name
+will be monitored and automatically applied to the upstream
+configuration without the need of restarting nginx (1.7.2).
+This requires the “C<resolver>” directive in the
+L<http|ngx_http_core_module>
+or
+L<stream|ngx_stream_core_module>
+block.
+See also the “C<resolve>” parameter
+of the
+L<http|ngx_http_upstream_module>
+or
+L<stream|ngx_stream_upstream_module>
+upstream server.
+
+
+
+
+
+=item 
+C<service=>I<C<name>>
+
+
+
+
+Same as the “C<service>” parameter
+of the
+L<http|ngx_http_upstream_module>
+or
+L<stream|ngx_stream_upstream_module>
+upstream server (1.9.13).
+
+
+
+=item 
+C<weight=>I<C<number>>
+
+
+
+
+Same as the “C<weight>” parameter
+of the
+L<http|ngx_http_upstream_module>
+or
+L<stream|ngx_stream_upstream_module>
+upstream server.
+
+
+
+=item 
+C<max_conns=>I<C<number>>
+
+
+
+
+Same as the “C<max_conns>” parameter
+of the
+L<http|ngx_http_upstream_module>
+or
+L<stream|ngx_stream_upstream_module>
+upstream server.
+
+
+
+=item 
+C<max_fails=>I<C<number>>
+
+
+
+
+Same as the “C<max_fails>” parameter
+of the
+L<http|ngx_http_upstream_module>
+or
+L<stream|ngx_stream_upstream_module>
+upstream server.
+
+
+
+=item 
+C<fail_timeout=>I<C<time>>
+
+
+
+
+Same as the “C<fail_timeout>” parameter
+of the
+L<http|ngx_http_upstream_module>
+or
+L<stream|ngx_stream_upstream_module>
+upstream server.
+
+
+
+=item 
+C<slow_start=>I<C<time>>
+
+
+
+
+Same as the “C<slow_start>” parameter
+of the
+L<http|ngx_http_upstream_module>
+or
+L<stream|ngx_stream_upstream_module>
+upstream server.
+
+
+
+=item 
+C<down=>
+
+
+
+
+Same as the “C<down>” parameter
+of the
+L<http|ngx_http_upstream_module>
+or
+L<stream|ngx_stream_upstream_module>
+upstream server.
+
+
+
+=item C<drain=>
+
+
+
+
+Puts the
+L<http|ngx_http_upstream_module>
+upstream server into the “draining” mode (1.7.5).
+In this mode, only requests
+L<bound|ngx_http_upstream_module> to the server
+will be proxied to it.
+
+
+
+=item 
+C<up=>
+
+
+
+
+The opposite of the “C<down>” parameter
+of the
+L<http|ngx_http_upstream_module>
+or
+L<stream|ngx_stream_upstream_module>
+upstream server.
+
+
+
+=item 
+C<route=>I<C<string>>
+
+
+
+
+Same as the “C<route>” parameter of the
+L<http|ngx_http_upstream_module>
+upstream server.
+
+
+
+
+=back
+
+
+
+The first three parameters select an object.
+This can be either the whole http or stream upstream server group,
+or a specific server.
+Without other parameters, the configuration of the selected
+group or server is shown.
+
+
+
+
+
+For example, to view the configuration of the whole group, send:
+
+    
+    http://127.0.0.1/upstream_conf?upstream=backend
+
+
+
+To view the configuration of a specific server, also specify its ID:
+
+    
+    http://127.0.0.1/upstream_conf?upstream=backend&id=42
+
+
+
+
+
+
+
+To add a new server,
+specify its address in the “C<server=>” parameter.
+Without other parameters specified, a server will be added with other
+parameters set to their default values (see the
+L<http|ngx_http_upstream_module>
+or
+L<stream|ngx_stream_upstream_module>
+“C<server>” directive).
+
+
+
+
+
+For example, to add a new primary server, send:
+
+    
+    http://127.0.0.1/upstream_conf?add=&upstream=backend&server=127.0.0.1:8080
+
+
+
+To add a new backup server, send:
+
+    
+    http://127.0.0.1/upstream_conf?add=&upstream=backend&backup=&server=127.0.0.1:8080
+
+
+
+To add a new primary server,
+set its parameters to non-default values
+and mark it as “C<down>”, send:
+
+    
+    http://127.0.0.1/upstream_conf?add=&upstream=backend&server=127.0.0.1:8080&weight=2&down=
+
+
+
+To remove a server, specify its ID:
+
+    
+    http://127.0.0.1/upstream_conf?remove=&upstream=backend&id=42
+
+
+
+To mark an existing server as “C<down>”, send:
+
+    
+    http://127.0.0.1/upstream_conf?upstream=backend&id=42&down=
+
+
+
+To modify the address of an existing server, send:
+
+    
+    http://127.0.0.1/upstream_conf?upstream=backend&id=42&server=192.0.2.3:8123
+
+
+
+To modify other parameters of an existing server, send:
+
+    
+    http://127.0.0.1/upstream_conf?upstream=backend&id=42&max_fails=3&weight=4
+
+
+
+The above examples are for an
+L<http|ngx_http_upstream_module>
+upstream server group.
+Similar examples for a
+L<stream|ngx_stream_upstream_module>
+upstream server group require the “C<stream=>” parameter.
+
+
+
+
+
+
+

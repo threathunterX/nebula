@@ -1,0 +1,136 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_access_module - Module ngx_http_access_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_access_module> module allows
+limiting access to certain client addresses.
+
+
+
+
+
+Access can also be limited by
+L<password|ngx_http_auth_basic_module>, by the
+L<result of subrequest|ngx_http_auth_request_module>,
+or by L<JWT|ngx_http_auth_jwt_module>.
+Simultaneous limitation of access by address and by password is controlled
+by the L<ngx_http_core_module> directive.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location / {
+        deny  192.168.1.1;
+        allow 192.168.1.0/24;
+        allow 10.1.1.0/16;
+        allow 2001:0db8::/32;
+        deny  all;
+    }
+
+
+
+
+
+
+
+The rules are checked in sequence until the first match is found.
+In this example, access is allowed only for IPv4 networks
+C<10.1.1.0E<sol>16> and C<192.168.1.0E<sol>24>
+excluding the address C<192.168.1.1>,
+and for IPv6 network C<2001:0db8::E<sol>32>.
+In case of a lot of rules, the use of the
+L<ngx_http_geo_module|ngx_http_geo_module>
+module variables is preferable.
+
+
+
+
+=head1 Directives
+
+=head2 allow
+
+
+B<syntax:> allow I<
+    I<C<address>> E<verbar>
+    I<C<CIDR>> E<verbar>
+    C<unix:> E<verbar>
+    C<all>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<limit_except>
+
+
+
+
+
+Allows access for the specified network or address.
+If the special value C<unix:> is specified (1.5.1),
+allows access for all UNIX-domain sockets.
+
+
+
+
+
+
+
+=head2 deny
+
+
+B<syntax:> deny I<
+    I<C<address>> E<verbar>
+    I<C<CIDR>> E<verbar>
+    C<unix:> E<verbar>
+    C<all>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<limit_except>
+
+
+
+
+
+Denies access for the specified network or address.
+If the special value C<unix:> is specified (1.5.1),
+denies access for all UNIX-domain sockets.
+
+
+
+
+
+
+

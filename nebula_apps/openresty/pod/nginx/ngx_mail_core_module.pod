@@ -1,0 +1,579 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_mail_core_module - Module ngx_mail_core_module
+
+
+
+
+=head1
+
+
+
+This module is not built by default, it should be
+enabled with
+the C<--with-mail> configuration parameter.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    worker_processes 1;
+    
+    error_log /var/log/nginx/error.log info;
+    
+    events {
+        worker_connections  1024;
+    }
+    
+    mail {
+        server_name       mail.example.com;
+        auth_http         localhost:9000/cgi-bin/nginxauth.cgi;
+    
+        imap_capabilities IMAP4rev1 UIDPLUS IDLE LITERAL+ QUOTA;
+    
+        pop3_auth         plain apop cram-md5;
+        pop3_capabilities LAST TOP USER PIPELINING UIDL;
+    
+        smtp_auth         login plain cram-md5;
+        smtp_capabilities "SIZE 10485760" ENHANCEDSTATUSCODES 8BITMIME DSN;
+        xclient           off;
+    
+        server {
+            listen   25;
+            protocol smtp;
+        }
+        server {
+            listen   110;
+            protocol pop3;
+            proxy_pass_error_message on;
+        }
+        server {
+            listen   143;
+            protocol imap;
+        }
+        server {
+            listen   587;
+            protocol smtp;
+        }
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 listen
+
+
+B<syntax:> listen I<
+    I<C<address>>:I<C<port>>
+    [C<ssl>]
+    [C<backlog>=I<C<number>>]
+    [C<rcvbuf>=I<C<size>>]
+    [C<sndbuf>=I<C<size>>]
+    [C<bind>]
+    [C<ipv6only>=C<on>E<verbar>C<off>]
+    [C<so_keepalive>=C<on>E<verbar>C<off>E<verbar>[I<C<keepidle>>]:[I<C<keepintvl>>]:[I<C<keepcnt>>]]>
+
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the I<C<address>> and I<C<port>> for the socket
+on which the server will accept requests.
+It is possible to specify just the port.
+The address can also be a hostname, for example:
+
+    
+    listen 127.0.0.1:110;
+    listen *:110;
+    listen 110;     # same as *:110
+    listen localhost:110;
+
+
+IPv6 addresses (0.7.58) are specified in square brackets:
+
+    
+    listen [::1]:110;
+    listen [::]:110;
+
+
+UNIX-domain sockets (1.3.5) are specified with the “C<unix:>”
+prefix:
+
+    
+    listen unix:/var/run/nginx.sock;
+
+
+
+
+
+
+
+
+Different servers must listen on different
+I<C<address>>:I<C<port>> pairs.
+
+
+
+
+
+The C<ssl> parameter allows specifying that all
+connections accepted on this port should work in SSL mode.
+
+
+
+
+
+The C<listen> directive
+can have several additional parameters specific to socket-related system calls.
+
+=over
+
+
+
+=item 
+C<backlog>=I<C<number>>
+
+
+
+
+
+sets the C<backlog> parameter in the
+C<listen> call that limits
+the maximum length for the queue of pending connections (1.9.2).
+By default,
+C<backlog> is set to -1 on FreeBSD, DragonFly BSD, and macOS,
+and to 511 on other platforms.
+
+
+
+=item 
+C<rcvbuf>=I<C<size>>
+
+
+
+
+
+sets the receive buffer size
+(the C<SO_RCVBUF> option) for the listening socket (1.11.13).
+
+
+
+=item 
+C<sndbuf>=I<C<size>>
+
+
+
+
+
+sets the send buffer size
+(the C<SO_SNDBUF> option) for the listening socket (1.11.13).
+
+
+
+=item 
+C<bind>
+
+
+
+
+
+this parameter instructs to make a separate C<bind>
+call for a given address:port pair.
+The fact is that if there are several C<listen> directives with
+the same port but different addresses, and one of the
+C<listen> directives listens on all addresses
+for the given port (C<*:>I<C<port>>), nginx will
+C<bind> only to C<*:>I<C<port>>.
+It should be noted that the C<getsockname> system call will be
+made in this case to determine the address that accepted the connection.
+If the C<ipv6only>
+or C<so_keepalive> parameters
+are used then for a given
+I<C<address>>:I<C<port>> pair
+a separate C<bind> call will always be made.
+
+
+
+=item 
+C<ipv6only>=C<on>E<verbar>C<off>
+
+
+
+
+
+this parameter determines
+(via the C<IPV6_V6ONLY> socket option)
+whether an IPv6 socket listening on a wildcard address C<[::]>
+will accept only IPv6 connections or both IPv6 and IPv4 connections.
+This parameter is turned on by default.
+It can only be set once on start.
+
+
+
+=item 
+C<so_keepalive>=C<on>E<verbar>C<off>E<verbar>[I<C<keepidle>>]:[I<C<keepintvl>>]:[I<C<keepcnt>>]
+
+
+
+
+
+this parameter configures the “TCP keepalive” behavior
+for the listening socket.
+If this parameter is omitted then the operating system’s settings will be
+in effect for the socket.
+If it is set to the value “C<on>”, the
+C<SO_KEEPALIVE> option is turned on for the socket.
+If it is set to the value “C<off>”, the
+C<SO_KEEPALIVE> option is turned off for the socket.
+Some operating systems support setting of TCP keepalive parameters on
+a per-socket basis using the C<TCP_KEEPIDLE>,
+C<TCP_KEEPINTVL>, and C<TCP_KEEPCNT> socket options.
+On such systems (currently, Linux 2.4+, NetBSD 5+, and
+FreeBSD 9.0-STABLE), they can be configured
+using the I<C<keepidle>>, I<C<keepintvl>>, and
+I<C<keepcnt>> parameters.
+One or two parameters may be omitted, in which case the system default setting
+for the corresponding socket option will be in effect.
+For example,
+
+    so_keepalive=30m::10
+
+will set the idle timeout (C<TCP_KEEPIDLE>) to 30 minutes,
+leave the probe interval (C<TCP_KEEPINTVL>) at its system default,
+and set the probes count (C<TCP_KEEPCNT>) to 10 probes.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 mail
+
+
+mail { B<...> }
+
+
+
+B<context:> I<main>
+
+
+
+
+
+Provides the configuration file context in which the mail server directives
+are specified.
+
+
+
+
+
+
+
+=head2 protocol
+
+
+B<syntax:> protocol I<
+  C<imap> E<verbar>
+  C<pop3> E<verbar>
+  C<smtp>>
+
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the protocol for a proxied server.
+Supported protocols are
+L<IMAP|ngx_mail_imap_module>,
+L<POP3|ngx_mail_pop3_module>, and
+L<SMTP|ngx_mail_smtp_module>.
+
+
+
+
+
+If the directive is not set, the protocol can be detected automatically
+based on the well-known port specified in the L</listen>
+directive:
+
+=over
+
+
+
+
+=item *
+
+C<imap>: 143, 993
+
+
+
+=item *
+
+C<pop3>: 110, 995
+
+
+
+=item *
+
+C<smtp>: 25, 587, 465
+
+
+
+=back
+
+
+
+
+
+
+
+Unnecessary protocols can be disabled using the
+L<configuration|configure>
+parameters C<--without-mail_imap_module>,
+C<--without-mail_pop3_module>, and
+C<--without-mail_smtp_module>.
+
+
+
+
+
+
+
+=head2 resolver
+
+
+B<syntax:> resolver I<
+I<C<address>> ...
+[C<valid>=I<C<time>>]>
+
+
+B<syntax:> resolver I<C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+
+
+Configures name servers used to find the client’s hostname
+to pass it to the
+L<authentication server|ngx_mail_auth_http_module>,
+and in the
+L<XCLIENT|ngx_mail_proxy_module>
+command when proxying SMTP.
+For example:
+
+    
+    resolver 127.0.0.1 [::1]:5353;
+
+
+An address can be specified as a domain name or IP address,
+and an optional port (1.3.1, 1.2.2).
+If port is not specified, the port 53 is used.
+Name servers are queried in a round-robin fashion.
+
+B<NOTE>
+
+Before version 1.1.7, only a single name server could be configured.
+Specifying name servers using IPv6 addresses is supported
+starting from versions 1.3.1 and 1.2.2.
+
+By default, nginx caches answers using the TTL value of a response.
+An optional C<valid> parameter allows overriding it:
+
+    
+    resolver 127.0.0.1 [::1]:5353 valid=30s;
+
+
+
+B<NOTE>
+
+Before version 1.1.9, tuning of caching time was not possible,
+and nginx always cached answers for the duration of 5 minutes.
+
+
+
+
+
+
+The special value C<off> disables resolving.
+
+
+
+
+
+
+
+=head2 resolver_timeout
+
+
+B<syntax:> resolver_timeout I<I<C<time>>>
+
+
+B<default:> I<30s>
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets a timeout for DNS operations, for example:
+
+    
+    resolver_timeout 5s;
+
+
+
+
+
+
+
+
+
+=head2 server
+
+
+server { B<...> }
+
+
+
+B<context:> I<mail>
+
+
+
+
+
+Sets the configuration for a server.
+
+
+
+
+
+
+
+=head2 server_name
+
+
+B<syntax:> server_name I<I<C<name>>>
+
+
+B<default:> I<hostname>
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the server name that is used:
+
+=over
+
+
+
+
+=item *
+
+in the initial POP3E<sol>SMTP server greeting;
+
+
+
+=item *
+
+in the salt during the SASL CRAM-MD5 authentication;
+
+
+
+=item *
+
+in the C<EHLO> command when connecting to the SMTP backend,
+if the passing of the
+L<XCLIENT|ngx_mail_proxy_module> command
+is enabled.
+
+
+
+=back
+
+
+
+
+
+
+
+If the directive is not specified, the machine’s hostname is used.
+
+
+
+
+
+
+
+=head2 timeout
+
+
+B<syntax:> timeout I<I<C<time>>>
+
+
+B<default:> I<60s>
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the timeout that is used before proxying to the backend starts.
+
+
+
+
+
+
+

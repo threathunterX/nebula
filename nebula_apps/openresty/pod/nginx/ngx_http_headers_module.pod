@@ -1,0 +1,222 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_headers_module - Module ngx_http_headers_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_headers_module> module allows adding
+the C<Expires> and C<Cache-Control> header
+fields, and arbitrary fields, to a response header.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    expires    24h;
+    expires    modified +24h;
+    expires    @24h;
+    expires    0;
+    expires    -1;
+    expires    epoch;
+    expires    $expires;
+    add_header Cache-Control private;
+
+
+
+
+
+
+=head1 Directives
+
+=head2 add_header
+
+
+B<syntax:> add_header I<
+I<C<name>> I<C<value>>
+[C<always>]>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<if in location>
+
+
+
+
+
+Adds the specified field to a response header provided that
+the response code equals 200, 201, 204, 206, 301, 302, 303, 304, 307, or 308.
+A value can contain variables.
+
+
+
+
+
+There could be several C<add_header> directives.
+These directives are inherited from the previous level if and
+only if there are no
+C<add_header>
+directives defined on the current level.
+
+
+
+
+
+If the C<always> parameter is specified (1.7.5),
+the header field will be added regardless of the response code.
+
+
+
+
+
+
+
+=head2 expires
+
+
+B<syntax:> expires I<[C<modified>] I<C<time>>>
+
+
+B<syntax:> expires I<
+    C<epoch> E<verbar>
+    C<max> E<verbar>
+    C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<if in location>
+
+
+
+
+
+Enables or disables adding or modifying the C<Expires>
+and C<Cache-Control> response header fields provided that
+the response code equals 200, 201, 204, 206, 301, 302, 303, 304, 307, or 308.
+The parameter can be a positive or negative
+L<time|syntax>.
+
+
+
+
+
+The time in the C<Expires> field is computed as a sum of the
+current time and I<C<time>> specified in the directive.
+If the C<modified> parameter is used (0.7.0, 0.6.32)
+then the time is computed as a sum of the file’s modification time and
+the I<C<time>> specified in the directive.
+
+
+
+
+
+In addition, it is possible to specify a time of day using
+the “C<@>” prefix (0.7.9, 0.6.34):
+
+    
+    expires @15h30m;
+
+
+
+
+
+
+
+The C<epoch> parameter corresponds to the absolute time
+“C<Thu, 01 Jan 1970 00:00:01 GMT>”.
+The contents of the C<Cache-Control> field depends
+on the sign of the specified time:
+
+=over
+
+
+
+
+=item *
+
+time is negative — C<Cache-Control: no-cache>.
+
+
+
+=item *
+
+time is positive or zero —
+C<Cache-Control: max-age=I<C<t>>>,
+where I<C<t>> is a time specified in the directive, in seconds.
+
+
+
+=back
+
+
+
+
+
+
+
+The C<max> parameter sets C<Expires>
+to the value “C<Thu, 31 Dec 2037 23:55:55 GMT>”,
+and C<Cache-Control> to 10 years.
+
+
+
+
+
+The C<off> parameter disables adding or modifying the
+C<Expires> and C<Cache-Control> response
+header fields.
+
+
+
+
+
+The last parameter value can contain variables (1.7.9):
+
+    
+    map $sent_http_content_type $expires {
+        default         off;
+        application/pdf 42d;
+        ~image/         max;
+    }
+    
+    expires $expires;
+
+
+
+
+
+
+
+
+

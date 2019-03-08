@@ -1,0 +1,620 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_perl_module - Module ngx_http_perl_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_perl_module> module is used to implement
+location and variable handlers in Perl and insert Perl calls into SSI.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+C<--with-http_perl_module>
+configuration parameter.
+
+B<NOTE>
+
+This module requires
+L<Perl|https://www.perl.org/get.html> version 5.6.1 or higher.
+The C compiler should be compatible with the one used to build Perl.
+
+
+
+
+
+=head1 Known Issues
+
+
+
+The module is experimental, caveat emptor applies.
+
+
+
+
+
+In order for Perl to recompile the modified modules during
+reconfiguration, it should be built with the
+C<-Dusemultiplicity=yes> or
+C<-Dusethreads=yes> parameters.
+Also, to make Perl leak less memory at run time,
+it should be built with the
+C<-Dusemymalloc=no> parameter.
+To check the values of these parameters in an already built
+Perl (preferred values are specified in the example), run:
+
+    
+    $ perl -V:usemultiplicity -V:usemymalloc
+    usemultiplicity='define';
+    usemymalloc='n';
+
+
+
+
+
+
+
+Note that after rebuilding Perl with the new
+C<-Dusemultiplicity=yes> or
+C<-Dusethreads=yes> parameters,
+all binary Perl modules will have to be rebuilt as well —
+they will just stop working with the new Perl.
+
+
+
+
+
+There is a possibility that the main process and then worker processes will
+grow in size after every reconfiguration.
+If the main process grows to an unacceptable size, the
+L<live upgrade|control>
+procedure can be applied without changing the executable file.
+
+
+
+
+
+While the Perl module is performing a long-running operation, such as
+resolving a domain name, connecting to another server, or querying a database,
+other requests assigned to the current worker process will not be processed.
+It is thus recommended to perform only such operations
+that have predictable and short execution time, such as
+accessing the local file system.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    http {
+    
+        perl_modules perl/lib;
+        perl_require hello.pm;
+    
+        perl_set $msie6 '
+    
+            sub {
+                my $r = shift;
+                my $ua = $r->header_in("User-Agent");
+    
+                return "" if $ua =~ /Opera/;
+                return "1" if $ua =~ / MSIE [6-9]\.\d+/;
+                return "";
+            }
+    
+        ';
+    
+        server {
+            location / {
+                perl hello::handler;
+            }
+        }
+
+
+
+
+
+
+
+The F<perlE<sol>libE<sol>hello.pm> module:
+
+    
+    package hello;
+    
+    use nginx;
+    
+    sub handler {
+        my $r = shift;
+    
+        $r->send_http_header("text/html");
+        return OK if $r->header_only;
+    
+        $r->print("hello!\n<br/>");
+    
+        if (-f $r->filename or -d _) {
+            $r->print($r->uri, " exists!\n");
+        }
+    
+        return OK;
+    }
+    
+    1;
+    __END__
+
+
+
+
+
+
+=head1 Directives
+
+=head2 perl
+
+
+B<syntax:> perl I<I<C<module>>::I<C<function>>E<verbar>'sub { ... }'>
+
+
+
+B<context:> I<location>
+
+
+B<context:> I<limit_except>
+
+
+
+
+
+Sets a Perl handler for the given location.
+
+
+
+
+
+
+
+=head2 perl_modules
+
+
+B<syntax:> perl_modules I<I<C<path>>>
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Sets an additional path for Perl modules.
+
+
+
+
+
+
+
+=head2 perl_require
+
+
+B<syntax:> perl_require I<I<C<module>>>
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Defines the name of a module that will be loaded during each
+reconfiguration.
+Several C<perl_require> directives can be present.
+
+
+
+
+
+
+
+=head2 perl_set
+
+
+B<syntax:> perl_set I<
+    I<C<$variable>>
+    I<C<module>>::I<C<function>>E<verbar>'sub { ... }'>
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Installs a Perl handler for the specified variable.
+
+
+
+
+
+
+
+=head1 Calling Perl from SSI
+
+
+
+An SSI command calling Perl has the following format:
+
+    
+    <!--# perl sub="<value>module</value>::<value>function</value>" arg="<value>parameter1</value>" arg="<value>parameter2</value>" ...
+    -->
+
+
+
+
+
+
+=head1 The $r Request Object Methods
+
+
+
+
+=over
+
+
+
+=item C<$r-E<gt>args>
+
+
+
+
+returns request arguments.
+
+
+
+=item C<$r-E<gt>filename>
+
+
+
+
+returns a filename corresponding to the request URI.
+
+
+
+=item 
+    C<$r-E<gt>has_request_body(I<C<handler>>)>
+
+
+
+
+
+returns 0 if there is no body in a request.
+If there is a body, the specified handler is set for the request
+and 1 is returned.
+After reading the request body, nginx will call the specified handler.
+Note that the handler function should be passed by reference.
+Example:
+
+    
+    package hello;
+    
+    use nginx;
+    
+    sub handler {
+        my $r = shift;
+    
+        if ($r->request_method ne "POST") {
+            return DECLINED;
+        }
+    
+        if ($r->has_request_body(<emphasis>\&post</emphasis>)) {
+            return OK;
+        }
+    
+        return HTTP_BAD_REQUEST;
+    }
+    
+    sub <emphasis>post</emphasis> {
+        my $r = shift;
+    
+        $r->send_http_header;
+    
+        $r->print("request_body: \"", $r->request_body, "\"<br/>");
+        $r->print("request_body_file: \"", $r->request_body_file, "\"<br/>\n");
+    
+        return OK;
+    }
+    
+    1;
+    
+    __END__
+
+
+
+
+
+=item C<$r-E<gt>allow_ranges>
+
+
+
+
+enables the use of byte ranges when sending responses.
+
+
+
+=item C<$r-E<gt>discard_request_body>
+
+
+
+
+instructs nginx to discard the request body.
+
+
+
+=item C<$r-E<gt>header_in(I<C<field>>)>
+
+
+
+
+returns the value of the specified client request header field.
+
+
+
+=item C<$r-E<gt>header_only>
+
+
+
+
+determines whether the whole response or only its header should be sent to
+the client.
+
+
+
+=item 
+    C<$r-E<gt>header_out(I<C<field>>,
+    I<C<value>>)>
+
+
+
+
+
+sets a value for the specified response header field.
+
+
+
+=item 
+    C<$r-E<gt>internal_redirect(I<C<uri>>)>
+
+
+
+
+
+does an internal redirect to the specified I<C<uri>>.
+An actual redirect happens after the Perl handler execution is completed.
+
+B<NOTE>
+
+Redirections to named locations are currently not supported.
+
+
+
+
+=item C<$r-E<gt>log_error(I<C<errno>>,
+I<C<message>>)>
+
+
+
+
+writes the specified I<C<message>> into the
+L<ngx_core_module>.
+If I<C<errno>> is non-zero, an error code and its description
+will be appended to the message.
+
+
+
+=item C<$r-E<gt>print(I<C<text>>, ...)>
+
+
+
+
+passes data to a client.
+
+
+
+=item C<$r-E<gt>request_body>
+
+
+
+
+returns the client request body if it has not been
+written to a temporary file.
+To ensure that the client request body is in memory,
+its size should be limited by
+L<ngx_http_core_module>,
+and a sufficient buffer size should be set using
+L<ngx_http_core_module>.
+
+
+
+=item C<$r-E<gt>request_body_file>
+
+
+
+
+returns the name of the file with the client request body.
+After the processing, the file should be removed.
+To always write a request body to a file,
+L<ngx_http_core_module>
+should be enabled.
+
+
+
+=item C<$r-E<gt>request_method>
+
+
+
+
+returns the client request HTTP method.
+
+
+
+=item C<$r-E<gt>remote_addr>
+
+
+
+
+returns the client IP address.
+
+
+
+=item C<$r-E<gt>flush>
+
+
+
+
+immediately sends data to the client.
+
+
+
+=item 
+    C<$r-E<gt>sendfile(I<C<name>>[,
+    I<C<offset>>[,
+    I<C<length>>]])>
+
+
+
+
+
+sends the specified file content to the client.
+Optional parameters
+specify the initial offset and length of the data to be transmitted.
+The actual data transmission happens after the Perl handler
+has completed.
+
+
+
+=item 
+    C<$r-E<gt>send_http_header([I<C<type>>])>
+
+
+
+
+
+sends the response header to the client.
+The optional I<C<type>> parameter sets the value of
+the C<Content-Type> response header field.
+If the value is an empty string, the C<Content-Type>
+header field will not be sent.
+
+
+
+=item C<$r-E<gt>status(I<C<code>>)>
+
+
+
+
+sets a response code.
+
+
+
+=item 
+    C<$r-E<gt>sleep(I<C<milliseconds>>,
+    I<C<handler>>)>
+
+
+
+
+
+sets the specified handler
+and stops request processing for the specified time.
+In the meantime, nginx continues to process other requests.
+After the specified time has elapsed, nginx will call the installed handler.
+Note that the handler function should be passed by reference.
+In order to pass data between handlers,
+C<$r-E<gt>variable()> should be used.
+Example:
+
+    
+    package hello;
+    
+    use nginx;
+    
+    sub handler {
+        my $r = shift;
+    
+        $r->discard_request_body;
+        $r->variable("var", "OK");
+        $r->sleep(1000, <emphasis>\&next</emphasis>);
+    
+        return OK;
+    }
+    
+    sub <emphasis>next</emphasis> {
+        my $r = shift;
+    
+        $r->send_http_header;
+        $r->print($r->variable("var"));
+    
+        return OK;
+    }
+    
+    1;
+    
+    __END__
+
+
+
+
+
+=item C<$r-E<gt>unescape(I<C<text>>)>
+
+
+
+
+decodes a text encoded in the “%XX” form.
+
+
+
+=item C<$r-E<gt>uri>
+
+
+
+
+returns a request URI.
+
+
+
+=item 
+    C<$r-E<gt>variable(I<C<name>>[,
+    I<C<value>>])>
+
+
+
+
+
+returns or sets the value of the specified variable.
+Variables are local to each request.
+
+
+
+
+=back
+
+
+
+
+
+

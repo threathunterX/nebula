@@ -1,0 +1,14 @@
+{
+    "name": "profile_crawler_page",
+    "callmode": "rpc",
+    "delivermode": "sharding",
+    "serverimpl": "rabbitmq",
+    "coder": "mail",
+    "options": {
+        "cdc": "sh",
+        "sdc": "sh",
+        "serversubname": "onlinekv",
+        "serverseq": 1,
+        "servercardinality": 1
+    }
+}

@@ -1,0 +1,178 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+howto_build_on_win32 - Building nginx on the Win32 platform with Visual C
+
+
+=head1 Prerequisites
+
+
+
+To build nginx on the Microsoft Win32 E<copy> platform you need:
+
+
+=over
+
+
+
+
+=item *
+
+Microsoft Visual C compiler. Microsoft Visual Studio E<copy>
+8 and 10 are known to work.
+
+
+
+=item *
+
+L<MSYS|http://www.mingw.org/wiki/MSYS>.
+
+
+
+=item *
+
+Perl, if you want to build OpenSSL E<copy> and nginx with SSL support.
+For example L<ActivePerl|http://www.activestate.com/activeperl>
+or L<Strawberry Perl|http://strawberryperl.com>.
+
+
+
+=item *
+
+L<Mercurial|https://www.mercurial-scm.org> client.
+
+
+
+=item *
+
+L<PCRE|http://www.pcre.org>, L<zlib|http://zlib.net>
+and L<OpenSSL|http://www.openssl.org> libraries sources.
+
+
+=back
+
+
+
+
+
+
+
+=head1 Build steps
+
+
+
+Ensure that paths to Perl, Mercurial and MSYS bin directories are added to
+PATH environment variable before you start build. To set Visual C environment
+run vcvarsall.bat script from Visual C directory.
+
+
+
+
+
+
+To build nginx:
+
+=over
+
+
+
+
+=item *
+
+Start MSYS bash.
+
+
+
+=item *
+
+Check out nginx sources from the hg.nginx.org repository. For example:
+
+    
+    hg clone http://hg.nginx.org/nginx
+
+
+
+
+
+=item *
+
+Create a build and lib directories, and unpack zlib, PCRE and OpenSSL libraries
+sources into lib directory:
+
+    
+    mkdir objs
+    mkdir objs/lib
+    cd objs/lib
+    tar -xzf ../../pcre-8.40.tar.gz
+    tar -xzf ../../zlib-1.2.11.tar.gz
+    tar -xzf ../../openssl-1.0.2k.tar.gz
+
+
+
+
+
+=item *
+
+Run configure script:
+
+    
+    auto/configure --with-cc=cl --builddir=objs --prefix= \
+    --conf-path=conf/nginx.conf --pid-path=logs/nginx.pid \
+    --http-log-path=logs/access.log --error-log-path=logs/error.log \
+    --sbin-path=nginx.exe --http-client-body-temp-path=temp/client_body_temp \
+    --http-proxy-temp-path=temp/proxy_temp \
+    --http-fastcgi-temp-path=temp/fastcgi_temp \
+    --with-cc-opt=-DFD_SETSIZE=1024 --with-pcre=objs/lib/pcre-8.40 \
+    --with-zlib=objs/lib/zlib-1.2.11 --with-openssl=objs/lib/openssl-1.0.2k \
+    --with-select_module --with-http_ssl_module
+
+
+
+
+
+=item *
+
+Run make:
+
+    
+    nmake -f objs/Makefile
+
+
+
+
+
+
+=back
+
+
+
+
+
+
+
+=head1 See also
+
+
+
+
+=over
+
+
+
+
+=item *
+
+L<windows>
+
+
+
+=back
+
+
+
+
+
+

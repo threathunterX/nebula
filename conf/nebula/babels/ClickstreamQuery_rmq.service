@@ -1,0 +1,13 @@
+{
+    "name": "clickstreamquery",
+    "callmode": "rpc",
+    "delivermode": "sharding",
+    "serverimpl": "rmq",
+    "coder": "mail",
+    "options": {
+        "cdc": "sh",
+        "sdc": "sh",
+        "servercardinality": 1,
+        "serverseq": 1
+    }
+}

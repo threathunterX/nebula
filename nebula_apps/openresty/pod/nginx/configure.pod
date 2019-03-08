@@ -1,0 +1,361 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+configure - Building nginx from Sources
+
+
+=head1
+
+
+
+The build is configured using the C<configure> command.
+It defines various aspects of the system, including the methods nginx
+is allowed to use for connection processing.
+At the end it creates a F<Makefile>.
+The C<configure> command supports the following parameters:
+
+=over
+
+
+
+
+=item *
+
+
+
+C<--prefix=I<C<path>>>E<mdash>defines
+a directory that will keep server files.
+This same directory will also be used for all relative paths set by
+C<configure> (except for paths to libraries sources)
+and in the F<nginx.conf> configuration file.
+It is set to the F<E<sol>usrE<sol>localE<sol>nginx> directory by default.
+
+
+
+
+
+=item *
+
+
+
+C<--sbin-path=I<C<path>>>E<mdash>sets
+the name of an nginx executable file.
+This name is used only during installation.
+By default the file is named
+F<I<C<prefix>>E<sol>sbinE<sol>nginx>.
+
+
+
+
+
+=item *
+
+
+
+C<--conf-path=I<C<path>>>E<mdash>sets
+the name of an F<nginx.conf> configuration file.
+If needs be, nginx can always be started with a different configuration file,
+by specifying it in the command-line parameter
+C<-c I<C<file>>>.
+By default the file is named
+F<I<C<prefix>>E<sol>confE<sol>nginx.conf>.
+
+
+
+
+
+=item *
+
+
+
+C<--pid-path=I<C<path>>>E<mdash>sets
+the name of an nginx.pid file that will store the process ID
+of the main process.
+After installation, the file name can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_core_module> directive.
+By default the file is named
+F<I<C<prefix>>E<sol>logsE<sol>nginx.pid>.
+
+
+
+
+
+=item *
+
+
+
+C<--error-log-path=I<C<path>>>E<mdash>sets
+the name of the primary error, warnings, and diagnostic file.
+After installation, the file name can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_core_module> directive.
+By default the file is named
+F<I<C<prefix>>E<sol>logsE<sol>error.log>.
+
+
+
+
+
+=item *
+
+
+
+C<--http-log-path=I<C<path>>>E<mdash>sets
+the name of the primary request log file of the HTTP server.
+After installation, the file name can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_http_log_module> directive.
+By default the file is named
+F<I<C<prefix>>E<sol>logsE<sol>access.log>.
+
+
+
+
+
+=item *
+
+
+
+C<--build=I<C<name>>>E<mdash>sets
+an optional nginx build name.
+
+
+
+
+
+=item *
+
+
+
+C<--user=I<C<name>>>E<mdash>sets
+the name of an unprivileged user whose credentials will be used
+by worker processes.
+After installation, the name can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_core_module> directive.
+The default user name is nobody.
+
+
+
+
+
+=item *
+
+
+
+C<--group=I<C<name>>>E<mdash>sets
+the name of a group whose credentials will be used
+by worker processes.
+After installation, the name can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_core_module> directive.
+By default, a group name is set to the name of an unprivileged user.
+
+
+
+
+
+=item *
+
+
+
+C<--with-select_module>
+
+
+C<--without-select_module>E<mdash>enables or disables
+building a module that allows the server to work with the
+C<select> method.
+This module is built automatically if the platform does not appear
+to support more appropriate methods such as kqueue, epoll, or E<sol>devE<sol>poll.
+
+
+
+
+
+=item *
+
+
+
+C<--with-poll_module>
+
+
+C<--without-poll_module>E<mdash>enables or disables
+building a module that allows the server to work with the
+C<poll> method.
+This module is built automatically if the platform does not appear
+to support more appropriate methods such as kqueue, epoll, or E<sol>devE<sol>poll.
+
+
+
+
+
+=item *
+
+
+
+C<--without-http_gzip_module>E<mdash>disables building a module
+that L<compresses responses|ngx_http_gzip_module>
+of an HTTP server.
+The zlib library is required to build and run this module.
+
+
+
+
+
+=item *
+
+
+
+C<--without-http_rewrite_module>E<mdash>disables building a
+module that allows an HTTP server to
+L<redirect requests and change URI
+of requests|ngx_http_rewrite_module>.
+The PCRE library is required to build and run this module.
+
+
+
+
+
+=item *
+
+
+
+C<--without-http_proxy_module>E<mdash>disables building an
+HTTP server L<proxying module|ngx_http_proxy_module>.
+
+
+
+
+
+=item *
+
+
+
+C<--with-http_ssl_module>E<mdash>enables building a module
+that adds the L<HTTPS protocol
+support|ngx_http_ssl_module> to an HTTP server.
+This module is not built by default.
+The OpenSSL library is required to build and run this module.
+
+
+
+
+
+=item *
+
+
+
+C<--with-pcre=I<C<path>>>E<mdash>sets
+the path to the sources of the PCRE library.
+The library distribution (version
+4.4E<mdash>8.40) needs to be downloaded from the
+L<PCRE|http://www.pcre.org> site and extracted.
+The rest is done by nginx’s C<.E<sol>configure> and
+C<make>.
+The library is required for regular expressions support in the
+L<ngx_http_core_module> directive
+and for the
+L<ngx_http_rewrite_module|ngx_http_rewrite_module>
+module.
+
+
+
+
+
+=item *
+
+
+
+C<--with-pcre-jit>E<mdash>builds the PCRE library with
+“just-in-time compilation” support (1.1.12, the
+L<ngx_core_module> directive).
+
+
+
+
+
+=item *
+
+
+
+C<--with-zlib=I<C<path>>>E<mdash>sets
+the path to the sources of the zlib library.
+The library distribution (version
+1.1.3E<mdash>1.2.11) needs to be downloaded from the
+L<zlib|http://zlib.net> site and extracted.
+The rest is done by nginx’s C<.E<sol>configure> and
+C<make>.
+The library is required for the
+L<ngx_http_gzip_module|ngx_http_gzip_module> module.
+
+
+
+
+
+=item *
+
+
+
+C<--with-cc-opt=I<C<parameters>>>E<mdash>sets
+additional parameters that will be added to the CFLAGS variable.
+When using the system PCRE library under FreeBSD,
+C<--with-cc-opt="-I E<sol>usrE<sol>localE<sol>include">
+should be specified.
+If the number of files supported by C<select> needs to be
+increased it can also be specified here such as this:
+C<--with-cc-opt="-D FD_SETSIZE=2048">.
+
+
+
+
+
+=item *
+
+
+
+C<--with-ld-opt=I<C<parameters>>>E<mdash>sets
+additional parameters that will be used during linking.
+When using the system PCRE library under FreeBSD,
+C<--with-ld-opt="-L E<sol>usrE<sol>localE<sol>lib">
+should be specified.
+
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+Example of parameters usage (all of this needs to be typed in one line):
+
+    
+    ./configure
+        --sbin-path=/usr/local/nginx/nginx
+        --conf-path=/usr/local/nginx/nginx.conf
+        --pid-path=/usr/local/nginx/nginx.pid
+        --with-http_ssl_module
+        --with-pcre=../pcre-8.40
+        --with-zlib=../zlib-1.2.11
+
+
+
+
+
+
+
+After configuration,
+nginx is compiled and installed using C<make>.
+
+
+
+

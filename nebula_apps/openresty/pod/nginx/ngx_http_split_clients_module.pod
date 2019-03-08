@@ -1,0 +1,83 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_split_clients_module - Module ngx_http_split_clients_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_split_clients_module> module creates
+variables suitable for AE<sol>B testing, also known as split testing.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    http {
+        split_clients "${remote_addr}AAA" $variant {
+                       0.5%               .one;
+                       2.0%               .two;
+                       *                  "";
+        }
+    
+        server {
+            location / {
+                index index${variant}.html;
+
+
+
+
+
+
+=head1 Directives
+
+=head2 split_clients
+
+
+B<syntax:> split_clients I<
+    I<C<string>>
+    I<C<$variable>> { B<...> } >
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Creates a variable for AE<sol>B testing, for example:
+
+    
+    split_clients "${remote_addr}AAA" $variant {
+                   0.5%               .one;
+                   2.0%               .two;
+                   *                  "";
+    }
+
+
+The value of the original string is hashed using MurmurHash2.
+In the example given, hash values from 0 to 21474835 (0.5%)
+correspond to the
+value C<".one"> of the C<$variant> variable,
+hash values from 21474836 to 107374180 (2%) correspond to
+the value C<".two">,
+and hash values from 107374181 to 4294967295 correspond to
+the value C<""> (an empty string).
+
+
+
+
+
+
+

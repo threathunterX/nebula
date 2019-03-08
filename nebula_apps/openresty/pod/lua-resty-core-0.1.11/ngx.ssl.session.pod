@@ -1,0 +1,313 @@
+=encoding utf-8
+
+
+=head1 Name
+
+ngx.ssl.session - Lua API for manipulating SSL session data and IDs for NGINX downstream SSL connections.
+
+
+=head1 Status
+
+This Lua module is currently considered experimental.
+
+
+=head1 Synopsis
+
+
+    # nginx.conf
+    
+    # Note: you do not need the following line if you are using
+    # OpenResty 1.11.2.1+.
+    lua_package_path "/path/to/lua-resty-core/lib/?.lua;;";
+    
+    server {
+        listen 443 ssl;
+        server_name test.com;
+    
+        # well, we could configure ssl_certificate_by_lua* here as well...
+        ssl_certificate /path/to/server-cert.pem;
+        ssl_certificate_key /path/to/server-priv-key.pem;
+    
+        ssl_session_fetch_by_lua_block {
+            local ssl_sess = require "ngx.ssl.session"
+    
+            local sess_id, err = ssl_sess.get_session_id()
+            if not sess_id then
+                ngx.log(ngx.ERR, "failed to get session ID: ", err)
+                -- considered a cache miss, and just return...
+                return
+            end
+    
+            -- the user is supposed to implement the my_lookup_ssl_session_by_id
+            -- Lua function used below. She can look up an external memcached
+            -- or redis cluster, for example. And she can also introduce a local
+            -- cache layer at the same time...
+            local sess, err = my_lookup_ssl_session_by_id(sess_id)
+            if not sess then
+                if err then
+                    ngx.log(ngx.ERR, "failed to look up the session by ID ",
+                            sess_id, ": ", err)
+                    return
+                end
+    
+                -- cache miss...just return
+                return
+            end
+    
+            local ok, err = ssl_sess.set_serialized_session(sess)
+            if not ok then
+                ngx.log(ngx.ERR, "failed to set SSL session for ID ", sess_id,
+                        ": ", err)
+                -- consider it as a cache miss...
+                return
+            end
+    
+            -- done here, SSL session successfully set and should resume accordingly...
+        }
+    
+        ssl_session_store_by_lua_block {
+            local ssl_sess = require "ngx.ssl.session"
+    
+            local sess_id, err = ssl_sess.get_session_id()
+            if not sess_id then
+                ngx.log(ngx.ERR, "failed to get session ID: ", err)
+                -- just give up
+                return
+            end
+    
+            local sess, err = ssl_sess.get_serialized_session()
+            if not sess then
+                ngx.log(ngx.ERR, "failed to get SSL session from the ",
+                        "current connection: ", err)
+                -- just give up
+                return
+            end
+    
+            -- for the best performance, we should avoid creating a closure
+            -- dynamically here on the hot code path. Instead, we should
+            -- put this function in one of our own Lua module files. this
+            -- example is just for demonstration purposes...
+            local function save_it(premature, sess_id, sess)
+                -- the user is supposed to implement the
+                -- my_save_ssl_session_by_id Lua function used below.
+                -- She can save to an external memcached
+                -- or redis cluster, for example. And she can also introduce
+                -- a local cache layer at the same time...
+                local sess, err = my_save_ssl_session_by_id(sess_id, sess)
+                if not sess then
+                    if err then
+                        ngx.log(ngx.ERR, "failed to save the session by ID ",
+                                sess_id, ": ", err)
+                        return ngx.exit(ngx.ERROR)
+                    end
+    
+                    -- cache miss...just return
+                    return
+                end
+            end
+    
+            -- create a 0-delay timer here...
+            local ok, err = ngx.timer.at(0, save_it)
+            if not ok then
+                ngx.log(ngx.ERR, "failed to create a 0-delay timer: ", err)
+                return
+            end
+        }
+    }
+
+
+=head1 Description
+
+This Lua module provides API functions for manipulating SSL session data and IDs for NGINX
+downstream connections. It is mostly for the contexts L<ssl_session_fetch_by_lua*|https://github.com/openresty/lua-nginx-module/#ssl_session_fetch_by_lua_block>
+and L<ssl_session_store_by_lua*|https://github.com/openresty/lua-nginx-module/#ssl_session_store_by_lua_block>.
+
+This Lua API can be used to implement distributed SSL session caching for downstream SSL connections, thus saving a lot of full SSL handshakes which are very expensive.
+
+To load the C<ngx.ssl.session> module in Lua, just write
+
+
+    local ssl_sess = require "ngx.ssl.session"
+
+
+
+
+=head1 Methods
+
+
+=head2 get_session_id
+
+B<syntax:> I<id, err = ssl_sess.get_session_id()>
+
+B<context:> I<ssl_session_fetch_by_luaE<42>, ssl_session_store_by_luaE<42>>
+
+Fetches the SSL session ID associated with the current downstream SSL connection.
+The ID is returned as a Lua string.
+
+In case of errors, it returns C<nil> and a string describing the error.
+
+This API function is usually called in the contexts of
+L<ssl_session_store_by_lua*|https://github.com/openresty/lua-nginx-module/#ssl_session_store_by_lua_block>
+and L<ssl_session_fetch_by_lua*|https://github.com/openresty/lua-nginx-module/#ssl_session_fetch_by_lua_block>.
+
+
+
+
+=head2 get_serialized_session
+
+B<syntax:> I<session, err = ssl_sess.get_serialized_session()>
+
+B<context:> I<ssl_session_store_by_luaE<42>>
+
+Returns the serialized form of the SSL sesson data of the current SSL connection, in a Lua string.
+
+This session can be cached in L<lua-resty-lrucache|https://github.com/openresty/lua-resty-lrucache>, L<lua_shared_dict|https://github.com/openresty/lua-nginx-module#lua_shared_dict>,
+and/or external data storage services like C<memcached> and C<redis>. The SSL session ID returned
+by the L<get_session_id> function is usually used as the cache key.
+
+The returned SSL session data can later be loaded into other SSL connections using the same
+session ID via the L<set_serialized_session> function.
+
+In case of errors, it returns C<nil> and a string describing the error.
+
+This API function is usually called in the context of
+L<ssl_session_store_by_lua*|https://github.com/openresty/lua-nginx-module#ssl_session_store_by_lua_block>
+where the SSL handshake has just completed.
+
+
+
+
+=head2 set_serialized_session
+
+B<syntax:> I<ok, err = ssl_sess.set_serialized_session(session)>
+
+B<context:> I<ssl_session_fetch_by_luaE<42>>
+
+Sets the serialized SSL session provided as the argument to the current SSL connection.
+If the SSL session is successfully set, the current SSL connection can resume the session
+directly without going through the full SSL handshake process (which is very expensive in terms of CPU time).
+
+This API is usually used in the context of L<ssl_session_fetch_by_lua*|https://github.com/openresty/lua-nginx-module#ssl_session_fetch_by_lua_block>
+when a cache hit is found with the current SSL session ID.
+
+The serialized SSL session used as the argument should be originally returned by the
+L<get_serialized_session> function.
+
+
+
+
+=head1 Community
+
+
+
+
+=head2 English Mailing List
+
+The L<openresty-en|https://groups.google.com/group/openresty-en> mailing list is for English speakers.
+
+
+
+
+=head2 Chinese Mailing List
+
+The L<openresty|https://groups.google.com/group/openresty> mailing list is for Chinese speakers.
+
+
+
+
+=head1 Bugs and Patches
+
+Please report bugs or submit patches by
+
+
+=over
+
+
+=item 1.
+
+creating a ticket on the L<GitHub Issue Tracker|https://github.com/openresty/lua-resty-core/issues>,
+
+=item 2.
+
+or posting to the L<OpenResty community>.
+
+
+=back
+
+
+
+
+=head1 Author
+
+Yichun Zhang E<lt>agentzh@gmail.comE<gt> (agentzh), OpenResty Inc.
+
+
+
+
+=head1 Copyright and License
+
+This module is licensed under the BSD license.
+
+Copyright (C) 2016-2017, by Yichun "agentzh" Zhang, OpenResty Inc.
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+
+=back
+
+
+=over
+
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+the ngx_lua module: https://github.com/openresty/lua-nginx-module
+
+=item *
+
+the L<ssl_session_fetch_by_lua*|https://github.com/openresty/lua-nginx-module/#ssl_session_fetch_by_lua_block> directive.
+
+=item *
+
+the L<ssl_session_store_by_lua*|https://github.com/openresty/lua-nginx-module/#ssl_session_store_by_lua_block> directive.
+
+=item *
+
+library L<lua-resty-core|https://github.com/openresty/lua-resty-core>
+
+=item *
+
+OpenResty: https://openresty.org
+
+
+=back
+
+

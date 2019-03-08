@@ -1,0 +1,407 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_hls_module - Module ngx_http_hls_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_hls_module> module provides HTTP Live Streaming
+(HLS) server-side support for MP4 and MOV media files.
+Such files typically have the F<.mp4>, F<.m4v>,
+F<.m4a>, F<.mov>, or F<.qt> filename extensions.
+The module supports H.264 video codec, AAC and MP3 audio codecs.
+
+
+
+
+
+For each media file, two URIs are supported:
+
+=over
+
+
+
+
+=item *
+
+A playlist URI with the “C<.m3u8>” filename extension.
+The URI can accept optional arguments:
+
+=over
+
+
+
+
+=item *
+
+“C<start>” and “C<end>”
+define playlist boundaries in seconds (1.9.0).
+
+
+
+=item *
+
+“C<offset>” shifts an initial playback position
+to the time offset in seconds (1.9.0).
+A positive value sets a time offset from the beginning of the playlist.
+A negative value sets a time offset
+from the end of the last fragment in the playlist.
+
+
+
+=item *
+
+“C<len>” defines the fragment length in seconds.
+
+
+=back
+
+
+
+
+
+
+=item *
+
+A fragment URI with the “C<.ts>” filename extension.
+The URI can accept optional arguments:
+
+=over
+
+
+
+
+=item *
+
+“C<start>” and “C<end>”
+define fragment boundaries in seconds.
+
+
+
+=back
+
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+B<NOTE>
+
+This module is available as part of our
+commercial subscription.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location / {
+        hls;
+        hls_fragment            5s;
+        hls_buffers             10 10m;
+        hls_mp4_buffer_size     1m;
+        hls_mp4_max_buffer_size 5m;
+        root /var/video/;
+    }
+
+
+With this configuration, the following URIs are supported for
+the “F<E<sol>varE<sol>videoE<sol>test.mp4>” file:
+
+    
+    http://hls.example.com/test.mp4.m3u8?offset=1.000&start=1.000&end=2.200
+    http://hls.example.com/test.mp4.m3u8?len=8.000
+    http://hls.example.com/test.mp4.ts?start=1.000&end=2.200
+
+
+
+
+
+
+=head1 Directives
+
+=head2 hls
+
+
+
+
+B<context:> I<location>
+
+
+
+
+
+Turns on HLS streaming in the surrounding location.
+
+
+
+
+
+
+
+=head2 hls_buffers
+
+
+B<syntax:> hls_buffers I<I<C<number>> I<C<size>>>
+
+
+B<default:> I<8 2m>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the maximum I<C<number>> and I<C<size>> of buffers
+that are used for reading and writing data frames.
+
+
+
+
+
+
+
+=head2 hls_forward_args
+
+
+B<syntax:> hls_forward_args I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.5.12.
+
+
+
+
+
+Adds arguments from a playlist request to URIs of fragments.
+This may be useful for performing client authorization at the moment of
+requesting a fragment, or when protecting an HLS stream with the
+L<ngx_http_secure_link_module|ngx_http_secure_link_module>
+module.
+
+
+
+
+
+For example, if a client requests a playlist
+C<http:E<sol>E<sol>example.comE<sol>hlsE<sol>test.mp4.m3u8?a=1E<amp>b=2>,
+the arguments C<a=1> and C<b=2>
+will be added to URIs of fragments after the arguments
+C<start> and C<end>:
+
+    
+    #EXTM3U
+    #EXT-X-VERSION:3
+    #EXT-X-TARGETDURATION:15
+    #EXT-X-PLAYLIST-TYPE:VOD
+    
+    #EXTINF:9.333,
+    test.mp4.ts?start=0.000&end=9.333&a=1&b=2
+    #EXTINF:7.167,
+    test.mp4.ts?start=9.333&end=16.500&a=1&b=2
+    #EXTINF:5.416,
+    test.mp4.ts?start=16.500&end=21.916&a=1&b=2
+    #EXTINF:5.500,
+    test.mp4.ts?start=21.916&end=27.416&a=1&b=2
+    #EXTINF:15.167,
+    test.mp4.ts?start=27.416&end=42.583&a=1&b=2
+    #EXTINF:9.626,
+    test.mp4.ts?start=42.583&end=52.209&a=1&b=2
+    
+    #EXT-X-ENDLIST
+
+
+
+
+
+
+
+If an HLS stream is protected with the
+L<ngx_http_secure_link_module|ngx_http_secure_link_module>
+module, C<$uri> should not be used in the
+L<ngx_http_secure_link_module>
+expression because this will cause errors when requesting the fragments.
+L<Base URI|ngx_http_map_module> should be used
+instead of C<$uri>
+(C<$hls_uri> in the example):
+
+    
+    http {
+        ...
+    
+        map $uri $hls_uri {
+            ~^(?<base_uri>.*).m3u8$ $base_uri;
+            ~^(?<base_uri>.*).ts$   $base_uri;
+            default                 $uri;
+        }
+    
+        server {
+            ...
+    
+            location /hls {
+                hls;
+                hls_forward_args on;
+    
+                alias /var/videos;
+    
+                secure_link $arg_md5,$arg_expires;
+                secure_link_md5 "$secure_link_expires$hls_uri$remote_addr secret";
+    
+                if ($secure_link = "") {
+                    return 403;
+                }
+    
+                if ($secure_link = "0") {
+                    return 410;
+                }
+            }
+        }
+    }
+
+
+
+
+
+
+
+
+
+=head2 hls_fragment
+
+
+B<syntax:> hls_fragment I<I<C<time>>>
+
+
+B<default:> I<5s>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines the default fragment length for playlist URIs requested without the
+“C<len>” argument.
+
+
+
+
+
+
+
+=head2 hls_mp4_buffer_size
+
+
+B<syntax:> hls_mp4_buffer_size I<I<C<size>>>
+
+
+B<default:> I<512k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the initial I<C<size>> of the buffer used for
+processing MP4 and MOV files.
+
+
+
+
+
+
+
+=head2 hls_mp4_max_buffer_size
+
+
+B<syntax:> hls_mp4_max_buffer_size I<I<C<size>>>
+
+
+B<default:> I<10m>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+During metadata processing, a larger buffer may become necessary.
+Its size cannot exceed the specified I<C<size>>,
+or else nginx will return the server error
+C<500> (C<Internal Server Error>),
+and log the following message:
+
+    
+    "/some/movie/file.mp4" mp4 moov atom is too large:
+    12583268, you may want to increase hls_mp4_max_buffer_size
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,564 @@
+=encoding utf-8
+
+
+=head1 Name
+
+lua-resty-core - New FFI-based Lua API for the ngx_lua module
+
+
+=head1 Status
+
+This library is production ready and under active development.
+
+
+=head1 Synopsis
+
+
+        # nginx.conf
+    
+        http {
+            # you do NOT need to configure the following line when you
+            # are using the OpenResty bundle 1.4.3.9+.
+            lua_package_path "/path/to/lua-resty-core/lib/?.lua;;";
+    
+            init_by_lua_block {
+                require "resty.core"
+                collectgarbage("collect")  -- just to collect any garbage
+            }
+    
+            ...
+        }
+
+
+=head1 Description
+
+This pure Lua library reimplements part of the L<ngx_lua|https://github.com/openresty/lua-nginx-module#readme> module's
+L<Nginx API for Lua|https://github.com/openresty/lua-nginx-module#nginx-api-for-lua>
+with LuaJIT FFI and installs the new FFI-based Lua API into the ngx.I< and ndk.> namespaces
+used by the ngx_lua module.
+
+In addition, this Lua library implements any significant new Lua APIs of
+the L<ngx_lua|https://github.com/openresty/lua-nginx-module#readme> module
+as proper Lua modules, like L<ngx.semaphore> and L<ngx.balancer>.
+
+The FFI-based Lua API can work with LuaJIT's JIT compiler. ngx_lua's default API is based on the standard
+Lua C API, which will never be JIT compiled and the user Lua code is always interpreted (slowly).
+
+This library is shipped with the OpenResty bundle by default. So you do not really need to worry about the dependencies
+and requirements.
+
+
+
+
+=head1 Prerequisites
+
+
+=over
+
+
+=item *
+
+LuaJIT 2.1 (for now, it is the v2.1 git branch in the official luajit-2.0 git repository: http://luajit.org/download.html )
+
+=item *
+
+L<ngx_lua|https://github.com/openresty/lua-nginx-module> v0.10.8 or later.
+
+=item *
+
+L<lua-resty-lrucache|https://github.com/openresty/lua-resty-lrucache>
+
+
+=back
+
+
+
+
+=head1 API Implemented
+
+
+
+
+=head2 resty.core.hash
+
+
+
+=over
+
+
+=item *
+
+L<ngx.md5|https://github.com/openresty/lua-nginx-module#ngxmd5>
+
+=item *
+
+L<ngx.md5_bin|https://github.com/openresty/lua-nginx-module#ngxmd5_bin>
+
+=item *
+
+L<ngx.sha1_bin|https://github.com/openresty/lua-nginx-module#ngxsha1_bin>
+
+
+=back
+
+
+
+
+=head2 resty.core.base64
+
+
+
+=over
+
+
+=item *
+
+L<ngx.encode_base64|https://github.com/openresty/lua-nginx-module#ngxencode_base64>
+
+=item *
+
+L<ngx.decode_base64|https://github.com/openresty/lua-nginx-module#ngxdecode_base64>
+
+
+=back
+
+
+
+
+=head2 resty.core.uri
+
+
+
+=over
+
+
+=item *
+
+L<ngx.escape_uri|https://github.com/openresty/lua-nginx-module#ngxescape_uri>
+
+=item *
+
+L<ngx.unescape_uri|https://github.com/openresty/lua-nginx-module#ngxunescape_uri>
+
+
+=back
+
+
+
+
+=head2 resty.core.regex
+
+
+
+=over
+
+
+=item *
+
+L<ngx.re.match|https://github.com/openresty/lua-nginx-module#ngxrematch>
+
+=item *
+
+L<ngx.re.find|https://github.com/openresty/lua-nginx-module#ngxrefind>
+
+=item *
+
+L<ngx.re.sub|https://github.com/openresty/lua-nginx-module#ngxresub>
+
+=item *
+
+L<ngx.re.gsub|https://github.com/openresty/lua-nginx-module#ngxregsub>
+
+
+=back
+
+
+
+
+=head2 resty.core.exit
+
+
+
+=over
+
+
+=item *
+
+L<ngx.exit|https://github.com/openresty/lua-nginx-module#ngxexit>
+
+
+=back
+
+
+
+
+=head2 resty.core.shdict
+
+
+
+=over
+
+
+=item *
+
+L<ngx.shared.DICT.get|https://github.com/openresty/lua-nginx-module#ngxshareddictget>
+
+=item *
+
+L<ngx.shared.DICT.get_stale|https://github.com/openresty/lua-nginx-module#ngxshareddictget_stale>
+
+=item *
+
+L<ngx.shared.DICT.incr|https://github.com/openresty/lua-nginx-module#ngxshareddictincr>
+
+=item *
+
+L<ngx.shared.DICT.set|https://github.com/openresty/lua-nginx-module#ngxshareddictset>
+
+=item *
+
+L<ngx.shared.DICT.safe_set|https://github.com/openresty/lua-nginx-module#ngxshareddictsafe_set>
+
+=item *
+
+L<ngx.shared.DICT.add|https://github.com/openresty/lua-nginx-module#ngxshareddictadd>
+
+=item *
+
+L<ngx.shared.DICT.safe_add|https://github.com/openresty/lua-nginx-module#ngxshareddictsafe_add>
+
+=item *
+
+L<ngx.shared.DICT.replace|https://github.com/openresty/lua-nginx-module#ngxshareddictreplace>
+
+=item *
+
+L<ngx.shared.DICT.delete|https://github.com/openresty/lua-nginx-module#ngxshareddictdelete>
+
+=item *
+
+L<ngx.shared.DICT.flush_all|https://github.com/openresty/lua-nginx-module#ngxshareddictflush_all>
+
+
+=back
+
+
+
+
+=head2 resty.core.var
+
+
+
+=over
+
+
+=item *
+
+L<ngx.var.VARIABLE|https://github.com/openresty/lua-nginx-module#ngxvarvariable>
+
+
+=back
+
+
+
+
+=head2 resty.core.ctx
+
+
+
+=over
+
+
+=item *
+
+L<ngx.ctx|https://github.com/openresty/lua-nginx-module#ngxctx>
+
+
+=back
+
+
+
+
+=head2 resty.core.request
+
+
+
+=over
+
+
+=item *
+
+L<ngx.req.get_headers|https://github.com/openresty/lua-nginx-module#ngxreqget_headers>
+
+=item *
+
+L<ngx.req.get_uri_args|https://github.com/openresty/lua-nginx-module#ngxreqget_uri_args>
+
+=item *
+
+L<ngx.req.start_time|https://github.com/openresty/lua-nginx-module#ngxreqstart_time>
+
+=item *
+
+L<ngx.req.get_method|https://github.com/openresty/lua-nginx-module#ngxreqget_method>
+
+=item *
+
+L<ngx.req.set_method|https://github.com/openresty/lua-nginx-module#ngxreqset_method>
+
+=item *
+
+L<ngx.req.set_header|https://github.com/openresty/lua-nginx-module#ngxreqset_header>  (partial: table-typed header values not supported yet)
+
+=item *
+
+L<ngx.req.clear_header|https://github.com/openresty/lua-nginx-module#ngxreqclear_header>
+
+
+=back
+
+
+
+
+=head2 resty.core.response
+
+
+
+=over
+
+
+=item *
+
+L<ngx.header.HEADER|https://github.com/openresty/lua-nginx-module#ngxheaderheader>
+
+
+=back
+
+
+
+
+=head2 resty.core.misc
+
+
+
+=over
+
+
+=item *
+
+L<ngx.status|https://github.com/openresty/lua-nginx-module#ngxstatus>
+
+=item *
+
+L<ngx.is_subrequest|https://github.com/openresty/lua-nginx-module#ngxis_subrequest>
+
+=item *
+
+L<ngx.headers_sent|https://github.com/openresty/lua-nginx-module#ngxheaders_sent>
+
+
+=back
+
+
+
+
+=head2 resty.core.time
+
+
+
+=over
+
+
+=item *
+
+L<ngx.time|https://github.com/openresty/lua-nginx-module#ngxtime>
+
+=item *
+
+L<ngx.now|https://github.com/openresty/lua-nginx-module#ngxnow>
+
+
+=back
+
+
+
+
+=head2 resty.core.worker
+
+
+
+=over
+
+
+=item *
+
+L<ngx.worker.exiting|https://github.com/openresty/lua-nginx-module#ngxworkerexiting>
+
+=item *
+
+L<ngx.worker.pid|https://github.com/openresty/lua-nginx-module#ngxworkerpid>
+
+=item *
+
+L<ngx.worker.id|https://github.com/openresty/lua-nginx-module#ngxworkerid>
+
+=item *
+
+L<ngx.worker.count|https://github.com/openresty/lua-nginx-module#ngxworkercount>
+
+
+=back
+
+
+
+
+=head2 ngx.semaphore
+
+
+This Lua module implements a semaphore API for efficient "light thread" synchronization,
+which can work across different requests (but not across nginx worker processes).
+
+See the L<documentation|./lib/ngx/semaphore.md> for this Lua module for more details.
+
+
+
+
+=head2 ngx.balancer
+
+
+This Lua module implements for defining dynamic upstream balancers in Lua.
+
+See the L<documentation|./lib/ngx/balancer.md> for this Lua module for more details.
+
+
+
+
+=head2 ngx.ssl
+
+
+This Lua module provides a Lua API for controlling SSL certificates, private keys,
+SSL protocol versions, and etc in NGINX downstream SSL handshakes.
+
+See the L<documentation|./lib/ngx/ssl.md> for this Lua module for more details.
+
+
+
+
+=head2 ngx.ssl.session
+
+
+This Lua module provides a Lua API for manipulating SSL session data and IDs
+for NGINX downstream SSL connections.
+
+See the L<documentation|./lib/ngx/ssl/session.md> for this Lua module for more details.
+
+
+
+
+=head2 ngx.re
+
+
+This Lua module provides a Lua API which implements convenience utilities for
+the C<ngx.re> API.
+
+See the L<documentation|./lib/ngx/re.md> for this Lua module for more details.
+
+
+
+
+=head1 Caveat
+
+If the user Lua code is not JIT compiled, then use of this library may
+lead to performance drop in interpreted mode. You will only observe
+speedup when you get a good part of your user Lua code JIT compiled.
+
+
+
+
+=head1 TODO
+
+
+=over
+
+
+=item *
+
+Re-implement C<ngx_lua>'s cosocket API with FFI.
+
+=item *
+
+Re-implement C<ngx_lua>'s C<ngx.get_phase> API function with FFI.
+
+=item *
+
+Re-implement C<ngx_lua>'s C<ngx.eof> and C<ngx.flush> API functions with FFI.
+
+
+=back
+
+
+
+
+=head1 Author
+
+Yichun "agentzh" Zhang (章亦春) E<lt>agentzh@gmail.comE<gt>, OpenResty Inc.
+
+
+
+
+=head1 Copyright and License
+
+This module is licensed under the BSD license.
+
+Copyright (C) 2013-2017, by Yichun "agentzh" Zhang, OpenResty Inc.
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+
+=back
+
+
+=over
+
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+the ngx_lua module: https://github.com/openresty/lua-nginx-module#readme
+
+=item *
+
+LuaJIT FFI: http://luajit.org/ext_ffi.html
+
+
+=back
+
+
+

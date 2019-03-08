@@ -1,0 +1,69 @@
+version: '2'
+services:
+ nebula-db:
+  image: mariadb
+  container_name: nebula-db
+  volumes:
+   - ./data/mariadb:/var/lib/mysql
+  environment:
+   - MYSQL_ROOT_PASSWORD=threathunter
+   - MYSQL_USER=nebula
+   - MYSQL_PASSWORD=threathunter
+
+ nebula-redis:
+  image: redis
+  container_name: nebula-redis
+  ports:
+    - "36379:6379"
+  volumes:
+   - ./logs/redis:/data/logs/redis
+   - ./data/redis:/data/redis
+   - ./conf/redis/redis.conf:/etc/redis/redis.conf
+  command: redis-server /etc/redis/redis.conf
+
+ nebula-aerospike:
+  image: aerospike
+  container_name: nebula-aerospike
+  volumes:
+   - ./data/aerospike:/data/aerospike
+   - ./conf/aerospike/aerospike.conf:/opt/aerospike/etc/aerospike.conf
+   - ./logs/aerospike:/data/logs/aerospike
+  command: asd --foreground --config-file /opt/aerospike/etc/aerospike.conf
+
+
+ nebula:
+  build:
+   context: .
+  image: nebula:v1.1.2
+  container_name: nebula
+  restart: always
+  ports:
+   - "9003:9001"
+  volumes:
+   - ./conf/nebula:/etc/nebula
+   
+   - ./logs/db_writer:/data/logs/db_writer
+   - ./logs/java-web:/data/logs/java-web
+   - ./logs/labrador:/data/logs/labrador
+   - ./logs/labrador:/data/logs/monitor
+   - ./logs/offline:/data/logs/offline
+   - ./logs/online:/data/logs/online
+   - ./logs/query_web:/data/logs/query_web
+   - ./logs/sniffer:/data/logs/sniffer
+   - ./logs/utils:/data/logs/utils
+   - ./logs/web:/data/logs/web
+   - ./logs/crond:/data/logs/crond
+   
+   - ./data/tmp:/data/tmp
+   - ./data/config:/data/config
+   - ./data/log_query:/data/log_query
+   - ./data/persistent:/data/persistent
+  depends_on:
+   - nebula-db
+   - nebula-redis
+   - nebula-aerospike
+  external_links:
+   - nebula-db:mysql
+   - nebula-redis:redis
+   - nebula-aerospike:aerospike
+

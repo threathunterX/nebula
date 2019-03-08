@@ -1,0 +1,14 @@
+{
+    "name": "httplog_notify",
+    "callmode": "notify",
+    "delivermode": "topic",
+    "serverimpl": "rmq",
+    "coder": "mail",
+    "options": {
+        "cdc": "sh",
+        "sdc": "sh",
+        "serversubname": "onlinekv",
+        "serverseq": 1,
+        "servercardinality": 1
+    }
+}

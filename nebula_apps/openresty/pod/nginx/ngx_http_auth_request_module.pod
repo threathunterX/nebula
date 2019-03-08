@@ -1,0 +1,142 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_auth_request_module - Module ngx_http_auth_request_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_auth_request_module> module (1.5.4+) implements
+client authorization based on the result of a subrequest.
+If the subrequest returns a 2xx response code, the access is allowed.
+If it returns 401 or 403,
+the access is denied with the corresponding error code.
+Any other response code returned by the subrequest is considered an error.
+
+
+
+
+
+For the 401 error, the client also receives the
+C<WWW-Authenticate> header from the subrequest response.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+C<--with-http_auth_request_module>
+configuration parameter.
+
+
+
+
+
+The module may be combined with
+other access modules, such as
+L<ngx_http_access_module|ngx_http_access_module>,
+L<ngx_http_auth_basic_module|ngx_http_auth_basic_module>,
+and
+L<ngx_http_auth_jwt_module|ngx_http_auth_jwt_module>,
+via the L<ngx_http_core_module> directive.
+
+B<NOTE>
+
+Before version 1.7.3, responses to authorization subrequests could not be cached
+(using L<ngx_http_proxy_module>,
+L<ngx_http_proxy_module>, etc.).
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location /private/ {
+        auth_request /auth;
+        ...
+    }
+    
+    location = /auth {
+        proxy_pass ...
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header X-Original-URI $request_uri;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 auth_request
+
+
+B<syntax:> auth_request I<I<C<uri>> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Enables authorization based on the result of a subrequest and sets
+the URI to which the subrequest will be sent.
+
+
+
+
+
+
+
+=head2 auth_request_set
+
+
+B<syntax:> auth_request_set I<I<C<$variable>> I<C<value>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the request I<C<variable>> to the given
+I<C<value>> after the authorization request completes.
+The value may contain variables from the authorization request,
+such as C<$upstream_http_*>.
+
+
+
+
+
+
+

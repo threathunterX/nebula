@@ -1,0 +1,14 @@
+{
+    "name": "batch_event_send",
+    "callmode": "notify",
+    "delivermode": "sharding",
+    "serverimpl": "rabbitmq",
+    "coder": "mail",
+    "options": {
+        "cdc": "sh",
+        "sdc": "sh",
+        "serversubname": "onlinekv",
+        "serverseq": 1,
+        "servercardinality": 1
+    }
+}

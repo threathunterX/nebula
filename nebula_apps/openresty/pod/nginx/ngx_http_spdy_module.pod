@@ -1,0 +1,220 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_spdy_module - Module ngx_http_spdy_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_spdy_module> module provides experimental
+support for L<SPDY|http://www.chromium.org/spdy/spdy-protocol>.
+Currently,
+L<draft
+3.1|http://www.chromium.org/spdy/spdy-protocol/spdy-protocol-draft3-1> of SPDY protocol is implemented.
+
+B<NOTE>
+
+Before version 1.5.10,
+L<draft
+2|http://www.chromium.org/spdy/spdy-protocol/spdy-protocol-draft2> of SPDY protocol was implemented.
+
+
+
+
+
+
+This module is not built by default, it should be enabled with
+the C<--with-http_spdy_module>
+configuration parameter.
+
+
+
+
+
+
+B<NOTE>
+
+This module was superseded by the
+L<ngx_http_v2_module|ngx_http_v2_module> module
+in 1.9.5.
+
+
+
+
+
+=head1 Known Issues
+
+
+
+The module is experimental, caveat emptor applies.
+
+
+
+
+
+Current implementation of SPDY protocol does not support “server push”.
+
+
+
+
+
+In versions prior to 1.5.9, responses in SPDY connections could not be
+L<rate limited|ngx_http_core_module>.
+
+
+
+
+
+Buffering of a client request body cannot be disabled
+regardless of
+L<ngx_http_proxy_module>,
+L<ngx_http_fastcgi_module>,
+L<ngx_http_uwsgi_module>, and
+L<ngx_http_scgi_module>
+directive values.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    server {
+        listen 443 ssl spdy;
+    
+        ssl_certificate server.crt;
+        ssl_certificate_key server.key;
+        ...
+    }
+
+
+
+B<NOTE>
+
+Note that in order to accept both
+L<HTTPS|ngx_http_ssl_module> and SPDY connections
+simultaneously on the same port,
+L<OpenSSL|http://www.openssl.org> library used should support
+“Next Protocol Negotiation” TLS extension, available since OpenSSL
+version 1.0.1.
+
+
+
+
+
+=head1 Directives
+
+=head2 spdy_chunk_size
+
+
+B<syntax:> spdy_chunk_size I<I<C<size>>>
+
+
+B<default:> I<8k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.5.9.
+
+
+
+
+
+Sets the maximum size of chunks
+into which the response body is
+L<sliced|http://www.chromium.org/spdy/spdy-protocol/spdy-protocol-draft2#TOC-Data-frames>.
+A too low value results in higher overhead.
+A too high value impairs prioritization due to
+L<HOL blocking|http://en.wikipedia.org/wiki/Head-of-line_blocking>.
+
+
+
+
+
+
+
+=head2 spdy_headers_comp
+
+
+B<syntax:> spdy_headers_comp I<I<C<level>>>
+
+
+B<default:> I<0>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the header compression I<C<level>> of a response in a range from
+1 (fastest, less compression) to 9 (slowest, best compression).
+The special value 0 turns off the header compression.
+
+
+
+
+
+
+
+=head1 Embedded Variables
+
+
+
+The C<ngx_http_spdy_module> module
+supports the following embedded variables:
+
+=over
+
+
+
+=item C<$spdy>
+
+
+
+
+SPDY protocol version for SPDY connections,
+or an empty string otherwise;
+
+
+
+=item C<$spdy_request_priority>
+
+
+
+
+
+request priority for SPDY connections,
+or an empty string otherwise.
+
+
+
+
+=back
+
+
+
+
+
+

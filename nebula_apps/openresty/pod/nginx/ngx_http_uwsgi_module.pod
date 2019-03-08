@@ -1,0 +1,2825 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_uwsgi_module - Module ngx_http_uwsgi_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_uwsgi_module> module allows passing
+requests to a uwsgi server.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location / {
+        include    uwsgi_params;
+        uwsgi_pass localhost:9000;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 uwsgi_bind
+
+
+B<syntax:> uwsgi_bind I<
+    I<C<address>>
+    [C<transparent>] E<verbar>
+    C<off>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Makes outgoing connections to a uwsgi server originate
+from the specified local IP address with an optional port (1.11.2).
+Parameter value can contain variables (1.3.12).
+The special value C<off> (1.3.12) cancels the effect
+of the C<uwsgi_bind> directive
+inherited from the previous configuration level, which allows the
+system to auto-assign the local IP address and port.
+
+
+
+
+
+The C<transparent> parameter (1.11.0) allows
+outgoing connections to a uwsgi server originate
+from a non-local IP address,
+for example, from a real IP address of a client:
+
+    
+    uwsgi_bind $remote_addr transparent;
+
+
+In order for this parameter to work,
+it is necessary to run nginx worker processes with the
+L<superuser|ngx_core_module> privileges
+and configure kernel routing table
+to intercept network traffic from the uwsgi server.
+
+
+
+
+
+
+
+=head2 uwsgi_buffer_size
+
+
+B<syntax:> uwsgi_buffer_size I<I<C<size>>>
+
+
+B<default:> I<4kE<verbar>8k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the I<C<size>> of the buffer used for reading the first part
+of the response received from the uwsgi server.
+This part usually contains a small response header.
+By default, the buffer size is equal to one memory page.
+This is either 4K or 8K, depending on a platform.
+It can be made smaller, however.
+
+
+
+
+
+
+
+=head2 uwsgi_buffering
+
+
+B<syntax:> uwsgi_buffering I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Enables or disables buffering of responses from the uwsgi server.
+
+
+
+
+
+When buffering is enabled, nginx receives a response from the uwsgi server
+as soon as possible, saving it into the buffers set by the
+L</uwsgi_buffer_size> and L</uwsgi_buffers> directives.
+If the whole response does not fit into memory, a part of it can be saved
+to a temporary file on the disk.
+Writing to temporary files is controlled by the
+L</uwsgi_max_temp_file_size> and
+L</uwsgi_temp_file_write_size> directives.
+
+
+
+
+
+When buffering is disabled, the response is passed to a client synchronously,
+immediately as it is received.
+nginx will not try to read the whole response from the uwsgi server.
+The maximum size of the data that nginx can receive from the server
+at a time is set by the L</uwsgi_buffer_size> directive.
+
+
+
+
+
+Buffering can also be enabled or disabled by passing
+“C<yes>” or “C<no>” in the
+C<X-Accel-Buffering> response header field.
+This capability can be disabled using the
+L</uwsgi_ignore_headers> directive.
+
+
+
+
+
+
+
+=head2 uwsgi_buffers
+
+
+B<syntax:> uwsgi_buffers I<I<C<number>> I<C<size>>>
+
+
+B<default:> I<8 4kE<verbar>8k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the I<C<number>> and I<C<size>> of the
+buffers used for reading a response from the uwsgi server,
+for a single connection.
+By default, the buffer size is equal to one memory page.
+This is either 4K or 8K, depending on a platform.
+
+
+
+
+
+
+
+=head2 uwsgi_busy_buffers_size
+
+
+B<syntax:> uwsgi_busy_buffers_size I<I<C<size>>>
+
+
+B<default:> I<8kE<verbar>16k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+When buffering of responses from the uwsgi
+server is enabled, limits the total I<C<size>> of buffers that
+can be busy sending a response to the client while the response is not
+yet fully read.
+In the meantime, the rest of the buffers can be used for reading the response
+and, if needed, buffering part of the response to a temporary file.
+By default, I<C<size>> is limited by the size of two buffers set by the
+L</uwsgi_buffer_size> and L</uwsgi_buffers> directives.
+
+
+
+
+
+
+
+=head2 uwsgi_cache
+
+
+B<syntax:> uwsgi_cache I<I<C<zone>> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines a shared memory zone used for caching.
+The same zone can be used in several places.
+Parameter value can contain variables (1.7.9).
+The C<off> parameter disables caching inherited
+from the previous configuration level.
+
+
+
+
+
+
+
+=head2 uwsgi_cache_background_update
+
+
+B<syntax:> uwsgi_cache_background_update I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.11.10.
+
+
+
+
+
+Allows starting a background subrequest
+to update an expired cache item,
+while a stale cached response is returned to the client.
+Note that it is necessary to
+allow
+the usage of a stale cached response when it is being updated.
+
+
+
+
+
+
+
+=head2 uwsgi_cache_bypass
+
+
+B<syntax:> uwsgi_cache_bypass I<I<C<string>> ...>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines conditions under which the response will not be taken from a cache.
+If at least one value of the string parameters is not empty and is not
+equal to “0” then the response will not be taken from the cache:
+
+    
+    uwsgi_cache_bypass $cookie_nocache $arg_nocache$arg_comment;
+    uwsgi_cache_bypass $http_pragma    $http_authorization;
+
+
+Can be used along with the L</uwsgi_no_cache> directive.
+
+
+
+
+
+
+
+=head2 uwsgi_cache_key
+
+
+B<syntax:> uwsgi_cache_key I<I<C<string>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines a key for caching, for example
+
+    
+    uwsgi_cache_key localhost:9000$request_uri;
+
+
+
+
+
+
+
+
+
+=head2 uwsgi_cache_lock
+
+
+B<syntax:> uwsgi_cache_lock I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.1.12.
+
+
+
+
+
+When enabled, only one request at a time will be allowed to populate
+a new cache element identified according to the L</uwsgi_cache_key>
+directive by passing a request to a uwsgi server.
+Other requests of the same cache element will either wait
+for a response to appear in the cache or the cache lock for
+this element to be released, up to the time set by the
+L</uwsgi_cache_lock_timeout> directive.
+
+
+
+
+
+
+
+=head2 uwsgi_cache_lock_age
+
+
+B<syntax:> uwsgi_cache_lock_age I<I<C<time>>>
+
+
+B<default:> I<5s>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.8.
+
+
+
+
+
+If the last request passed to the uwsgi server
+for populating a new cache element
+has not completed for the specified I<C<time>>,
+one more request may be passed to the uwsgi server.
+
+
+
+
+
+
+
+=head2 uwsgi_cache_lock_timeout
+
+
+B<syntax:> uwsgi_cache_lock_timeout I<I<C<time>>>
+
+
+B<default:> I<5s>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.1.12.
+
+
+
+
+
+Sets a timeout for L</uwsgi_cache_lock>.
+When the I<C<time>> expires,
+the request will be passed to the uwsgi server,
+however, the response will not be cached.
+
+B<NOTE>
+
+Before 1.7.8, the response could be cached.
+
+
+
+
+
+
+
+
+=head2 uwsgi_cache_max_range_offset
+
+
+B<syntax:> uwsgi_cache_max_range_offset I<I<C<number>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.11.6.
+
+
+
+
+
+Sets an offset in bytes for byte-range requests.
+If the range is beyond the offset,
+the range request will be passed to the uwsgi server
+and the response will not be cached.
+
+
+
+
+
+
+
+=head2 uwsgi_cache_methods
+
+
+B<syntax:> uwsgi_cache_methods I<
+    C<GET> E<verbar>
+    C<HEAD> E<verbar>
+    C<POST>
+    ...>
+
+
+B<default:> I<GET HEAD>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+If the client request method is listed in this directive then
+the response will be cached.
+“C<GET>” and “C<HEAD>” methods are always
+added to the list, though it is recommended to specify them explicitly.
+See also the L</uwsgi_no_cache> directive.
+
+
+
+
+
+
+
+=head2 uwsgi_cache_min_uses
+
+
+B<syntax:> uwsgi_cache_min_uses I<I<C<number>>>
+
+
+B<default:> I<1>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the I<C<number>> of requests after which the response
+will be cached.
+
+
+
+
+
+
+
+=head2 uwsgi_cache_path
+
+
+B<syntax:> uwsgi_cache_path I<
+    I<C<path>>
+    [C<levels>=I<C<levels>>]
+    [C<use_temp_path>=C<on>E<verbar>C<off>]
+    C<keys_zone>=I<C<name>>:I<C<size>>
+    [C<inactive>=I<C<time>>]
+    [C<max_size>=I<C<size>>]
+    [C<manager_files>=I<C<number>>]
+    [C<manager_sleep>=I<C<time>>]
+    [C<manager_threshold>=I<C<time>>]
+    [C<loader_files>=I<C<number>>]
+    [C<loader_sleep>=I<C<time>>]
+    [C<loader_threshold>=I<C<time>>]
+    [C<purger>=C<on>E<verbar>C<off>]
+    [C<purger_files>=I<C<number>>]
+    [C<purger_sleep>=I<C<time>>]
+    [C<purger_threshold>=I<C<time>>]>
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Sets the path and other parameters of a cache.
+Cache data are stored in files.
+The file name in a cache is a result of
+applying the MD5 function to the
+cache key.
+The C<levels> parameter defines hierarchy levels of a cache:
+from 1 to 3, each level accepts values 1 or 2.
+For example, in the following configuration
+
+    
+    uwsgi_cache_path /data/nginx/cache levels=1:2 keys_zone=one:10m;
+
+
+file names in a cache will look like this:
+
+    
+    /data/nginx/cache/<emphasis>c</emphasis>/<emphasis>29</emphasis>/b7f54b2df7773722d382f4809d650<emphasis>29c</emphasis>
+
+
+
+
+
+
+
+A cached response is first written to a temporary file,
+and then the file is renamed.
+Starting from version 0.8.9, temporary files and the cache can be put on
+different file systems.
+However, be aware that in this case a file is copied
+across two file systems instead of the cheap renaming operation.
+It is thus recommended that for any given location both cache and a directory
+holding temporary files
+are put on the same file system.
+A directory for temporary files is set based on
+the C<use_temp_path> parameter (1.7.10).
+If this parameter is omitted or set to the value C<on>,
+the directory set by the L</uwsgi_temp_path> directive
+for the given location will be used.
+If the value is set to C<off>,
+temporary files will be put directly in the cache directory.
+
+
+
+
+
+In addition, all active keys and information about data are stored
+in a shared memory zone, whose I<C<name>> and I<C<size>>
+are configured by the C<keys_zone> parameter.
+One megabyte zone can store about 8 thousand keys.
+
+
+
+
+
+Cached data that are not accessed during the time specified by the
+C<inactive> parameter get removed from the cache
+regardless of their freshness.
+By default, C<inactive> is set to 10 minutes.
+
+
+
+
+
+The special “cache manager” process monitors the maximum cache size set
+by the C<max_size> parameter.
+When this size is exceeded, it removes the least recently used data.
+The data is removed in iterations configured by
+C<manager_files>,
+C<manager_threshold>, and
+C<manager_sleep> parameters (1.11.5).
+During one iteration no more than C<manager_files> items
+are deleted (by default, 100).
+The duration of one iteration is limited by the
+C<manager_threshold> parameter (by default, 200 milliseconds).
+Between iterations, a pause configured by the C<manager_sleep>
+parameter (by default, 50 milliseconds) is made.
+
+
+
+
+
+A minute after the start the special “cache loader” process is activated.
+It loads information about previously cached data stored on file system
+into a cache zone.
+The loading is also done in iterations.
+During one iteration no more than C<loader_files> items
+are loaded (by default, 100).
+Besides, the duration of one iteration is limited by the
+C<loader_threshold> parameter (by default, 200 milliseconds).
+Between iterations, a pause configured by the C<loader_sleep>
+parameter (by default, 50 milliseconds) is made.
+
+
+
+
+
+Additionally,
+the following parameters are available as part of our
+commercial subscription:
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<purger>=C<on>E<verbar>C<off>
+
+
+
+
+
+Instructs whether cache entries that match a
+wildcard key
+will be removed from the disk by the cache purger (1.7.12).
+Setting the parameter to C<on>
+(default is C<off>)
+will activate the “cache purger” process that
+permanently iterates through all cache entries
+and deletes the entries that match the wildcard key.
+
+
+
+=item 
+C<purger_files>=I<C<number>>
+
+
+
+
+
+Sets the number of items that will be scanned during one iteration (1.7.12).
+By default, C<purger_files> is set to 10.
+
+
+
+=item 
+C<purger_threshold>=I<C<number>>
+
+
+
+
+
+Sets the duration of one iteration (1.7.12).
+By default, C<purger_threshold> is set to 50 milliseconds.
+
+
+
+=item 
+C<purger_sleep>=I<C<number>>
+
+
+
+
+
+Sets a pause between iterations (1.7.12).
+By default, C<purger_sleep> is set to 50 milliseconds.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 uwsgi_cache_purge
+
+
+B<syntax:> uwsgi_cache_purge I<string ...>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.5.7.
+
+
+
+
+
+Defines conditions under which the request will be considered a cache
+purge request.
+If at least one value of the string parameters is not empty and is not equal
+to “0” then the cache entry with a corresponding
+cache key is removed.
+The result of successful operation is indicated by returning
+the C<204> (C<No Content>) response.
+
+
+
+
+
+If the cache key of a purge request ends
+with an asterisk (“C<*>”), all cache entries matching the
+wildcard key will be removed from the cache.
+However, these entries will remain on the disk until they are deleted
+for either inactivity,
+or processed by the cache purger (1.7.12),
+or a client attempts to access them.
+
+
+
+
+
+Example configuration:
+
+    
+    uwsgi_cache_path /data/nginx/cache keys_zone=cache_zone:10m;
+    
+    map $request_method $purge_method {
+        PURGE   1;
+        default 0;
+    }
+    
+    server {
+        ...
+        location / {
+            uwsgi_pass        backend;
+            uwsgi_cache       cache_zone;
+            uwsgi_cache_key   $uri;
+            uwsgi_cache_purge $purge_method;
+        }
+    }
+
+
+
+B<NOTE>
+
+This functionality is available as part of our
+commercial subscription.
+
+
+
+
+
+
+
+
+=head2 uwsgi_cache_revalidate
+
+
+B<syntax:> uwsgi_cache_revalidate I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.5.7.
+
+
+
+
+
+Enables revalidation of expired cache items using conditional requests with
+the C<If-Modified-Since> and C<If-None-Match>
+header fields.
+
+
+
+
+
+
+
+=head2 uwsgi_cache_use_stale
+
+
+B<syntax:> uwsgi_cache_use_stale I<
+    C<error> E<verbar>
+    C<timeout> E<verbar>
+    C<invalid_header> E<verbar>
+    C<updating> E<verbar>
+    C<http_500> E<verbar>
+    C<http_503> E<verbar>
+    C<http_403> E<verbar>
+    C<http_404> E<verbar>
+    C<http_429> E<verbar>
+    C<off>
+    ...>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Determines in which cases a stale cached response can be used
+when an error occurs during communication with the uwsgi server.
+The directive’s parameters match the parameters of the
+L</uwsgi_next_upstream> directive.
+
+
+
+
+
+The C<error> parameter also permits
+using a stale cached response if a uwsgi server to process a request
+cannot be selected.
+
+
+
+
+
+Additionally, the C<updating> parameter permits
+using a stale cached response if it is currently being updated.
+This allows minimizing the number of accesses to uwsgi servers
+when updating cached data.
+
+
+
+
+
+Using a stale cached response
+can also be enabled directly in the response header
+for a specified number of seconds after the response became stale (1.11.10).
+This has lower priority than using the directive parameters.
+
+=over
+
+
+
+
+=item *
+
+The
+“L<stale-while-revalidate|https://tools.ietf.org/html/rfc5861#section-3>”
+extension of the C<Cache-Control> header field permits
+using a stale cached response if it is currently being updated.
+
+
+
+=item *
+
+The
+“L<stale-if-error|https://tools.ietf.org/html/rfc5861#section-4>”
+extension of the C<Cache-Control> header field permits
+using a stale cached response in case of an error.
+
+
+
+=back
+
+
+
+
+
+
+
+To minimize the number of accesses to uwsgi servers when
+populating a new cache element, the L</uwsgi_cache_lock>
+directive can be used.
+
+
+
+
+
+
+
+=head2 uwsgi_cache_valid
+
+
+B<syntax:> uwsgi_cache_valid I<[I<C<code>> ...] I<C<time>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets caching time for different response codes.
+For example, the following directives
+
+    
+    uwsgi_cache_valid 200 302 10m;
+    uwsgi_cache_valid 404      1m;
+
+
+set 10 minutes of caching for responses with codes 200 and 302
+and 1 minute for responses with code 404.
+
+
+
+
+
+If only caching I<C<time>> is specified
+
+    
+    uwsgi_cache_valid 5m;
+
+
+then only 200, 301, and 302 responses are cached.
+
+
+
+
+
+In addition, the C<any> parameter can be specified
+to cache any responses:
+
+    
+    uwsgi_cache_valid 200 302 10m;
+    uwsgi_cache_valid 301      1h;
+    uwsgi_cache_valid any      1m;
+
+
+
+
+
+
+
+Parameters of caching can also be set directly
+in the response header.
+This has higher priority than setting of caching time using the directive.
+
+=over
+
+
+
+
+=item *
+
+The C<X-Accel-Expires> header field sets caching time of a
+response in seconds.
+The zero value disables caching for a response.
+If the value starts with the C<@> prefix, it sets an absolute
+time in seconds since Epoch, up to which the response may be cached.
+
+
+
+=item *
+
+If the header does not include the C<X-Accel-Expires> field,
+parameters of caching may be set in the header fields
+C<Expires> or C<Cache-Control>.
+
+
+
+=item *
+
+If the header includes the C<Set-Cookie> field, such a
+response will not be cached.
+
+
+
+=item *
+
+If the header includes the C<Vary> field
+with the special value “C<*>”, such a
+response will not be cached (1.7.7).
+If the header includes the C<Vary> field
+with another value, such a response will be cached
+taking into account the corresponding request header fields (1.7.7).
+
+
+
+=back
+
+
+Processing of one or more of these response header fields can be disabled
+using the L</uwsgi_ignore_headers> directive.
+
+
+
+
+
+
+
+=head2 uwsgi_connect_timeout
+
+
+B<syntax:> uwsgi_connect_timeout I<I<C<time>>>
+
+
+B<default:> I<60s>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines a timeout for establishing a connection with a uwsgi server.
+It should be noted that this timeout cannot usually exceed 75 seconds.
+
+
+
+
+
+
+
+=head2 uwsgi_force_ranges
+
+
+B<syntax:> uwsgi_force_ranges I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.7.
+
+
+
+
+
+Enables byte-range support
+for both cached and uncached responses from the uwsgi server
+regardless of the C<Accept-Ranges> field in these responses.
+
+
+
+
+
+
+
+=head2 uwsgi_hide_header
+
+
+B<syntax:> uwsgi_hide_header I<I<C<field>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+By default,
+nginx does not pass the header fields C<Status> and
+C<X-Accel-...> from the response of a uwsgi
+server to a client.
+The C<uwsgi_hide_header> directive sets additional fields
+that will not be passed.
+If, on the contrary, the passing of fields needs to be permitted,
+the L</uwsgi_pass_header> directive can be used.
+
+
+
+
+
+
+
+=head2 uwsgi_ignore_client_abort
+
+
+B<syntax:> uwsgi_ignore_client_abort I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Determines whether the connection with a uwsgi server should be
+closed when a client closes the connection without waiting
+for a response.
+
+
+
+
+
+
+
+=head2 uwsgi_ignore_headers
+
+
+B<syntax:> uwsgi_ignore_headers I<I<C<field>> ...>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Disables processing of certain response header fields from the uwsgi server.
+The following fields can be ignored: C<X-Accel-Redirect>,
+C<X-Accel-Expires>, C<X-Accel-Limit-Rate> (1.1.6),
+C<X-Accel-Buffering> (1.1.6),
+C<X-Accel-Charset> (1.1.6), C<Expires>,
+C<Cache-Control>, C<Set-Cookie> (0.8.44),
+and C<Vary> (1.7.7).
+
+
+
+
+
+If not disabled, processing of these header fields has the following
+effect:
+
+=over
+
+
+
+
+=item *
+
+C<X-Accel-Expires>, C<Expires>,
+C<Cache-Control>, C<Set-Cookie>,
+and C<Vary>
+set the parameters of response caching;
+
+
+
+=item *
+
+C<X-Accel-Redirect> performs an
+L<internal
+redirect|ngx_http_core_module> to the specified URI;
+
+
+
+=item *
+
+C<X-Accel-Limit-Rate> sets the
+L<rate
+limit|ngx_http_core_module> for transmission of a response to a client;
+
+
+
+=item *
+
+C<X-Accel-Buffering> enables or disables
+buffering of a response;
+
+
+
+=item *
+
+C<X-Accel-Charset> sets the desired
+L<ngx_http_charset_module>
+of a response.
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 uwsgi_intercept_errors
+
+
+B<syntax:> uwsgi_intercept_errors I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Determines whether a uwsgi server responses with codes greater than or equal
+to 300 should be passed to a client
+or be intercepted and redirected to nginx for processing
+with the L<ngx_http_core_module> directive.
+
+
+
+
+
+
+
+=head2 uwsgi_limit_rate
+
+
+B<syntax:> uwsgi_limit_rate I<I<C<rate>>>
+
+
+B<default:> I<0>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.7.
+
+
+
+
+
+Limits the speed of reading the response from the uwsgi server.
+The I<C<rate>> is specified in bytes per second.
+The zero value disables rate limiting.
+The limit is set per a request, and so if nginx simultaneously opens
+two connections to the uwsgi server,
+the overall rate will be twice as much as the specified limit.
+The limitation works only if
+buffering of responses from the uwsgi
+server is enabled.
+
+
+
+
+
+
+
+
+=head2 uwsgi_max_temp_file_size
+
+
+B<syntax:> uwsgi_max_temp_file_size I<I<C<size>>>
+
+
+B<default:> I<1024m>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+When buffering of responses from the uwsgi
+server is enabled, and the whole response does not fit into the buffers
+set by the L</uwsgi_buffer_size> and L</uwsgi_buffers>
+directives, a part of the response can be saved to a temporary file.
+This directive sets the maximum I<C<size>> of the temporary file.
+The size of data written to the temporary file at a time is set
+by the L</uwsgi_temp_file_write_size> directive.
+
+
+
+
+
+The zero value disables buffering of responses to temporary files.
+
+
+
+
+
+
+B<NOTE>
+
+This restriction does not apply to responses
+that will be cached
+or stored on disk.
+
+
+
+
+
+
+
+
+=head2 uwsgi_modifier1
+
+
+B<syntax:> uwsgi_modifier1 I<I<C<number>>>
+
+
+B<default:> I<0>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the value of the C<modifier1> field in the
+L<uwsgi
+packet header|http://uwsgi-docs.readthedocs.org/en/latest/Protocol.html#uwsgi-packet-header>.
+
+
+
+
+
+
+=head2 uwsgi_modifier2
+
+
+B<syntax:> uwsgi_modifier2 I<I<C<number>>>
+
+
+B<default:> I<0>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the value of the C<modifier2> field in the
+L<uwsgi
+packet header|http://uwsgi-docs.readthedocs.org/en/latest/Protocol.html#uwsgi-packet-header>.
+
+
+
+
+
+
+=head2 uwsgi_next_upstream
+
+
+B<syntax:> uwsgi_next_upstream I<
+    C<error> E<verbar>
+    C<timeout> E<verbar>
+    C<invalid_header> E<verbar>
+    C<http_500> E<verbar>
+    C<http_503> E<verbar>
+    C<http_403> E<verbar>
+    C<http_404> E<verbar>
+    C<http_429> E<verbar>
+    C<non_idempotent> E<verbar>
+    C<off>
+    ...>
+
+
+B<default:> I<error timeout>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Specifies in which cases a request should be passed to the next server:
+
+=over
+
+
+
+=item C<error>
+
+
+
+an error occurred while establishing a connection with the
+server, passing a request to it, or reading the response header;
+
+
+=item C<timeout>
+
+
+
+a timeout has occurred while establishing a connection with the
+server, passing a request to it, or reading the response header;
+
+
+=item C<invalid_header>
+
+
+
+a server returned an empty or invalid response;
+
+
+=item C<http_500>
+
+
+
+a server returned a response with the code 500;
+
+
+=item C<http_503>
+
+
+
+a server returned a response with the code 503;
+
+
+=item C<http_403>
+
+
+
+a server returned a response with the code 403;
+
+
+=item C<http_404>
+
+
+
+a server returned a response with the code 404;
+
+
+=item C<http_429>
+
+
+
+a server returned a response with the code 429 (1.11.13);
+
+
+=item C<non_idempotent>
+
+
+
+normally, requests with a
+L<non-idempotent|https://tools.ietf.org/html/rfc7231#section-4.2.2>
+method
+(C<POST>, C<LOCK>, C<PATCH>)
+are not passed to the next server
+if a request has been sent to an upstream server (1.9.13);
+enabling this option explicitly allows retrying such requests;
+
+
+
+=item C<off>
+
+
+
+disables passing a request to the next server.
+
+
+
+=back
+
+
+
+
+
+
+
+One should bear in mind that passing a request to the next server is
+only possible if nothing has been sent to a client yet.
+That is, if an error or timeout occurs in the middle of the
+transferring of a response, fixing this is impossible.
+
+
+
+
+
+The directive also defines what is considered an
+L<unsuccessful
+attempt|ngx_http_upstream_module> of communication with a server.
+The cases of C<error>, C<timeout> and
+C<invalid_header> are always considered unsuccessful attempts,
+even if they are not specified in the directive.
+The cases of C<http_500>, C<http_503>,
+and C<http_429> are
+considered unsuccessful attempts only if they are specified in the directive.
+The cases of C<http_403> and C<http_404>
+are never considered unsuccessful attempts.
+
+
+
+
+
+Passing a request to the next server can be limited by
+the number of tries
+and by time.
+
+
+
+
+
+
+
+=head2 uwsgi_next_upstream_timeout
+
+
+B<syntax:> uwsgi_next_upstream_timeout I<I<C<time>>>
+
+
+B<default:> I<0>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.5.
+
+
+
+
+
+Limits the time during which a request can be passed to the
+next server.
+The C<0> value turns off this limitation.
+
+
+
+
+
+
+
+=head2 uwsgi_next_upstream_tries
+
+
+B<syntax:> uwsgi_next_upstream_tries I<I<C<number>>>
+
+
+B<default:> I<0>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.5.
+
+
+
+
+
+Limits the number of possible tries for passing a request to the
+next server.
+The C<0> value turns off this limitation.
+
+
+
+
+
+
+
+=head2 uwsgi_no_cache
+
+
+B<syntax:> uwsgi_no_cache I<I<C<string>> ...>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines conditions under which the response will not be saved to a cache.
+If at least one value of the string parameters is not empty and is not
+equal to “0” then the response will not be saved:
+
+    
+    uwsgi_no_cache $cookie_nocache $arg_nocache$arg_comment;
+    uwsgi_no_cache $http_pragma    $http_authorization;
+
+
+Can be used along with the L</uwsgi_cache_bypass> directive.
+
+
+
+
+
+
+
+=head2 uwsgi_param
+
+
+B<syntax:> uwsgi_param I<
+    I<C<parameter>> I<C<value>>
+    [C<if_not_empty>]>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets a I<C<parameter>> that should be passed to the uwsgi server.
+The I<C<value>> can contain text, variables, and their combination.
+These directives are inherited from the previous level if and
+only if there are no
+C<uwsgi_param>
+directives defined on the current level.
+
+
+
+
+
+Standard
+L<CGI
+environment variables|https://tools.ietf.org/html/rfc3875#section-4.1>
+should be provided as uwsgi headers, see the F<uwsgi_params> file
+provided in the distribution:
+
+    
+    location / {
+        include uwsgi_params;
+        ...
+    }
+
+
+
+
+
+
+
+If the directive is specified with C<if_not_empty> (1.1.11) then
+such a parameter will not be passed to the server until its value is not empty:
+
+    
+    uwsgi_param HTTPS $https if_not_empty;
+
+
+
+
+
+
+
+
+
+=head2 uwsgi_pass
+
+
+B<syntax:> uwsgi_pass I<[I<C<protocol>>:E<sol>E<sol>]I<C<address>>>
+
+
+
+B<context:> I<location>
+
+
+B<context:> I<if in location>
+
+
+
+
+
+Sets the protocol and address of a uwsgi server.
+As a I<C<protocol>>,
+“C<uwsgi>” or “C<suwsgi>”
+(secured uwsgi, uwsgi over SSL) can be specified.
+The address can be specified as a domain name or IP address,
+and a port:
+
+    
+    uwsgi_pass localhost:9000;
+    uwsgi_pass uwsgi://localhost:9000;
+    uwsgi_pass suwsgi://[2001:db8::1]:9090;
+
+
+or as a UNIX-domain socket path:
+
+    
+    uwsgi_pass unix:/tmp/uwsgi.socket;
+
+
+
+
+
+
+
+If a domain name resolves to several addresses, all of them will be
+used in a round-robin fashion.
+In addition, an address can be specified as a
+L<server group|ngx_http_upstream_module>.
+
+
+
+
+
+
+B<NOTE>
+
+Secured uwsgi protocol is supported since version 1.5.8.
+
+
+
+
+
+
+
+
+=head2 uwsgi_pass_header
+
+
+B<syntax:> uwsgi_pass_header I<I<C<field>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Permits passing otherwise disabled header
+fields from a uwsgi server to a client.
+
+
+
+
+
+
+
+=head2 uwsgi_pass_request_body
+
+
+B<syntax:> uwsgi_pass_request_body I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Indicates whether the original request body is passed
+to the uwsgi server.
+See also the L</uwsgi_pass_request_headers> directive.
+
+
+
+
+
+
+
+=head2 uwsgi_pass_request_headers
+
+
+B<syntax:> uwsgi_pass_request_headers I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Indicates whether the header fields of the original request are passed
+to the uwsgi server.
+See also the L</uwsgi_pass_request_body> directive.
+
+
+
+
+
+
+
+=head2 uwsgi_read_timeout
+
+
+B<syntax:> uwsgi_read_timeout I<I<C<time>>>
+
+
+B<default:> I<60s>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines a timeout for reading a response from the uwsgi server.
+The timeout is set only between two successive read operations,
+not for the transmission of the whole response.
+If the uwsgi server does not transmit anything within this time,
+the connection is closed.
+
+
+
+
+
+
+
+=head2 uwsgi_request_buffering
+
+
+B<syntax:> uwsgi_request_buffering I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.11.
+
+
+
+
+
+Enables or disables buffering of a client request body.
+
+
+
+
+
+When buffering is enabled, the entire request body is
+L<read|ngx_http_core_module>
+from the client before sending the request to a uwsgi server.
+
+
+
+
+
+When buffering is disabled, the request body is sent to the uwsgi server
+immediately as it is received.
+In this case, the request cannot be passed to the
+next server
+if nginx already started sending the request body.
+
+
+
+
+
+When HTTPE<sol>1.1 chunked transfer encoding is used
+to send the original request body,
+the request body will be buffered regardless of the directive value.
+
+
+
+
+
+
+
+=head2 uwsgi_send_timeout
+
+
+B<syntax:> uwsgi_send_timeout I<I<C<time>>>
+
+
+B<default:> I<60s>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets a timeout for transmitting a request to the uwsgi server.
+The timeout is set only between two successive write operations,
+not for the transmission of the whole request.
+If the uwsgi server does not receive anything within this time,
+the connection is closed.
+
+
+
+
+
+
+
+=head2 uwsgi_ssl_certificate
+
+
+B<syntax:> uwsgi_ssl_certificate I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.8.
+
+
+
+
+
+Specifies a I<C<file>> with the certificate in the PEM format
+used for authentication to a secured uwsgi server.
+
+
+
+
+
+
+
+=head2 uwsgi_ssl_certificate_key
+
+
+B<syntax:> uwsgi_ssl_certificate_key I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.8.
+
+
+
+
+
+Specifies a I<C<file>> with the secret key in the PEM format
+used for authentication to a secured uwsgi server.
+
+
+
+
+
+The value
+C<engine>:I<C<name>>:I<C<id>>
+can be specified instead of the I<C<file>> (1.7.9),
+which loads a secret key with a specified I<C<id>>
+from the OpenSSL engine I<C<name>>.
+
+
+
+
+
+
+
+=head2 uwsgi_ssl_ciphers
+
+
+B<syntax:> uwsgi_ssl_ciphers I<I<C<ciphers>>>
+
+
+B<default:> I<DEFAULT>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.5.8.
+
+
+
+
+
+Specifies the enabled ciphers for requests to a secured uwsgi server.
+The ciphers are specified in the format understood by the OpenSSL library.
+
+
+
+
+
+The full list can be viewed using the
+“C<openssl ciphers>” command.
+
+
+
+
+
+
+
+=head2 uwsgi_ssl_crl
+
+
+B<syntax:> uwsgi_ssl_crl I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.0.
+
+
+
+
+
+Specifies a I<C<file>> with revoked certificates (CRL)
+in the PEM format used to verify
+the certificate of the secured uwsgi server.
+
+
+
+
+
+
+
+=head2 uwsgi_ssl_name
+
+
+B<syntax:> uwsgi_ssl_name I<I<C<name>>>
+
+
+B<default:> I<host from uwsgi_pass>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.0.
+
+
+
+
+
+Allows overriding the server name used to
+verify
+the certificate of the secured uwsgi server and to be
+passed through SNI
+when establishing a connection with the secured uwsgi server.
+
+
+
+
+
+By default, the host part from L</uwsgi_pass> is used.
+
+
+
+
+
+
+
+=head2 uwsgi_ssl_password_file
+
+
+B<syntax:> uwsgi_ssl_password_file I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.8.
+
+
+
+
+
+Specifies a I<C<file>> with passphrases for
+secret keys
+where each passphrase is specified on a separate line.
+Passphrases are tried in turn when loading the key.
+
+
+
+
+
+
+
+=head2 uwsgi_ssl_protocols
+
+
+B<syntax:> uwsgi_ssl_protocols I<
+    [C<SSLv2>]
+    [C<SSLv3>]
+    [C<TLSv1>]
+    [C<TLSv1.1>]
+    [C<TLSv1.2>]>
+
+
+B<default:> I<TLSv1 TLSv1.1 TLSv1.2>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.5.8.
+
+
+
+
+
+Enables the specified protocols for requests to a secured uwsgi server.
+
+
+
+
+
+
+
+=head2 uwsgi_ssl_server_name
+
+
+B<syntax:> uwsgi_ssl_server_name I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.0.
+
+
+
+
+
+Enables or disables passing of the server name through
+L<TLS
+Server Name Indication extension|http://en.wikipedia.org/wiki/Server_Name_Indication> (SNI, RFC 6066)
+when establishing a connection with the secured uwsgi server.
+
+
+
+
+
+
+
+=head2 uwsgi_ssl_session_reuse
+
+
+B<syntax:> uwsgi_ssl_session_reuse I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.5.8.
+
+
+
+
+
+Determines whether SSL sessions can be reused when working with
+a secured uwsgi server.
+If the errors
+“C<SSL3_GET_FINISHED:digest check failed>”
+appear in the logs, try disabling session reuse.
+
+
+
+
+
+
+
+=head2 uwsgi_ssl_trusted_certificate
+
+
+B<syntax:> uwsgi_ssl_trusted_certificate I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.0.
+
+
+
+
+
+Specifies a I<C<file>> with trusted CA certificates in the PEM format
+used to verify
+the certificate of the secured uwsgi server.
+
+
+
+
+
+
+
+=head2 uwsgi_ssl_verify
+
+
+B<syntax:> uwsgi_ssl_verify I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.0.
+
+
+
+
+
+Enables or disables verification of the secured uwsgi server certificate.
+
+
+
+
+
+
+
+=head2 uwsgi_ssl_verify_depth
+
+
+B<syntax:> uwsgi_ssl_verify_depth I<I<C<number>>>
+
+
+B<default:> I<1>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.0.
+
+
+
+
+
+Sets the verification depth in the secured uwsgi server certificates chain.
+
+
+
+
+
+
+
+=head2 uwsgi_store
+
+
+B<syntax:> uwsgi_store I<
+    C<on> E<verbar>
+    C<off> E<verbar>
+    I<C<string>>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Enables saving of files to a disk.
+The C<on> parameter saves files with paths
+corresponding to the directives
+L<ngx_http_core_module> or
+L<ngx_http_core_module>.
+The C<off> parameter disables saving of files.
+In addition, the file name can be set explicitly using the
+I<C<string>> with variables:
+
+    
+    uwsgi_store /data/www$original_uri;
+
+
+
+
+
+
+
+The modification time of files is set according to the received
+C<Last-Modified> response header field.
+The response is first written to a temporary file,
+and then the file is renamed.
+Starting from version 0.8.9, temporary files and the persistent store
+can be put on different file systems.
+However, be aware that in this case a file is copied
+across two file systems instead of the cheap renaming operation.
+It is thus recommended that for any given location both saved files and a
+directory holding temporary files, set by the L</uwsgi_temp_path>
+directive, are put on the same file system.
+
+
+
+
+
+This directive can be used to create local copies of static unchangeable
+files, e.g.:
+
+    
+    location /images/ {
+        root               /data/www;
+        error_page         404 = /fetch$uri;
+    }
+    
+    location /fetch/ {
+        internal;
+    
+        uwsgi_pass         backend:9000;
+        ...
+    
+        uwsgi_store        on;
+        uwsgi_store_access user:rw group:rw all:r;
+        uwsgi_temp_path    /data/temp;
+    
+        alias              /data/www/;
+    }
+
+
+
+
+
+
+
+
+
+=head2 uwsgi_store_access
+
+
+B<syntax:> uwsgi_store_access I<I<C<users>>:I<C<permissions>> ...>
+
+
+B<default:> I<user:rw>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets access permissions for newly created files and directories, e.g.:
+
+    
+    uwsgi_store_access user:rw group:rw all:r;
+
+
+
+
+
+
+
+If any C<group> or C<all> access permissions
+are specified then C<user> permissions may be omitted:
+
+    
+    uwsgi_store_access group:rw all:r;
+
+
+
+
+
+
+
+
+
+=head2 uwsgi_temp_file_write_size
+
+
+B<syntax:> uwsgi_temp_file_write_size I<I<C<size>>>
+
+
+B<default:> I<8kE<verbar>16k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Limits the I<C<size>> of data written to a temporary file
+at a time, when buffering of responses from the uwsgi server
+to temporary files is enabled.
+By default, I<C<size>> is limited by two buffers set by the
+L</uwsgi_buffer_size> and L</uwsgi_buffers> directives.
+The maximum size of a temporary file is set by the
+L</uwsgi_max_temp_file_size> directive.
+
+
+
+
+
+
+
+=head2 uwsgi_temp_path
+
+
+B<syntax:> uwsgi_temp_path I<
+    I<C<path>>
+    [I<C<level1>>
+    [I<C<level2>>
+    [I<C<level3>>]]]>
+
+
+B<default:> I<uwsgi_temp>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines a directory for storing temporary files
+with data received from uwsgi servers.
+Up to three-level subdirectory hierarchy can be used underneath the specified
+directory.
+For example, in the following configuration
+
+    
+    uwsgi_temp_path /spool/nginx/uwsgi_temp 1 2;
+
+
+a temporary file might look like this:
+
+    
+    /spool/nginx/uwsgi_temp/<emphasis>7</emphasis>/<emphasis>45</emphasis>/00000123<emphasis>457</emphasis>
+
+
+
+
+
+
+
+See also the C<use_temp_path> parameter of the
+L</uwsgi_cache_path> directive.
+
+
+
+
+
+
+

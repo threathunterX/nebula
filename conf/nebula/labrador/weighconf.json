@@ -1,0 +1,24 @@
+{
+    "mobile": {
+        "is_black_marked": 3,
+        "is_crank_call": 1,
+        "is_fraud": 3,
+        "is_notreal": 4,
+        "is_unavailable": 3
+    },
+    "ip": {
+        "is_proxy": 3,
+        "is_dns": 1,
+        "is_vpn": 3,
+        "is_black_marked": 4,
+        "is_brute_force": 3,
+        "is_seo": 0,
+        "is_mail_server": 2,
+        "is_web_server": 3,
+        "is_org": 1,
+        "is_crawler": 3
+    },
+    "social_data": {
+        "is_black_marked": 4
+    }
+}

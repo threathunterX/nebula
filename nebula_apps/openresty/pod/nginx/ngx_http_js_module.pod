@@ -1,0 +1,391 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_js_module - Module ngx_http_js_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_js_module> module is used to implement
+location and variable handlers
+in L<nginScript|njs_about> —
+a subset of the JavaScript language.
+
+
+
+
+
+This module is not built by default, it should be compiled with
+the nginScript module using the
+C<--add_module> configuration parameter:
+
+    
+    ./configure --add-module=<value>path-to-njs</value>/nginx
+
+
+The L<repository|http://hg.nginx.org/njs>
+with the nginScript module can be cloned with the following command
+(requires L<Mercurial|https://www.mercurial-scm.org> client):
+
+    
+    hg clone http://hg.nginx.org/njs
+
+
+This module can also be built as
+L<dynamic|ngx_core_module>:
+
+    
+    ./configure --add-dynamic_module=<value>path-to-njs</value>/nginx
+
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    js_include http.js;
+    
+    js_set $foo     foo;
+    js_set $summary summary;
+    
+    server {
+        listen 8000;
+    
+        location / {
+            add_header X-Foo $foo;
+            js_content baz;
+        }
+    
+        location /summary {
+            return 200 $summary;
+        }
+    }
+
+
+
+
+
+
+
+The F<http.js> file:
+
+    
+    function foo(req, res) {
+        req.log("hello from foo() handler");
+        return "foo";
+    }
+    
+    function summary(req, res) {
+        var a, s, h;
+    
+        s = "JS summary\n\n";
+    
+        s += "Method: " + req.method + "\n";
+        s += "HTTP version: " + req.httpVersion + "\n";
+        s += "Host: " + req.headers.host + "\n";
+        s += "Remote Address: " + req.remoteAddress + "\n";
+        s += "URI: " + req.uri + "\n";
+    
+        s += "Headers:\n";
+        for (h in req.headers) {
+            s += "  header '" + h + "' is '" + req.headers[h] + "'\n";
+        }
+    
+        s += "Args:\n";
+        for (a in req.args) {
+            s += "  arg '" + a + "' is '" + req.args[a] + "'\n";
+        }
+    
+        return s;
+    }
+    
+    function baz(req, res) {
+        res.headers.foo = 1234;
+        res.status = 200;
+        res.contentType = "text/plain; charset=utf-8";
+        res.contentLength = 15;
+        res.sendHeader();
+        res.send("nginx");
+        res.send("java");
+        res.send("script");
+    
+        res.finish();
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 js_include
+
+
+B<syntax:> js_include I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Specifies a file that implements location and variable handlers in nginScript.
+
+
+
+
+
+
+
+=head2 js_content
+
+
+B<syntax:> js_content I<I<C<function>>>
+
+
+
+B<context:> I<location>
+
+
+B<context:> I<limit_except>
+
+
+
+
+
+Sets an nginScript function as a location content handler.
+
+
+
+
+
+
+
+=head2 js_set
+
+
+B<syntax:> js_set I<
+I<C<$variable>> I<C<function>>>
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Sets an nginScript function for the specified variable.
+
+
+
+
+
+
+
+=head1 Request and Response Arguments
+
+
+
+Each HTTP nginScript handler receives two arguments, request and response.
+
+
+
+
+
+The request object has the following properties:
+
+=over
+
+
+
+=item C<uri>
+
+
+
+
+current URI in a request, read-only
+
+
+
+=item C<method>
+
+
+
+
+request method, read-only
+
+
+
+=item C<httpVersion>
+
+
+
+
+HTTP version, read-only
+
+
+
+=item C<remoteAddress>
+
+
+
+
+client address, read-only
+
+
+
+=item C<headers{}>
+
+
+
+
+request headers object, read-only.
+
+
+For example, the C<Header-Name> header
+can be accessed with the syntax C<headers['Header-Name']>
+or C<headers.Header_name>
+
+
+
+
+
+=item C<args{}>
+
+
+
+
+request arguments object, read-only
+
+
+
+=item C<variables{}>
+
+
+
+
+nginx variables object, read-only
+
+
+
+=item C<log(I<C<string>>)>
+
+
+
+
+writes a C<string> to the error log
+
+
+
+=back
+
+
+
+
+
+
+
+The response object has the following properties:
+
+=over
+
+
+
+=item C<status>
+
+
+
+
+response status, writable
+
+
+
+=item C<headers{}>
+
+
+
+
+response headers object
+
+
+
+=item C<contentType>
+
+
+
+
+the response C<Content-Type> header field value, writable
+
+
+
+=item C<contentLength>
+
+
+
+
+the response C<Content-Length> header field value, writable
+
+
+
+=back
+
+
+
+
+
+
+
+The response object has the following methods:
+
+=over
+
+
+
+=item C<sendHeader()>
+
+
+
+
+sends the HTTP header to the client
+
+
+
+=item C<send(I<C<string>>)>
+
+
+
+
+sends a part of the response body to the client
+
+
+
+=item C<finish()>
+
+
+
+
+finishes sending a response to the client
+
+
+
+=back
+
+
+
+
+
+

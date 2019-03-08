@@ -1,0 +1,429 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_js_module - Module ngx_stream_js_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_js_module> module is used to implement
+handlers in L<nginScript|njs_about> —
+a subset of the JavaScript language.
+
+
+
+
+
+This module is not built by default, it should be compiled with
+the nginScript module using the
+C<--add_module> configuration parameter:
+
+    
+    ./configure --add-module=<value>path-to-njs</value>/nginx
+
+
+The L<repository|http://hg.nginx.org/njs>
+with the nginScript module can be cloned with the following command
+(requires L<Mercurial|https://www.mercurial-scm.org> client):
+
+    
+    hg clone http://hg.nginx.org/njs
+
+
+This module can also be built as
+L<dynamic|ngx_core_module>:
+
+    
+    ./configure --add-dynamic_module=<value>path-to-njs</value>/nginx
+
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    stream {
+        js_include stream.js;
+    
+        js_set $foo foo;
+        js_set $bar bar;
+    
+        server {
+            listen 12345;
+    
+            js_preread qux;
+            return     $foo;
+        }
+    
+        server {
+            listen 12346;
+    
+            js_access  xyz;
+            proxy_pass 127.0.0.1:8000;
+            js_filter  baz;
+        }
+    }
+    
+    http {
+        server {
+            listen 8000;
+            location / {
+                return 200 $http_foo\n;
+            }
+        }
+    }
+
+
+
+
+
+
+
+The F<stream.js> file:
+
+    
+    var req = '';
+    var matched = 0;
+    var line = '';
+    
+    function qux(s) {
+        var n = s.buffer.indexOf('\n');
+        if (n == -1) {
+            return s.AGAIN;
+        }
+    
+        line = s.buffer.substr(0, n);
+    }
+    
+    function foo(s) {
+        return line;
+    }
+    
+    function bar(s) {
+        var v = s.variables;
+        s.log("hello from bar() handler!");
+        return "foo-var" + v.remote_port + "; pid=" + v.pid;
+    }
+    
+    // The filter processes one buffer per call.
+    // The buffer is available in s.buffer both for
+    // reading and writing.  Called for both directions.
+    
+    function baz(s) {
+        if (s.fromUpstream || matched) {
+            return;
+        }
+    
+        // Disable certain addresses.
+    
+        if (s.remoteAddress.match('^192.*')) {
+            return s.ERROR;
+        }
+    
+        // Read HTTP request line.
+        // Collect bytes in 'req' until request
+        // line is read.  Clear current buffer to
+        // disable output.
+    
+        req = req + s.buffer;
+        s.buffer = '';
+    
+        var n = req.search('\n');
+    
+        if (n != -1) {
+            // Inject a new HTTP header.
+            var rest = req.substr(n + 1);
+            req = req.substr(0, n + 1);
+    
+            var addr = s.remoteAddress;
+    
+            s.log('req:' + req);
+            s.log('rest:' + rest);
+    
+            // Output the result and skip further
+            // processing.
+    
+            s.buffer = req + 'Foo: addr_' + addr + '\r\n' + rest;
+            matched = 1;
+        }
+    }
+    
+    function xyz(s) {
+        if (s.remoteAddress.match('^192.*')) {
+            return s.ABORT;
+        }
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 js_access
+
+
+B<syntax:> js_access I<I<C<function>>>
+
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets an nginScript function which will be called at the
+L<access|stream_processing> phase.
+
+
+
+
+
+
+
+=head2 js_filter
+
+
+B<syntax:> js_filter I<I<C<function>>>
+
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets a data filter.
+
+
+
+
+
+
+
+=head2 js_include
+
+
+B<syntax:> js_include I<I<C<file>>>
+
+
+
+B<context:> I<stream>
+
+
+
+
+
+Specifies a file that implements server and variable handlers in nginScript.
+
+
+
+
+
+
+
+=head2 js_preread
+
+
+B<syntax:> js_preread I<I<C<function>>>
+
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets an nginScript function which will be called at the
+L<preread|stream_processing> phase.
+
+
+
+
+
+
+
+=head2 js_set
+
+
+B<syntax:> js_set I<
+I<C<$variable>> I<C<function>>>
+
+
+
+B<context:> I<stream>
+
+
+
+
+
+Sets an nginScript function for the specified variable.
+
+
+
+
+
+
+
+=head1 Session Object Properties
+
+
+
+Each stream nginScript handler receives one argument, a stream session object.
+
+
+
+
+
+The session object has the following properties:
+
+
+=over
+
+
+
+=item C<remoteAddress>
+
+
+
+
+client address, read-only
+
+
+
+=item C<eof>
+
+
+
+
+a boolean read-only property, true if the current buffer is the last buffer
+
+
+
+=item C<fromUpstream>
+
+
+
+
+a boolean read-only property,
+true if the current buffer is from the upstream server to the client
+
+
+
+=item C<buffer>
+
+
+
+
+the current buffer, writable
+
+
+
+=item C<variables{}>
+
+
+
+
+nginx variables object, read-only
+
+
+
+=item C<OK>
+
+
+
+
+the C<OK> return code
+
+
+
+=item C<DECLINED>
+
+
+
+
+the C<DECLINED> return code
+
+
+
+=item C<AGAIN>
+
+
+
+
+the C<AGAIN> return code
+
+
+
+=item C<ERROR>
+
+
+
+
+the C<ERROR> return code
+
+
+
+=item C<ABORT>
+
+
+
+
+the C<ABORT> return code
+
+
+
+=back
+
+
+
+
+
+
+
+The session object has the following methods:
+
+
+=over
+
+
+
+=item C<log(I<C<string>>)>
+
+
+
+
+writes a sent I<C<string>> to the error log
+
+
+
+=back
+
+
+
+
+
+

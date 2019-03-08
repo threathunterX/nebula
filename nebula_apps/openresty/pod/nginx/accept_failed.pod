@@ -1,0 +1,40 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+accept_failed
+
+
+=head1
+
+
+
+B<Q:>
+What does the following error mean in the log file: "accept() failed (53:
+Software caused connection abort) while accepting new
+connection on 0.0.0.0:80"?
+
+
+
+
+
+E<nbsp>
+
+
+
+
+
+B<A:>
+Such errors stem from the connections that the clients managed
+to close before nginx was able to process them. For instance, this can
+happen in a situation when the user didn’t wait for a page
+heavily populated with images to load fully, and clicked on a
+different link. In this case user’s browser would close all of
+the prior connections which aren’t longer necessary.
+It is a non-critical error.
+
+
+
+

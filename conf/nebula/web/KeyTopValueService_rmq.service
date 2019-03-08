@@ -1,0 +1,13 @@
+
+{
+    "name": "variablekeytopvalue_query",
+    "callmode": "polling",
+    "delivermode": "topic",
+    "serverimpl": "rabbitmq",
+    "coder": "mail",
+    "options": {
+        "servercardinality": 1,
+        "sdc":"sh",
+        "cdc":"sh"
+    }
+}

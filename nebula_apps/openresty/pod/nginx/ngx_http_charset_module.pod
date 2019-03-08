@@ -1,0 +1,343 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_charset_module - Module ngx_http_charset_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_charset_module> module adds the specified
+charset to the C<Content-Type> response header field.
+In addition, the module can convert data from one charset to another,
+with some limitations:
+
+=over
+
+
+
+
+=item *
+
+conversion is performed one way — from server to client,
+
+
+
+=item *
+
+only single-byte charsets can be converted
+
+
+
+=item *
+
+or single-byte charsets toE<sol>from UTF-8.
+
+
+
+=back
+
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    include        conf/koi-win;
+    
+    charset        windows-1251;
+    source_charset koi8-r;
+
+
+
+
+
+
+=head1 Directives
+
+=head2 charset
+
+
+B<syntax:> charset I<I<C<charset>> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<if in location>
+
+
+
+
+
+Adds the specified charset to the C<Content-Type>
+response header field.
+If this charset is different from the charset specified
+in the L</source_charset> directive, a conversion is performed.
+
+
+
+
+
+The parameter C<off> cancels the addition of charset
+to the C<Content-Type> response header field.
+
+
+
+
+
+A charset can be defined with a variable:
+
+    
+    charset $charset;
+
+
+In such a case, all possible values of a variable need to be present
+in the configuration at least once in the form of the
+L</charset_map>, L</charset>, or
+L</source_charset> directives.
+For C<utf-8>, C<windows-1251>, and
+C<koi8-r> charsets, it is sufficient to include the files
+F<confE<sol>koi-win>, F<confE<sol>koi-utf>, and
+F<confE<sol>win-utf> into configuration.
+For other charsets, simply making a fictitious conversion table works,
+for example:
+
+    
+    charset_map iso-8859-5 _ { }
+
+
+
+
+
+
+
+In addition, a charset can be set in the
+C<X-Accel-Charset> response header field.
+This capability can be disabled using the
+L<ngx_http_proxy_module>,
+L<ngx_http_fastcgi_module>,
+L<ngx_http_uwsgi_module>,
+and
+L<ngx_http_scgi_module>
+directives.
+
+
+
+
+
+
+
+=head2 charset_map
+
+
+B<syntax:> charset_map I<I<C<charset1>> I<C<charset2>> { B<...> } >
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Describes the conversion table from one charset to another.
+A reverse conversion table is built using the same data.
+Character codes are given in hexadecimal.
+Missing characters in the range 80-FF are replaced with “C<?>”.
+When converting from UTF-8, characters missing in a one-byte charset
+are replaced with “C<E<amp>#XXXX;>”.
+
+
+
+
+
+Example:
+
+    
+    charset_map koi8-r windows-1251 {
+        C0 FE ; # small yu
+        C1 E0 ; # small a
+        C2 E1 ; # small b
+        C3 F6 ; # small ts
+        ...
+    }
+
+
+
+
+
+
+
+When describing a conversion table to UTF-8, codes for the UTF-8 charset should
+be given in the second column, for example:
+
+    
+    charset_map koi8-r utf-8 {
+        C0 D18E ; # small yu
+        C1 D0B0 ; # small a
+        C2 D0B1 ; # small b
+        C3 D186 ; # small ts
+        ...
+    }
+
+
+
+
+
+
+
+Full conversion tables from C<koi8-r> to
+C<windows-1251>, and from C<koi8-r> and
+C<windows-1251> to C<utf-8>
+are provided in the distribution files F<confE<sol>koi-win>,
+F<confE<sol>koi-utf>, and F<confE<sol>win-utf>.
+
+
+
+
+
+
+
+=head2 charset_types
+
+
+B<syntax:> charset_types I<I<C<mime-type>> ...>
+
+
+B<default:> I<textE<sol>html textE<sol>xml textE<sol>plain textE<sol>vnd.wap.wml
+applicationE<sol>javascript applicationE<sol>rss+xml>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.7.9.
+
+
+
+
+
+Enables module processing in responses with the specified MIME types
+in addition to “C<textE<sol>html>”.
+The special value “C<*>” matches any MIME type (0.8.29).
+
+
+
+
+
+
+B<NOTE>
+
+Until version 1.5.4, “C<applicationE<sol>x-javascript>” was used
+as the default MIME type instead of “C<applicationE<sol>javascript>”.
+
+
+
+
+
+
+
+
+=head2 override_charset
+
+
+B<syntax:> override_charset I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<if in location>
+
+
+
+
+
+Determines whether a conversion should be performed for answers
+received from a proxied or a FastCGIE<sol>uwsgiE<sol>SCGI server
+when the answers already carry a charset in the C<Content-Type>
+response header field.
+If conversion is enabled, a charset specified in the received
+response is used as a source charset.
+
+B<NOTE>
+
+It should be noted that if a response is received in a subrequest
+then the conversion from the response charset to the main request charset
+is always performed, regardless of the C<override_charset>
+directive setting.
+
+
+
+
+
+
+
+
+=head2 source_charset
+
+
+B<syntax:> source_charset I<I<C<charset>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<if in location>
+
+
+
+
+
+Defines the source charset of a response.
+If this charset is different from the charset specified
+in the L</charset> directive, a conversion is performed.
+
+
+
+
+
+
+

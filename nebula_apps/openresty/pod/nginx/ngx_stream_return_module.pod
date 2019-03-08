@@ -1,0 +1,59 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_return_module - Module ngx_stream_return_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_return_module> module (1.11.2) allows
+sending a specified value to the client and then closing the connection.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    server {
+        listen 12345;
+        return $time_iso8601;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 return
+
+
+B<syntax:> return I<I<C<value>>>
+
+
+
+B<context:> I<server>
+
+
+
+
+
+Specifies a I<C<value>> to send to the client.
+The value can contain text, variables, and their combination.
+
+
+
+
+
+
+

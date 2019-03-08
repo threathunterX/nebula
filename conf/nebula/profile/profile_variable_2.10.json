@@ -1,0 +1,499 @@
+{
+  "status": 0,
+  "msg": "ok",
+  "values": [
+    {
+      "topValue": false,
+      "remark": "页面登陆小时事件总量[total]",
+      "srcVariablesID": [],
+      "name": "page__account__login_event_count__profile",
+      "config": {
+        "field": "",
+        "code": "70",
+        "putMethod": "put_map_increment_day_hour",
+        "srcEvent": [
+          "ACCOUNT_LOGIN"
+        ]
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面登陆小时事件总量[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "map:long",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "页面登陆小时风险事件总量[total]",
+      "srcVariablesID": [],
+      "name": "page__account__login_risk_event_count__profile",
+      "config": {
+        "field": "",
+        "code": "71",
+        "putMethod": "put_map_increment_day_hour",
+        "srcEvent": [
+          "ACCOUNT_LOGIN"
+        ],
+        "filter": {
+          "filter_method": "notempty",
+          "filter_value": "",
+          "filter_field": "notice"
+        }
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面登陆小时风险事件总量[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "map:long",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "页面成功登陆小时事件总量[total]",
+      "srcVariablesID": [],
+      "name": "page__account__login__succ_event_count__profile",
+      "config": {
+        "field": "",
+        "code": "72",
+        "putMethod": "put_map_increment_day_hour",
+        "srcEvent": [
+          "ACCOUNT_LOGIN"
+        ],
+        "filter": {
+          "filter_method": "equals_item",
+          "filter_value": "T,EMPTY",
+          "filter_field": "result"
+        }
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面成功登陆小时事件总量[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "map:int",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "页面失败登陆小时事件总量[total]",
+      "srcVariablesID": [],
+      "name": "page__account__login__fail_event_count__profile",
+      "config": {
+        "field": "",
+        "code": "73",
+        "putMethod": "put_map_increment_day_hour",
+        "srcEvent": [
+          "ACCOUNT_LOGIN"
+        ],
+        "filter": {
+          "filter_method": "equals_item",
+          "filter_value": "F,NA",
+          "filter_field": "result"
+        }
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面失败登陆小时事件总量[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "map:int",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "页面登陆2/3事件总量[total]",
+      "srcVariablesID": [],
+      "name": "page__account__login__23_event_count__profile",
+      "config": {
+        "field": "",
+        "code": "74",
+        "putMethod": "put_map_increment_day_hour",
+        "srcEvent": [
+          "ACCOUNT_LOGIN"
+        ],
+        "filter": {
+          "filter_method": "prefix_item",
+          "filter_value": "2,3",
+          "filter_field": "status"
+        }
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面登陆2/3事件总量[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "map:int",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "页面登陆4/5事件总量[total]",
+      "srcVariablesID": [],
+      "name": "page__account__login__45_event_count__profile",
+      "config": {
+        "field": "",
+        "code": "75",
+        "putMethod": "put_map_increment_day_hour",
+        "srcEvent": [
+          "ACCOUNT_LOGIN"
+        ],
+        "filter": {
+          "filter_method": "prefix_item",
+          "filter_value": "4,5",
+          "filter_field": "status"
+        }
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面登陆4/5事件总量[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "map:int",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "页面登陆风险用户列表[day]",
+      "srcVariablesID": [],
+      "name": "page__account__login_risk_uids__profile",
+      "config": {
+        "field": "uid",
+        "code": "76",
+        "putMethod": "put_map_recent_day_distinct_list",
+        "srcEvent": [
+          "ACCOUNT_LOGIN"
+        ],
+        "filter": {
+          "filter_method": "notempty",
+          "filter_value": "",
+          "filter_field": "notice"
+        }
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面登陆风险用户列表[day]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "map:list",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "页面注册小时事件总量[total]",
+      "srcVariablesID": [],
+      "name": "page__account__register_event_count__profile",
+      "config": {
+        "field": "",
+        "code": "77",
+        "putMethod": "put_map_increment_day_hour",
+        "srcEvent": [
+          "ACCOUNT_REGISTRATION"
+        ]
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面注册小时事件总量[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "map:int",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "页面注册小时风险事件总量[total]",
+      "srcVariablesID": [],
+      "name": "page__account__register_risk_event_count__profile",
+      "config": {
+        "field": "",
+        "code": "78",
+        "putMethod": "put_map_increment_day_hour",
+        "srcEvent": [
+          "ACCOUNT_REGISTRATION"
+        ],
+        "filter": {
+          "filter_method": "notempty",
+          "filter_value": "",
+          "filter_field": "notice"
+        }
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面注册小时风险事件总量[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "map:int",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "页面成功注册小时事件总量[total]",
+      "srcVariablesID": [],
+      "name": "page__account__register__succ_event_count__profile",
+      "config": {
+        "field": "",
+        "code": "79",
+        "putMethod": "put_map_increment_day_hour",
+        "srcEvent": [
+          "ACCOUNT_REGISTRATION"
+        ],
+        "filter": {
+          "filter_method": "equals_item",
+          "filter_value": "T,EMPTY",
+          "filter_field": "result"
+        }
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面成功注册小时事件总量[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "map:int",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "页面失败注册小时事件总量[total]",
+      "srcVariablesID": [],
+      "name": "page__account__register__fail_event_count__profile",
+      "config": {
+        "field": "",
+        "code": "80",
+        "putMethod": "put_map_increment_day_hour",
+        "srcEvent": [
+          "ACCOUNT_REGISTRATION"
+        ],
+        "filter": {
+          "filter_method": "equals_item",
+          "filter_value": "F,NA",
+          "filter_field": "result"
+        }
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面失败注册小时事件总量[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "map:int",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "页面注册2/3事件总量[total]",
+      "srcVariablesID": [],
+      "name": "page__account__register__23_event_count__profile",
+      "config": {
+        "field": "",
+        "code": "81",
+        "putMethod": "put_map_increment_day_hour",
+        "srcEvent": [
+          "ACCOUNT_REGISTRATION"
+        ],
+        "filter": {
+          "filter_method": "prefix_item",
+          "filter_value": "2,3",
+          "filter_field": "status"
+        }
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面注册2/3事件总量[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "map:int",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "页面注册4/5事件总量[total]",
+      "srcVariablesID": [],
+      "name": "page__account__register__45_event_count__profile",
+      "config": {
+        "field": "",
+        "code": "82",
+        "putMethod": "put_map_increment_day_hour",
+        "srcEvent": [
+          "ACCOUNT_REGISTRATION"
+        ],
+        "filter": {
+          "filter_method": "prefix_item",
+          "filter_value": "4,5",
+          "filter_field": "status"
+        }
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面注册4/5事件总量[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "map:int",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "页面注册风险用户列表[day]",
+      "srcVariablesID": [],
+      "name": "page__account__register_risk_uids__profile",
+      "config": {
+        "field": "uid",
+        "code": "83",
+        "putMethod": "put_map_recent_day_distinct_list",
+        "srcEvent": [
+          "ACCOUNT_REGISTRATION"
+        ],
+        "filter": {
+          "filter_method": "notempty",
+          "filter_value": "",
+          "filter_field": "notice"
+        }
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面注册风险用户列表[day]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "map:int",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "全局小时用户数[total]",
+      "srcVariablesID": [],
+      "name": "user__account_count__profile",
+      "config": {
+        "field": "",
+        "code": "85",
+        "putMethod": "send_map_increment_visit",
+        "srcEvent": [
+          "VISIT"
+        ]
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "全局小时用户数[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "global",
+      "valueType": "map:int",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "全局风险小时用户数[total]",
+      "srcVariablesID": [],
+      "name": "user__account_risk_count__profile",
+      "config": {
+        "field": "",
+        "code": "84",
+        "putMethod": "send_map_increment_visit",
+        "srcEvent": [
+          "VISIT"
+        ]
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "全局风险小时用户数[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "global",
+      "valueType": "map:int",
+      "srcEventID": null
+    }
+
+  ]
+}
