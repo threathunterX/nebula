@@ -14,7 +14,7 @@ services:
   image: redis
   container_name: nebula-redis
   ports:
-    - "36379:6379"
+    - "16379:6379"
   volumes:
    - ./logs/redis:/data/logs/redis
    - ./data/redis:/data/redis
@@ -34,11 +34,11 @@ services:
  nebula:
   build:
    context: .
-  image: nebula:v1.1.2
+  image: threathunterx/nubula:1.1.0
   container_name: nebula
   restart: always
   ports:
-   - "9003:9001"
+   - "9001:9001"
   volumes:
    - ./conf/nebula:/etc/nebula
    
