@@ -1,18 +1,5 @@
-PRG="$0"
-while [ -h "$PRG" ]; do
-  ls=`ls -ld "$PRG"`
-  link=`expr "$ls" : '.*-> \(.*\)$'`
-  if expr "$link" : '/.*' > /dev/null; then
-    PRG="$link"
-  else
-    PRG=`dirname "$PRG"`/"$link"
-  fi
-done
-WORK_DIR=`dirname "$PRG"`
-
 update_submodules()
 {
-    cd $WORK_DIR
     # 拉取所有子模块代码更新
     git submodule update --remote
     echo "update submodules done"
@@ -20,7 +7,6 @@ update_submodules()
 
 build_image()
 {
-    cd $WORK_DIR
     if [ -z "$version" ];then
         echo "invalid version($version)"
         exit 0
@@ -33,7 +19,7 @@ build_image()
 build_apps()
 {   
 
-    cd $WORK_DIR/src/
+    cd src/
     
     echo "======install threathunter_common_java v1.0.1 ======"
     cd java_lib/threathunter_common_java/1.0.1/ && mvn clean install -Dmaven.test.skip=true && cd ../../../
@@ -135,14 +121,14 @@ build_apps()
     is_exist "nebula_fe"
     tar -zxf ./nebula_fe.tar.gz -C ./nebula_fe
     rm -rf ./nebula_fe.tar.gz
-    cd $WORK_DIR
+    cd ..
 }
 
 is_exist(){
     if [ ! -d "$1/" ];then
         mkdir $1
     else
-        sudo rm -rf $1 && mkdir $1
+        rm -rf $1 && mkdir $1
     fi
 }
 
