@@ -85,10 +85,10 @@ build_apps()
     cp labrador/application/target/labrador-release.tar.gz ../nebula_apps/
     # copy python模块
     echo "copy python module"
-    cp -r python_lib/ ../nebula_apps/
-    cp -r nebula_db_writer/ ../nebula_apps/
-    cp -r nebula_query_web/ ../nebula_apps/
-    cp -r nebula_web/ ../nebula_apps/
+    cp -r python_lib ../nebula_apps/
+    cp -r nebula_db_writer ../nebula_apps/
+    cp -r nebula_query_web ../nebula_apps/
+    cp -r nebula_web ../nebula_apps/
     # copy 前端展示模块
     echo "copy javascript module"
     cp nebula_fe/build/nebula_fe.tar.gz ../nebula_apps/
