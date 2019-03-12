@@ -46,12 +46,12 @@ build_apps()
     
     echo "======install threathunter_common_java v1.1.0 ======"
     cd java_lib/threathunter_common_java/1.1.0/ && mvn clean install -Dmaven.test.skip=true && cd ../../../
-   
-    echo "====== install threathunter_basictools_java v1.1.0 ======"
-    cd java_lib/threathunter_basictools_java/ && mvn clean install -Dmaven.test.skip=true && cd ../../
-    
+       
     echo "====== install babel_java v1.1.0======"
     cd java_lib/babel_java && mvn clean install -Dmaven.test.skip=true && cd ../../
+    
+    echo "====== install threathunter_basictools_java v1.1.0 ======"
+    cd java_lib/threathunter_basictools_java/ && mvn clean install -Dmaven.test.skip=true && cd ../../
     
     echo "====== install greatdant ======"
     cd greatdant &&  mvn clean install -Dmaven.test.skip=true && cd ../ 
