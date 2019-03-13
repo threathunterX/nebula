@@ -39,6 +39,10 @@ services:
   restart: always
   ports:
    - "9001:9001"
+  environment:
+   - Xms=1g
+   - Xmx=1g
+   - Xmn=256m
   volumes:
    - ./conf/nebula:/etc/nebula
    
