@@ -34,7 +34,7 @@ services:
  nebula:
   build:
    context: .
-  image: threathunterx/nebula:1.1.0
+  image: threathunterx/nebula:latest
   container_name: nebula
   restart: always
   ports:
