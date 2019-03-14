@@ -36,7 +36,7 @@ RUN rpm -ivh /home/threathunter/nebula/mysql-community-devel-5.6.39-2.el7.x86_64
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 RUN echo 'Asia/Shanghai' > /etc/timezone
 RUN yum clean all && yum -y install epel-release
-RUN yum -y install net-tools libpcap libpcap-devel java redis supervisor crontabs gcc gcc-c++ make cmake openssl openssl-devel python-pip python-devel
+RUN yum -y install net-tools libpcap libpcap-devel java redis supervisor crontabs gcc gcc-c++ make cmake openssl openssl-devel python-pip python-devel luajit
 RUN sed -i "s/required/sufficient/g" /etc/pam.d/crond
 
 #安装Python依赖
