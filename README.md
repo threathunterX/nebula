@@ -36,6 +36,7 @@
     * [3.3. 架构设计](https://github.com/threathunterX/nebula_doc/blob/master/chapter3/section3.md)
 * [4. 实践经验](https://github.com/threathunterX/nebula_doc/blob/master/chapter4/section0.md)
 * [5. 二次开发](https://github.com/threathunterX/nebula_doc/blob/master/chapter5/section0.md)
+    * [5.1. Sniffer原理及驱动定制](https://github.com/threathunterX/nebula_doc/blob/master/chapter5/section1.md)
 * [6. FAQ](https://github.com/threathunterX/nebula_doc/blob/master/chapter6/section0.md)
 
 # 最后
