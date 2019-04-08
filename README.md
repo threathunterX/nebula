@@ -80,7 +80,7 @@
 
 感谢249为Followers
 
-官网地址：www.threathuter.cn
+官网地址：www.threathunter.cn
 
 技术支持：添加威胁猎人助手，邀请您加入星云风控系统沟通群。
 
