@@ -45,10 +45,10 @@
     * [事件介绍](https://github.com/threathunterX/nebula_doc/blob/master/chapter3/section3/section3.2.md)
     * [变量介绍](https://github.com/threathunterX/nebula_doc/blob/master/chapter3/section3/section3.3.md)
     * [规则梳理](https://github.com/threathunterX/nebula_doc/blob/master/chapter3/section3/section3.4.md)
-    * [脚本定制](https://github.com/threathunterX/nebula_doc/blob/master/chapter3/section3/section3.5.md)
+    * [运营决策](https://github.com/threathunterX/nebula_doc/blob/master/chapter3/section3/section3.5.md)
     * [策略配置](https://github.com/threathunterX/nebula_doc/blob/master/chapter3/section3/section3.6.md)
-    * [运营决策](https://github.com/threathunterX/nebula_doc/blob/master/chapter3/section3/section3.7.md)
-    * [规则迭代](https://github.com/threathunterX/nebula_doc/blob/master/chapter3/section3/section3.8.md)
+    * [脚本定制](https://github.com/threathunterX/nebula_doc/blob/master/chapter3/section3/section3.7.md)
+    * [日志解析](https://github.com/threathunterX/nebula_doc/blob/master/chapter3/section3/section3.8.md)
 * [星云系统配置功能](https://github.com/threathunterX/nebula_doc/blob/master/chapter3/section4.md)
 * [阻断星云中发现的风险](https://github.com/threathunterX/nebula_doc/blob/master/chapter3/section5.md)
     
