@@ -82,6 +82,6 @@
 
 官网地址：www.threathunter.cn
 
-技术支持：添加威胁猎人助手，邀请您加入星云风控系统沟通群。
+技术支持：如果有任何问题请添加威胁猎人助手进行咨询。
 
 ![kzjzQO.png](https://s2.ax1x.com/2019/03/08/kzjzQO.png)
