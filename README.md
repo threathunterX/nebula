@@ -77,7 +77,7 @@
 
 感谢GitHub ID：nancheal、icxcoffee、kerlingcode、zhujunlu、emmaaii、bsmial4、allanxia、lilololi的用户给我们提的Issue，我们会尽快跟进和修复相关问题
 
-感谢340位用户的Star
+感谢623位用户的Star
 
 感谢249为Followers
 
