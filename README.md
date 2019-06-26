@@ -62,6 +62,7 @@
 
 * [Sniffer原理及驱动定制](https://github.com/threathunterX/nebula_doc/blob/master/chapter5/section1.md)
 * [nginx+lua+kafka 驱动介绍](https://github.com/threathunterX/nebula_doc/blob/master/chapter5/section2.md)
+* [Sniffer测试以及debug](https://github.com/threathunterX/nebula_doc/blob/master/chapter5/section3.md)
 
 ## 模拟演示
 下面是我们在阿里云上部署的一套星云，用户可以利用以下链接和账号密码登录，进行功能的查看。（注意该页面资源较多，请耐心等待加载）
