@@ -74,16 +74,5 @@
 密码：threathunter
 
 
-## 特别感谢
 
-感谢GitHub ID：nancheal、icxcoffee、kerlingcode、zhujunlu、emmaaii、bsmial4、allanxia、lilololi的用户给我们提的Issue，我们会尽快跟进和修复相关问题
 
-感谢623位用户的Star
-
-感谢249为Followers
-
-官网地址：www.threathunter.cn
-
-技术支持：如果有任何问题请添加威胁猎人助手进行咨询。
-
-![kzjzQO.png](https://s2.ax1x.com/2019/03/08/kzjzQO.png)
