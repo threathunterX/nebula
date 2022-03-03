@@ -64,16 +64,9 @@
 * [nginx+lua+kafka 驱动介绍](https://github.com/threathunterX/nebula_doc/blob/master/chapter5/section2.md)
 * [Sniffer测试以及debug](https://github.com/threathunterX/nebula_doc/blob/master/chapter5/section3.md)
 
-## 模拟演示
-下面是我们在阿里云上部署的一套星云，用户可以利用以下链接和账号密码登录，进行功能的查看。（注意该页面资源较多，请耐心等待加载）
-
-地址：http://112.74.58.210:9001<br/>
-账号：threathunter_test<br/>
-密码：threathunter<br/>
-
 ## 更新说明
 
-**Github上代码**在2019年7月份**停止功能更新**`(bug以及代码优化会不定期更新)`，商业版代码在持续更新中，并有以下提升：
+**商业版代码在持续更新中，并有以下提升：
 
 1. 增加api、logstash、rabbitmq等10+种流量捕获接入方式
 2. 线性扩展能力，以保证任何规模的数据量都可以处理
