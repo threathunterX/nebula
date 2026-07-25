@@ -1,0 +1,14 @@
+{
+    "name": "profile_dimension_mapping",
+    "callmode": "rpc",
+    "delivermode": "topic",
+    "serverimpl": "redis",
+    "coder": "mail",
+    "options": {
+        "cdc": "sh",
+        "sdc": "sh",
+        "serversubname": "onlinekv",
+        "serverseq": 1,
+        "servercardinality": 1
+    }
+}

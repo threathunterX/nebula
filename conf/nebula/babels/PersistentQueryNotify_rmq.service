@@ -1,0 +1,14 @@
+{
+  "name": "persistentquery_progress",
+  "callmode": "notify",
+  "delivermode": "topic",
+  "serverimpl": "rmq",
+  "coder": "mail",
+  "options": {
+    "cdc": "sh",
+    "sdc": "sh",
+    "subname": "web",
+    "servercardinality": 1,
+    "serverseq": 1
+  }
+}

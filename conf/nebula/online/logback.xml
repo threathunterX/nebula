@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <property name="LOG_DIR" value="/data/logs/online"/>
+  <property name="LOG_FILE_NAME" value="nebula.log"/>
+
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%date [%-5thread] %-5level [%-10logger] %-10msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- Output to File and Rotate if it's necessary -->
+  <appender name="ROLLING" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/${LOG_FILE_NAME}</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+      <!-- rollover daily -->
+      <fileNamePattern>${LOG_DIR}/${LOG_FILE_NAME}.%i</fileNamePattern>
+      <minIndex>1</minIndex>
+      <maxIndex>10</maxIndex>
+    </rollingPolicy>
+
+    <triggeringPolicy name="ROLLING" class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+      <maxFileSize>200MB</maxFileSize>
+    </triggeringPolicy>
+
+    <encoder>
+      <pattern>%date [%-5thread] %-5level [%-10logger] %-10msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="greyhound" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/greyhound.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+      <!-- rollover daily -->
+      <fileNamePattern>${LOG_DIR}/greyhound.%i</fileNamePattern>
+      <minIndex>1</minIndex>
+      <maxIndex>10</maxIndex>
+    </rollingPolicy>
+
+    <triggeringPolicy name="ROLLING" class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+      <maxFileSize>200MB</maxFileSize>
+    </triggeringPolicy>
+
+    <encoder>
+      <pattern>%date [%-5thread] %-5level [%-10logger] %-10msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="bordercollie" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/bordercollie.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+      <!-- rollover daily -->
+      <fileNamePattern>${LOG_DIR}/bordercollie.%i</fileNamePattern>
+      <minIndex>1</minIndex>
+      <maxIndex>10</maxIndex>
+    </rollingPolicy>
+
+    <triggeringPolicy name="ROLLING" class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+      <maxFileSize>200MB</maxFileSize>
+    </triggeringPolicy>
+
+    <encoder>
+      <pattern>%date [%-5thread] %-5level [%-10logger] %-10msg%n</pattern>
+    </encoder>
+  </appender>
+
+
+  <logger name="analytics" level="INFO" additivity="false">
+    <appender-ref ref="greyhound"/>
+  </logger>
+
+  <logger name="bordercollie" level="INFO" additivity="false">
+    <appender-ref ref="bordercollie"/>
+  </logger>
+
+
+  <root level="INFO">
+    <appender-ref ref="ROLLING"/>
+  </root>
+</configuration>

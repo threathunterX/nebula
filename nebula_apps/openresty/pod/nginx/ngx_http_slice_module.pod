@@ -1,0 +1,132 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_slice_module - Module ngx_http_slice_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_slice_module> module (1.9.8) is a filter
+that splits a request into subrequests,
+each returning a certain range of response.
+The filter provides more effective caching of big responses.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+C<--with-http_slice_module>
+configuration parameter.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location / {
+        <emphasis>slice</emphasis>             1m;
+        proxy_cache       cache;
+        proxy_cache_key   $uri$is_args$args<emphasis>$slice_range</emphasis>;
+        proxy_set_header  Range <emphasis>$slice_range</emphasis>;
+        proxy_cache_valid 200 206 1h;
+        proxy_pass        http://localhost:8000;
+    }
+
+
+In this example,
+the response is split into 1-megabyte cacheable slices.
+
+
+
+
+=head1 Directives
+
+=head2 slice
+
+
+B<syntax:> slice I<I<C<size>>>
+
+
+B<default:> I<0>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the I<C<size>> of the slice.
+The zero value disables splitting responses into slices.
+Note that a too low value may result in excessive memory usage
+and opening a large number of files.
+
+
+
+
+
+In order for a subrequest to return the required range,
+the C<$slice_range> variable should be
+L<passed|ngx_http_proxy_module> to
+the proxied server as the C<Range> request header field.
+If
+L<caching|ngx_http_proxy_module>
+is enabled, C<$slice_range> should be added to the
+L<cache key|ngx_http_proxy_module>
+and caching of responses with 206 status code should be
+L<enabled|ngx_http_proxy_module>.
+
+
+
+
+
+
+
+=head1 Embedded Variables
+
+
+
+The C<ngx_http_slice_module> module
+supports the following embedded variables:
+
+=over
+
+
+
+=item C<$slice_range>
+
+
+
+
+the current slice range in
+L<HTTP
+byte range|https://tools.ietf.org/html/rfc7233#section-2.1> format,
+for example, C<bytes=0-1048575>.
+
+
+
+
+
+=back
+
+
+
+
+
+

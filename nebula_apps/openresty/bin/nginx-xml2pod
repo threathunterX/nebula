@@ -1,0 +1,635 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use File::Find ();
+use Data::Dumper;
+
+my $mainline_version = '1.9.7';
+
+my $infile = shift
+    or die "No input directory or file specified.\n";;
+
+if (-d $infile) {
+    my $indir = $infile;
+    File::Find::find({ wanted => \&wanted, no_chdir => 1 },  $indir);
+
+} else {
+    process_xml_file($infile);
+}
+
+sub wanted {
+    return unless -f $_ && /\.xml$/;
+    my $xmlfile = $File::Find::name;
+    process_xml_file($xmlfile);
+}
+
+sub process_xml_file {
+    my $xmlfile = shift;
+
+    (my $name = $xmlfile) =~ s/\.xml$//;
+    $name =~ s{.*/}{};
+
+    open my $in, "<:encoding(UTF-8)", $xmlfile
+        or die "Cannot open $xmlfile for reading: $!\n";
+    local $_ = do { local $/; <$in> };
+    close $in;
+
+    my $pod = "=encoding utf-8\n\n";
+    my $level = 1;
+    my $directive;
+    my @lists;
+    my $syntax_block;
+
+    while (1) {
+        #warn "scanner: ", pos_str($_);
+
+        next if / \G ^ \s* (?: \n | $ ) /xgcm;
+
+        if (/\G < \? xml .*? \? > \s* /gcxms
+            || /\G \s* <!-- .*? --> \s* /gcxms
+            || /\G <!DOCTYPE .*? > \s* /gcxms)
+        {
+            # ignore
+            next;
+        }
+
+        if (/ \G < \s* article ( (?: \s+ \w+ \s* = \s* " .*? " )* ) > \s* /gcxms) {
+            my $attrs = parse_attrs($1);
+            #warn "article: ", Dumper($attrs);
+            $pod .= "\n=head1 Name\n\n";
+
+            my $title = $attrs->{name};
+            if (defined $title) {
+                $pod .= "\n$name - $title\n\n";
+
+            } else {
+                $pod .= "\n$name\n\n";
+            }
+
+            next;
+        }
+
+        if (/ \G < \s* section ( (?: \s+ \w+ \s* = \s* " .*? " )* ) > \s* /gcxm) {
+            my $attrs = parse_attrs($1);
+
+            #warn "secton: ", Dumper($attrs);
+
+            my $title = $attrs->{name};
+            if (defined $title) {
+                $pod .= "\n=head$level $title\n\n";
+
+            } else {
+                $pod .= "\n=head$level\n\n";
+            }
+
+            $level++;
+            next;
+        }
+
+        if (m{ \G < \s* / \s* section \s* > \s* }gcxs) {
+            $level--;
+            next;
+        }
+
+        if (m{ \G < \s* / \s* article \s* > \s* }gcxs) {
+            $pod .= "\n";
+            next;
+        }
+
+        if (m{ \G < \s* link ( (?: \s+ \w+ \s* = \s* " [^"]* " )* ) >
+              (.*?)
+                 < \s* / \s* link \s* > }gcxs)
+         {
+            my ($attrs, $label) = ($1, $2);
+
+            $label = encode_pod(decode_xml($label));
+            $label =~ s/^\s+|\s+$//gs;
+
+            $attrs = parse_attrs($attrs);
+
+            my $doc = $attrs->{doc};
+            my $url = $attrs->{url};
+            my $id = $attrs->{id};
+
+            if ($doc) {
+                $doc =~ s{.*/}{};
+                $doc =~ s/\.xml$//;
+                $pod .= "L<$label|$doc>";
+
+            } elsif ($url) {
+                $pod .= "L<$label|$url>";
+
+            } elsif ($id) {
+                $pod .= "$label";
+
+            } else {
+                die "Bad link: $&";
+            }
+
+            next;
+        }
+
+        if (m{ \G < \s* link ( (?: \s+ \w+ \s* = \s* " [^"]* " )* ) \s* / \s* > }gcxs) {
+            my $attrs = parse_attrs($1);
+            my $doc = $attrs->{doc};
+            my $id = $attrs->{id};
+            if ($doc) {
+                $doc =~ s{.*/}{};
+                $doc =~ s/\.xml$//;
+                $pod .= "L<$doc>"
+
+            } elsif ($id) {
+                $pod .= "L</$id>";
+            } else {
+                die "No doc attribute found for link: $&";
+            }
+
+            next;
+        }
+
+        if (m{ \G < \s* (/?) \s* literal \s* > }gcxs) {
+            my $closing = $1;
+            if ($closing) {
+                $pod .= ">";
+            } else {
+                $pod .= 'C<';
+            }
+            next;
+        }
+
+        if (m{ \G < \s* /? \s* commercial_version \s* > }gcxs)
+        {
+            next;
+        }
+
+        if (m{ \G < \s* example \s* > (.*?) < \s* / \s* example \s* > }gcxs)
+        {
+            my $code = decode_xml($1);
+            $code =~ s/^/    /gm;
+            $pod .= "\n$code\n";
+            next;
+        }
+
+        if (m{ \G < \s* programlisting \s* > (.*?) < \s* / \s* programlisting \s* > }gcxs)
+        {
+            my $code = decode_xml($1);
+            $code =~ s/^/    /gm;
+            $pod .= "\n$code\n";
+            next;
+        }
+
+        if (m{ \G < \s* registered \s* > (.*?) < \s* / \s* registered \s* > }gcxs) {
+            my $label = encode_pod(decode_xml($1));
+            $label =~ s/^\s+|\s+$//gs;
+            $pod .= "$label E<copy>";
+            next;
+        }
+
+        if (m{ \G < \s* list ( (?: \s+ \w+ \s* = \s* " [^"]* " )* )  > }gcxs) {
+            my $attrs = parse_attrs($1);
+
+            #warn pos_str($_), " Found list!";
+
+            my $type = $attrs->{type};
+            if (!defined $type || $type !~ /^(?:bullet|enum|tag)$/) {
+                error($xmlfile, $_, "list lacks a type or takes a bad type");
+            }
+
+            $pod .= "\n=over\n\n";
+
+            push @lists, [$type, 1];
+            next;
+        }
+
+        if (m{ \G < \s* / \s* list \s* > }gcxs) {
+            $pod .= "\n=back\n\n";
+            pop @lists;
+            next;
+        }
+
+        if (m{ \G < \s* / \s* listitem \s* > }gcxs) {
+            # do nothing...
+            next;
+        }
+
+        if (m{ \G < \s* note \s* > }gcxs) {
+            $pod .= "\nB<NOTE>\n";
+            next;
+        }
+
+        if (m{ \G < \s* / \s* note \s* > }gcxs) {
+            next;
+        }
+
+        if (m{ \G < \s* value \s* > }gcxs) {
+            $pod .= "I<C<";
+            next;
+        }
+
+        if (m{ \G < \s* / \s* value \s* > }gcxs) {
+            $pod .= ">>";
+            next;
+        }
+
+        if (m{ \G < \s* path \s* > }gcxs) {
+            $pod .= "F<";
+            next;
+        }
+
+        if (m{ \G < \s* / \s* path \s* > }gcxs) {
+            $pod .= ">";
+            next;
+        }
+
+        if (m{ \G < \s* appeared-in \s* > (.*?) < \s* / \s* appeared-in \s* > }gcxs) {
+            my $version = decode_xml($1);
+            $pod .= "\nThis directive appeared in version " . encode_pod($version) . ".\n\n";
+            next;
+        }
+
+        if (m{ \G < \s* syntax ( (?: \s+ \w+ \s* = \s* " [^"]* " )+ ) \s* / \s* > }gcxs) {
+            my $attrs = parse_attrs($1);
+            if ($attrs->{block} eq 'yes') {
+                if (!$directive) {
+                    error($xmlfile, $_, "syntax used outside of <directive>");
+                }
+                $pod .= "$directive { B<...> }\n\n";
+
+            } else {
+                error($xmlfile, $_, "block attr not defined in <syntax />");
+            }
+            next;
+        }
+
+        if (m{ \G < \s* syntax ( (?: \s+ \w+ \s* = \s* " [^"]* " )+ ) \s* > }gcxs) {
+            my $attrs = parse_attrs($1);
+            if ($attrs->{block} eq 'yes') {
+                if (!$directive) {
+                    error($xmlfile, $_, "syntax used outside of <directive>");
+                }
+                $pod .= "B<syntax:> $directive I<";
+                $syntax_block = 1;
+
+            } else {
+                error($xmlfile, $_, "block attr not defined in <syntax />");
+            }
+            next;
+        }
+
+        if (m{ \G < \s* ( syntax | default | context ) \s* > }gcxs) {
+            my $tag = $1;
+            if ($tag eq 'syntax') {
+                undef $syntax_block;
+                $pod .= "B<syntax:> $directive I<";
+            } else {
+                $pod .= "B<$tag:> I<";
+            }
+            next;
+        }
+
+        if (m{ \G < \s* / \s* ( syntax | default | context ) \s* > }gcxs) {
+            my $tag = $1;
+            if ($tag eq 'syntax' && $syntax_block) {
+                $pod .= " { B<...> } >\n\n";
+            } else {
+                $pod .= ">\n\n";
+            }
+            next;
+        }
+
+        if (m{ \G < \s* (?: syntax | default | context ) \s* / \s * > }gcxs) {
+            next;
+        }
+
+
+        if (m{ \G < \s* listitem \b [^>]* > }gcxs) {
+            my $list = $lists[-1];
+            if (!defined $list) {
+                error($xmlfile, $_, "listitem used outside list");
+            }
+
+            my ($type, $idx) = @$list;
+
+            if ($type eq 'tag') {
+                error($xmlfile, $_, "listitem is disallowed inside tagged-type lists");
+            }
+
+            if ($type eq 'bullet') {
+                $pod .= "\n=item *\n";
+
+            } elsif ($type eq 'enum') {
+                $pod .= "\n=item $idx.\n";
+                $list->[1]++;
+
+            } else {
+                die "cannot happen: $type";
+            }
+
+            next;
+        }
+
+        if (m{ \G < \s* tag-name \b [^>]* > }gcxs) {
+            my $list = $lists[-1];
+
+            if (!defined $list) {
+                #warn $pod;
+                error($xmlfile, $_, "tag-name used outside of any lists");
+            }
+
+            #warn "Found tag-name!";
+
+            my ($type, $idx) = @$list;
+            if ($type ne 'tag') {
+                error($xmlfile, $_, "tag-name used outside of tagged lists");
+            }
+
+            $pod .= "=item ";
+            next;
+        }
+
+        if (m{ \G < \s* / \s* tag-name \s* > }gcxs) {
+            $pod .= "\n\n";
+            next;
+        }
+
+        if (m{ \G < \s* tag-desc \s* > }gcxs) {
+            my $list = $lists[-1];
+
+            if (!defined $list) {
+                #warn $pod;
+                error($xmlfile, $_, "tag-name used outside of any lists");
+            }
+
+            my ($type, $idx) = @$list;
+            if ($type ne 'tag') {
+                error($xmlfile, $_, "tag-name used outside of tagged lists");
+            }
+
+            #warn "tag list defined!";
+            $pod .= "\n";
+            next;
+        }
+
+        if (m{ \G < \s* / \s* tag-desc \s* > }gcxs) {
+            $pod .= "\n";
+            next;
+        }
+
+        if (m{ \G < \s* table \b [^>]* > (.*?) < \s* / \s* table \s* > }gcxs) {
+            $pod .= process_table($1);
+            next;
+        }
+
+        if (m{ \G < \s* para \b .*? \s* > }gcxs) {
+            $pod .= "\n";
+            next;
+        }
+
+        if (m{ \G < \s* / \s* para \s* > }gcxs) {
+            $pod .= "\n";
+            next;
+        }
+
+        if (m{ \G < \s* (?: c-def | var | c-func | header ) \s* > }gcxs) {
+            $pod .= "C<";
+            next;
+        }
+
+        if (m{ \G < \s* / \s* (?: c-def | var | c-func | header ) \s* > }gcxs) {
+            $pod .= ">";
+            next;
+        }
+
+        if (m{ \G < \s* (?: http-status ( (?: \s+ \w+ \s* = \s* " [^"]* " )* ) ) \s* /? \s* > }gcxs) {
+            my $attrs = parse_attrs($1);
+            $pod .= "C<$attrs->{code}> (C<" . encode_pod($attrs->{text}) . ">)";
+            next;
+        }
+
+        if (m{ \G < \s* command \s* > }gcxs) {
+            $pod .= "C<";
+            next;
+        }
+
+        if (m{ \G < \s* br \s* / \s* > }gcxs) {
+            $pod .= "\n\n";
+        }
+
+        if (m{ \G < \s* / \s* command \s* > }gcxs) {
+            $pod .= ">";
+            next;
+        }
+
+        if (m{ \G < \s* (?: i | emphasis ) \s* > }gcxsi) {
+            $pod .= "I<";
+            next;
+        }
+
+        if (m{ \G < \s* b \s* > }gcxsi) {
+            $pod .= "B<";
+            next;
+        }
+
+        if (m{ \G < \s* / \s* (?: [bi] | emphasis ) \s* > }gcxsi) {
+            $pod .= ">";
+            next;
+        }
+
+        if (m{ \G < \s* /? \s* nobr \s* > }gcxs) {
+            next;
+        }
+
+        if (m{ \G < \s* initial \s* > }gcxs) {
+            $pod .= "B<";
+            next;
+        }
+
+        if (m{ \G < \s* / \s* initial \s* > }gcxs) {
+            $pod .= ">";
+            next;
+        }
+
+        if (m{ \G < \s* mainline_version \s* / \s* > }gcxs) {
+            $pod .= $mainline_version;
+            next;
+        }
+
+        if (m{ \G < \s* module ( (?: \s+ \w+ \s* = \s* " [^"]* " )* ) \s* > }gcxs) {
+            my $attrs = parse_attrs($1);
+            if (!$attrs->{name}) {
+                error($xmlfile, $_, "no \"name\" attribute found for <module>");
+            }
+            $pod .= <<_EOC_;
+=head1 NAME
+
+$name - $attrs->{name}
+
+_EOC_
+            next;
+        }
+
+        if (m{ \G < \s* / \s* module \s* > }gcxs) {
+            next;
+        }
+
+        if (m{ \G < \s* directive ( (?: \s+ \w+ \s* = \s* " [^"]* " )* ) \s* > }gcxs) {
+            my $attrs = parse_attrs($1);
+            if (!$attrs->{name}) {
+                error($xmlfile, $_, "no \"name\" attribute found for <directive>");
+            }
+
+            $directive = $attrs->{name};
+
+            $pod .= <<_EOC_;
+=head$level $directive
+
+_EOC_
+            $level++;
+            next;
+        }
+
+        if (m{ \G < \s* / \s* directive > }gcxs) {
+            $level--;
+            $pod .= "\n";
+            next;
+        }
+
+        if (m{ \G \&(\w+); }gcxs) {
+            my $entity = $1;
+            $pod .= "E<$entity>";
+            next;
+        }
+
+        if (m{ \G \&\#(\d+); }gcxs) {
+            my $num = $1;
+            $pod .= "E<$num>";
+            next;
+        }
+
+        if (m{ \G ([^<&]+) }gcxs) {
+            $pod .= encode_pod(decode_xml($1));
+            next;
+        }
+
+        if (m{ \G (.) }gcxs) {
+            error($xmlfile, $_, "bad character found: $1");
+        }
+
+        last;
+    }
+
+    $pod =~ s/ ^ =item \s+ (\d+) \s* $ /=item C<$1>/gmsx;
+
+    my $outfile = "$name.pod";
+    open my $out, ">:encoding(UTF-8)", $outfile
+        or die "cannot open $outfile for writing: $!\n";
+    print $out $pod;
+    close $out;
+
+    print "wrote $outfile\n";
+
+    shell("pod2text $outfile > /dev/null");
+}
+
+sub shell {
+    my $cmd = shift;
+    system($cmd) == 0
+        or die "failed to run command \"$cmd\": $?\n";
+}
+
+sub error {
+    my $file = shift;
+    my $msg = pop;
+    my $pos = pos_str($_[0]);
+    $_[0] =~ / \G (.{0,100}) /gcsx;
+    die "$file: $pos: $msg ($1)\n";
+}
+
+sub encode_pod {
+    my $s = shift;
+    $s =~ s/</E<lt>/g;
+    $s =~ s/>/E<gt>/g;
+    $s =~ s/\&/E<amp>/g;
+    $s =~ s/\|/E<verbar>/g;
+    $s =~ s{/}{E<sol>}g;
+    $s;
+}
+
+sub process_table {
+    my $s = shift;
+    my @rows;
+    my @col_w;
+    while ($s =~ m{ < \s* tr .*? > (.*?) < \s* / \s* tr \s* >}gx) {
+        my $row_s = $1;
+        my @cols;
+        my $col_id = 0;
+        while ($row_s =~ m{< \s* td .*? > (.*?) < \s* / \s* td \s* >}gx) {
+            my $fld = decode_xml($1);
+            push @cols, $fld;
+            my $len = length $fld;
+            my $max_len = $col_w[$col_id];
+            if (!defined $max_len || $len > $max_len) {
+                $col_w[$col_id] = $len;
+            }
+            $col_id++;
+        }
+        push @rows, \@cols;
+    }
+
+    my $pod = "\n";
+    for my $row (@rows) {
+        my @fld_pod;
+        my $i = 0;
+        for my $fld (@$row) {
+            my $len = $col_w[$i];
+            push @fld_pod, sprintf("\%${len}s", $fld);
+            $i++;
+        }
+        $pod .= join("  ", @fld_pod) . "\n";
+    }
+
+    return $pod;
+}
+
+sub decode_xml {
+    my $s = shift;
+    $s =~ s/\&quot;/"/g;
+    $s =~ s/\&amp;/&/g;
+    $s =~ s/\&apos;/'/g;
+    $s =~ s/\&lt;/</g;
+    $s =~ s/\&gt;/>/g;
+    $s;
+}
+
+sub parse_attrs {
+    my $s = shift;
+    my %kv;
+    while ($s =~ / (\w+) \s* = \s* " (.*?) " /gx) {
+        my ($k, $v) = ($1, $2);
+        $kv{$k} = decode_xml($v);
+    }
+    return \%kv;
+}
+
+sub pos_str {
+    my $pos = pos $_[0];
+    my ($ln, $col);
+    if (!defined $pos) {
+        $pos = 0;
+        $ln = 1;
+        $col = 1;
+
+    } else {
+        my $s = substr $_[0], 0, $pos;
+        $ln = 1;
+        while ($s =~ /\n/gc) {
+            $ln++;
+        }
+        $s =~ /\G (.*) /gcx;
+        $col = 1 + length $1;
+    }
+
+    return "pos $pos, line $ln, col $col";
+}

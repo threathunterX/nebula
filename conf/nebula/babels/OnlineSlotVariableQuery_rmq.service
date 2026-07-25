@@ -1,0 +1,13 @@
+{
+  "name": "online_slot_variablequery",
+  "callmode": "rpc",
+  "delivermode": "shuffle",
+  "serverimpl": "rmq",
+  "coder": "mail",
+  "options": {
+    "serversubname": "online",
+    "cdc": "sh",
+    "sdc": "sh",
+    "servercardinality": 1
+  }
+}

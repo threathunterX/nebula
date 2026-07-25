@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <style>
+
+    html,
+    body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+  </style>
+  <title>Nebula 告警</title>
+</head>
+<body>
+
+  <div
+    style="width: 100%;height:100%;background-color: #eee;font-size: 14px;color: #121212;overflow: auto;padding-bottom: 90px;box-sizing: border-box;">
+
+    <header style="text-align: center;margin: 40px 0 23px;height: 24px;">
+    </header>
+
+    <div style="width: 920px;min-height: 440px;background-color: #fff;margin: auto;padding: 30px 60px 150px;
+          position: relative;box-sizing: border-box;font-size: 14px;color: #121212;">
+      <div style="padding-bottom: 9px;border-bottom: 1px solid #e5e5e5;line-height: 20px;margin-bottom: 20px;">
+        <div style="font-family: HelveticaNeue-Medium;margin-bottom: 4px;">Nebula 告警</div>
+        <p style="font-family: HelveticaNeue;color: #666666;margin: 0"> 时间段: {{fromtime}} ~ {{endtime}} </p>
+      </div>
+      {% for scene_dict in scenes %}
+        <div style="line-height: 20px;font-family: PingFangSC-Regular;margin-top: 30px;">
+        <h4
+          style="line-height: 21px;margin: 0;font-weight: normal;padding: 1px 8px;color: #fff;display: inline-block;border-radius: 2px;background: #BF2E38;">
+           {{ scene_dict['scene'] }} </h4>          
+           {# pages in scene #}
+           {% for page_dict in scene_dict["pages"] %}
+             <div style="margin-top: 24px;">
+               <div style="height: 24px;padding-bottom: 6px;border-bottom: 1px solid #E5E5E5;margin-bottom: 8px;">
+                 <i
+                    style="display: inline-block;width: 4px;height: 100%;background-color: #06C2FA;margin-right: 8px;vertical-align: top;"></i>
+                    <span style="line-height: 24px;">页面：{{ page_dict['page'] }}</span>
+               </div>
+               {% for dimension_dict in page_dict["dimensions"] %}
+                 <h3 style="margin: 8px 0;color: #999999;font-family: PingFangSC-Semibold;font-size: 12px;font-weight: normal;">风险{{ dimension_dict['dimension'] }}维度规则</h3>
+                 <div style="border: 1px solid #D8D8D8;">
+                   {% for strategy_dict in dimension_dict["strategies"] %}
+                     <div style="font-size: 13px;background-color: #D8D8D8;overflow: hidden;padding: 6px 0;margin-bottom: 6px;font-family: PingFangSC-Medium;">
+                       <div style="float: left;width: 50%;padding-left: 9px;box-sizing: border-box;">
+                         <span style="display: inline-block;">规则名称:{{ strategy_dict['strategy'] }}</span>
+                         {# strategy tags #}
+                         <div style="display: inline-block;vertical-align: top;">
+                           {% for tag in strategy_dict["tags"] %}
+                             <label
+                                style="font-size: 12px;color: #fff;float: left;padding: 1px 8px;line-height: 18px;background-color: #999;border-radius: 10px;margin-left: 4px;">{{ tag }}</label>
+                              {% endfor %}
+                         </div>
+                       </div>
+                       {# strategy remark #}
+                       <div style="float: left;width: 50%;padding-left: 9px;box-sizing: border-box;">
+                         <span>规则简介:{{ strategy_dict["remark"] }}</span>
+                       </div>
+                     </div>
+                     <div style="padding: 0 12px;line-height: 20px;margin-bottom: 4px;">
+                       <table style="font-size: 12px;border-collapse: collapse;width: 100%;">
+                         <thead>
+                           <tr style="font-weight: bold;">
+                             <td style="width: 80px;padding: 6px 4px;">命中时间</td>
+                             <td style="padding: 6px 4px;">黑名单</td>
+                           </tr>
+                         </thead>
+                         <tbody>
+                           {% for hour_dict in strategy_dict["hours"] %}
+                             <tr style="vertical-align: top;border-top: 1px solid #D8D8D8;">
+                               <td style="padding: 6px 4px;font-family: HelveticaNeue;font-size: 13px;color: #666666;">{{ hour_dict['hour'] }}</td>
+                               <td style="color: #666666;padding: 6px 4px;">
+                                 {% for key in hour_dict["keys"] %}
+                                   <span style="margin-right: 16px;float: left;word-break: break-all;">{{ key }}&nbsp;&nbsp;</span>
+                                 {% endfor %}
+                               </td>
+                             </tr>
+                           {% endfor %}
+                         </tbody>
+                       </table>
+                     </div>                          
+                   {% endfor %}
+                 </div>
+                {% endfor %}
+              </div>
+            {% endfor %}
+          </div>
+        {% endfor %}
+
+      <div
+        style="position: absolute;left: 0;bottom: 30px;width: 100%;height: 53px;padding: 0 60px;box-sizing: border-box;">
+        <a href="http://www.threathunter.cn" target="_blank"
+           style="vertical-align: top;line-height: 53px;font-family: HelveticaNeue-Bold;color: #666666;opacity: 0.8;letter-spacing: 2px;text-decoration: none;">Threathunter.cn</a>
+        <img style="float: right;"
+             src="data:image/png;base64,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"
+             alt="threathunter" />
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

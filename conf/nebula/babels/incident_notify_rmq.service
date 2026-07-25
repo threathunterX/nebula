@@ -1,0 +1,13 @@
+{
+    "name": "incident_notify",
+    "callmode": "notify",
+    "delivermode": "topic",
+    "serverimpl": "rabbitmq",
+    "coder": "mail",
+    "options": {
+        "serversubname": "offline",
+        "servercardinality": 1,
+        "sdc":"sh",
+        "cdc":"sh"
+    }
+}

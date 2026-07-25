@@ -1,0 +1,513 @@
+=encoding utf-8
+
+
+=head1 Name
+
+ngx.ssl - Lua API for controlling NGINX downstream SSL handshakes
+
+
+=head1 Status
+
+This Lua module is currently considered experimental.
+
+
+=head1 Synopsis
+
+
+    # Note: you do not need the following line if you are using
+    # OpenResty 1.9.7.2+.
+    lua_package_path "/path/to/lua-resty-core/lib/?.lua;;";
+    
+    server {
+        listen 443 ssl;
+        server_name   test.com;
+    
+        # useless placeholders: just to shut up NGINX configuration
+        # loader errors:
+        ssl_certificate /path/to/fallback.crt;
+        ssl_certificate_key /path/to/fallback.key;
+    
+        ssl_certificate_by_lua_block {
+            local ssl = require "ngx.ssl"
+    
+            -- clear the fallback certificates and private keys
+            -- set by the ssl_certificate and ssl_certificate_key
+            -- directives above:
+            local ok, err = ssl.clear_certs()
+            if not ok then
+                ngx.log(ngx.ERR, "failed to clear existing (fallback) certificates")
+                return ngx.exit(ngx.ERROR)
+            end
+    
+            -- assuming the user already defines the my_load_certificate_chain()
+            -- herself.
+            local pem_cert_chain = assert(my_load_certificate_chain())
+    
+            local der_cert_chain, err = ssl.cert_pem_to_der(pem_cert_chain)
+            if not der_cert_chain then
+                ngx.log(ngx.ERR, "failed to convert certificate chain ",
+                        "from PEM to DER: ", err)
+                return ngx.exit(ngx.ERROR)
+            end
+    
+            local ok, err = ssl.set_der_cert(der_cert_chain)
+            if not ok then
+                ngx.log(ngx.ERR, "failed to set DER cert: ", err)
+                return ngx.exit(ngx.ERROR)
+            end
+    
+            -- assuming the user already defines the my_load_private_key()
+            -- function herself.
+            local der_pkey = assert(my_load_private_key())
+    
+            local ok, err = ssl.set_der_priv_key(der_pkey)
+            if not ok then
+                ngx.log(ngx.ERR, "failed to set DER private key: ", err)
+                return ngx.exit(ngx.ERROR)
+            end
+        }
+    
+        location / {
+            root html;
+        }
+    }
+
+
+=head1 Description
+
+This Lua module provides API functions to control the SSL handshake process in contexts like
+L<ssl_certificate_by_lua*|https://github.com/openresty/lua-nginx-module/#ssl_certificate_by_lua_block>
+(of the L<ngx_lua|https://github.com/openresty/lua-nginx-module#readme> module).
+
+For web servers serving many (like millions of) https sites, it is often desired to lazily
+load and cache the SSL certificate chain and private key data for the https sites actually
+being served by a particular server. This Lua module provides API to support such use cases
+in the context of the L<ssl_certificate_by_lua*|https://github.com/openresty/lua-nginx-module/#ssl_certificate_by_lua_block>
+directive.
+
+To load the C<ngx.ssl> module in Lua, just write
+
+
+    local ssl = require "ngx.ssl"
+
+
+
+
+=head1 Methods
+
+
+=head2 clear_certs
+
+B<syntax:> I<ok, err = ssl.clear_certs()>
+
+B<context:> I<ssl_certificate_by_luaE<42>>
+
+Clears any existing SSL certificates and/or private keys set on the current SSL connection.
+
+Returns C<true> on success, or a C<nil> value and a string describing the error otherwise.
+
+
+
+
+=head2 cert_pem_to_der
+
+B<syntax:> I<der_cert_chain, err = ssl.cert_pem_to_der(pem_cert_chain)>
+
+B<context:> I<any>
+
+Converts the PEM-formatted SSL certificate chain data into the DER format (for later uses
+in the L<set_der_cert>
+function, for example).
+
+In case of failures, returns C<nil> and a string describing the error.
+
+It is known that the C<openssl> command-line utility may not convert the whole SSL
+certificate chain from PEM to DER correctly. So always use this Lua function to do
+the conversion. You can always use libraries like L<lua-resty-lrucache|https://github.com/openresty/lua-resty-lrucache#readme>
+and/or ngx_lua APIs like L<lua_shared_dict|https://github.com/openresty/lua-nginx-module#lua_shared_dict>
+to do the caching of the DER-formatted results, for example.
+
+This function can be called in whatever contexts.
+
+
+
+
+=head2 set_der_cert
+
+B<syntax:> I<ok, err = ssl.set_der_cert(der_cert_chain)>
+
+B<context:> I<ssl_certificate_by_luaE<42>>
+
+Sets the DER-formatted SSL certificate chain data for the current SSL connection. Note that
+the DER data is
+directly in the Lua string argument. I<No> external file names are supported here.
+
+Returns C<true> on success, or a C<nil> value and a string describing the error otherwise.
+
+Note that, the SSL certificate chain is usually encoded in the PEM format. So you need
+to use the L<cert_pem_to_der>
+function to do the conversion first.
+
+
+
+
+=head2 priv_key_pem_to_der
+
+B<syntax:> I<der_priv_key, err = ssl.priv_key_pem_to_der(pem_priv_key)>
+
+B<context:> I<any>
+
+Converts the PEM-formatted SSL private key data into the DER format (for later uses
+in the L<set_der_priv_key>
+function, for example).
+
+In case of failures, returns C<nil> and a string describing the error.
+
+Alternatively, you can do the PEM to DER conversion I<offline> with the C<openssl> command-line utility, like below
+
+
+    openssl rsa -in key.pem -outform DER -out key.der
+
+This function can be called in whatever contexts.
+
+
+
+
+=head2 set_der_priv_key
+
+B<syntax:> I<ok, err = ssl.set_der_priv_key(der_cert_chain)>
+
+B<context:> I<ssl_certificate_by_luaE<42>>
+
+Sets the DER-formatted prviate key for the current SSL connection.
+
+Returns C<true> on success, or a C<nil> value and a string describing the error otherwise.
+
+Usually, the private keys are encoded in the PEM format. You can either use the
+L<priv_key_pem_to_der> function
+to do the PEM to DER conversion or just use
+the C<openssl> command-line utility offline, like below
+
+
+    openssl rsa -in key.pem -outform DER -out key.der
+
+
+
+
+=head2 server_name
+
+B<syntax:> I<name, err = ssl.server_name()>
+
+B<context:> I<any>
+
+Returns the TLS SNI (Server Name Indication) name set by the client. Returns C<nil>
+when the client does not set it.
+
+In case of failures, it returns C<nil> I<and> a string describing the error.
+
+Usually we use this SNI name as the domain name (like C<www.openresty.org>) to
+identify the current web site while loading the corresponding SSL certificate
+chain and private key for the site.
+
+Please note that not all https clients set the SNI name, so when the SNI name is
+missing from the client handshake request, we use the server IP address accessed
+by the client to identify the site. See the L<raw_server_addr> method
+for more details.
+
+This function can be called in whatever contexts where downstream https is used.
+
+
+
+
+=head2 raw_server_addr
+
+B<syntax:> I<addr_data, addr_type, err = ssl.raw_server_addr()>
+
+B<context:> I<any>
+
+Returns the raw server address actually accessed by the client in the current SSL connection.
+
+The first two return values are strings representing the address data and the address type, respectively.
+The address values are interpreted differently according to the address type values:
+
+
+=over
+
+
+=item *
+
+C<unix>
+: The address data is a file path for the UNIX domain socket.
+
+=item *
+
+C<inet>
+: The address data is a binary IPv4 address of 4 bytes long.
+
+=item *
+
+C<inet6>
+: The address data is a binary IPv6 address of 16 bytes long.
+
+
+=back
+
+Returns two C<nil> values and a Lua string describing the error.
+
+The following code snippet shows how to print out the UNIX domain socket address and
+the IPv4 address as human-readable strings:
+
+
+    local ssl = require "ngx.ssl"
+    local byte = string.byte
+    
+    local addr, addrtyp, err = ssl.raw_server_addr()
+    if not addr then
+        ngx.log(ngx.ERR, "failed to fetch raw server addr: ", err)
+        return
+    end
+    
+    if addrtyp == "inet" then  -- IPv4
+        ip = string.format("%d.%d.%d.%d", byte(addr, 1), byte(addr, 2),
+                           byte(addr, 3), byte(addr, 4))
+        print("Using IPv4 address: ", ip)
+    
+    elseif addrtyp == "unix" then  -- UNIX
+        print("Using unix socket file ", addr)
+    
+    else  -- IPv6
+        -- leave as an exercise for the readers
+    end
+
+This function can be called in whatever contexts where downstream https is used.
+
+
+
+
+=head2 get_tls1_version
+
+B<syntax:> I<ver, err = ssl.get_tls1_version()>
+
+B<context:> I<any>
+
+Returns the TLS 1.x version number used by the current SSL connection. Returns C<nil> and
+a string describing the error otherwise.
+
+Typical return values are
+
+
+=over
+
+
+=item *
+
+C<SSLv3>
+
+=item *
+
+C<TLSv1>
+
+=item *
+
+C<TLSv1.1>
+
+=item *
+
+C<TLSv1.2>
+
+
+=back
+
+This function can be called in whatever contexts where downstream https is used.
+
+
+
+
+=head2 parse_pem_cert
+
+B<syntax:> I<cert_chain, err = ssl.parse_pem_cert(pem_cert_chain)>
+
+B<context:> I<any>
+
+Converts the PEM-formated SSL certificate chain data into an opaque cdata pointer (for later uses
+in the L<set_cert>
+function, for example).
+
+In case of failures, returns C<nil> and a string describing the error.
+
+You can always use libraries like L<lua-resty-lrucache|https://github.com/openresty/lua-resty-lrucache#readme>
+to cache the cdata result.
+
+This function can be called in whatever contexts.
+
+This function was first added in version C<0.1.7>.
+
+
+
+
+=head2 parse_pem_priv_key
+
+B<syntax:> I<priv_key, err = ssl.parse_pem_priv_key(pem_priv_key)>
+
+B<context:> I<any>
+
+Converts the PEM-formatted SSL private key data into an opaque cdata pointer (for later uses
+in the L<set_priv_key>
+function, for example).
+
+In case of failures, returns C<nil> and a string describing the error.
+
+This function can be called in whatever contexts.
+
+This function was first added in version C<0.1.7>.
+
+
+
+
+=head2 set_cert
+
+B<syntax:> I<ok, err = ssl.set_cert(cert_chain)>
+
+B<context:> I<ssl_certificate_by_luaE<42>>
+
+Sets the SSL certificate chain opaque pointer returned by the
+L<parse_pem_cert> function for the current SSL connection.
+
+Returns C<true> on success, or a C<nil> value and a string describing the error otherwise.
+
+This function was first added in version C<0.1.7>.
+
+
+
+
+=head2 set_priv_key
+
+B<syntax:> I<ok, err = ssl.set_priv_key(priv_key)>
+
+B<context:> I<ssl_certificate_by_luaE<42>>
+
+Sets the SSL private key opaque pointer returned by the
+L<parse_pem_priv_key> function for the current SSL connection.
+
+Returns C<true> on success, or a C<nil> value and a string describing the error otherwise.
+
+This function was first added in version C<0.1.7>.
+
+
+
+
+=head1 Community
+
+
+
+
+=head2 English Mailing List
+
+The L<openresty-en|https://groups.google.com/group/openresty-en> mailing list is for English speakers.
+
+
+
+
+=head2 Chinese Mailing List
+
+The L<openresty|https://groups.google.com/group/openresty> mailing list is for Chinese speakers.
+
+
+
+
+=head1 Bugs and Patches
+
+Please report bugs or submit patches by
+
+
+=over
+
+
+=item 1.
+
+creating a ticket on the L<GitHub Issue Tracker|https://github.com/openresty/lua-resty-core/issues>,
+
+=item 2.
+
+or posting to the L<OpenResty community>.
+
+
+=back
+
+
+
+
+=head1 Author
+
+Yichun Zhang E<lt>agentzh@gmail.comE<gt> (agentzh), OpenResty Inc.
+
+
+
+
+=head1 Copyright and License
+
+This module is licensed under the BSD license.
+
+Copyright (C) 2015-2017, by Yichun "agentzh" Zhang, OpenResty Inc.
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+
+=back
+
+
+=over
+
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+the ngx_lua module: https://github.com/openresty/lua-nginx-module
+
+=item *
+
+the L<ngx.ocsp|ocsp.md> module.
+
+=item *
+
+the L<ssl_certificate_by_lua*|https://github.com/openresty/lua-nginx-module/#ssl_certificate_by_lua_block> directive.
+
+=item *
+
+library L<lua-resty-core|https://github.com/openresty/lua-resty-core>
+
+=item *
+
+OpenResty: http://openresty.org
+
+
+=back
+
+

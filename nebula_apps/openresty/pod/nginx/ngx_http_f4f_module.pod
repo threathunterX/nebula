@@ -1,0 +1,115 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_f4f_module - Module ngx_http_f4f_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_f4f_module> module provides
+server-side support for Adobe HTTP Dynamic Streaming (HDS).
+
+
+
+
+
+This module implements handling of HTTP Dynamic Streaming requests in the
+“C<E<sol>videoSeg1-Frag1>” form — extracting the needed fragment
+from the F<videoSeg1.f4f> file using the F<videoSeg1.f4x>
+index file.
+This module is an alternative to the Adobe’s f4f module (HTTP Origin Module)
+for Apache.
+
+
+
+
+
+Usual pre-processing with Adobe’s f4fpackager is required, see relevant
+documentation for details.
+
+
+
+
+
+
+B<NOTE>
+
+This module is available as part of our
+commercial subscription.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location /video/ {
+        f4f;
+        ...
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 f4f
+
+
+
+
+B<context:> I<location>
+
+
+
+
+
+Turns on module processing in the surrounding location.
+
+
+
+
+
+
+
+=head2 f4f_buffer_size
+
+
+B<syntax:> f4f_buffer_size I<I<C<size>>>
+
+
+B<default:> I<512k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the I<C<size>> of the buffer used for
+reading the F<.f4x> index file.
+
+
+
+
+
+
+

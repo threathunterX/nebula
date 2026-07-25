@@ -1,0 +1,12 @@
+{
+    "name": "incident_notify",
+    "callmode": "notify",
+    "delivermode": "topic",
+    "serverimpl": "redis",
+    "coder": "mail",
+    "options": {
+        "serversubname": "web",
+        "sdc":"nebula",
+        "cdc":"nebula"
+    }
+}

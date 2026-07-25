@@ -1,0 +1,13 @@
+{
+  "name": "offline_slot_variablequery",
+  "callmode": "rpc",
+  "delivermode": "shuffle",
+  "serverimpl": "redis",
+  "coder": "mail",
+  "options": {
+    "serversubname": "online",
+    "cdc": "sh",
+    "sdc": "sh",
+    "servercardinality": 1
+  }
+}

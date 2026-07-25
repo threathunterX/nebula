@@ -1,0 +1,700 @@
+=encoding utf-8
+
+
+=head1 Name
+
+lua-resty-dns - Lua DNS resolver for the ngx_lua based on the cosocket API
+
+
+=head1 Status
+
+This library is considered production ready.
+
+
+=head1 Description
+
+This Lua library provies a DNS resolver for the ngx_lua nginx module:
+
+https://github.com/openresty/lua-nginx-module/#readme
+
+This Lua library takes advantage of ngx_lua's cosocket API, which ensures
+100% nonblocking behavior.
+
+Note that at least L<ngx_lua 0.5.12|https://github.com/openresty/lua-nginx-module/tags> or L<OpenResty 1.2.1.11|http://openresty.org/#Download> is required.
+
+Also, the L<bit library|http://bitop.luajit.org/> is also required. If you're using LuaJIT 2.0 with ngx_lua, then the C<bit> library is already available by default.
+
+Note that, this library is bundled and enabled by default in the L<OpenResty bundle|http://openresty.org/>.
+
+IMPORTANT: to be able generate unique ids, the random generator must be properly seeded using C<math.randomseed> prior to using this module.
+
+
+=head1 Synopsis
+
+
+    lua_package_path "/path/to/lua-resty-dns/lib/?.lua;;";
+    
+    server {
+        location = /dns {
+            content_by_lua_block {
+                local resolver = require "resty.dns.resolver"
+                local r, err = resolver:new{
+                    nameservers = {"8.8.8.8", {"8.8.4.4", 53} },
+                    retrans = 5,  -- 5 retransmissions on receive timeout
+                    timeout = 2000,  -- 2 sec
+                }
+    
+                if not r then
+                    ngx.say("failed to instantiate the resolver: ", err)
+                    return
+                end
+    
+                local answers, err = r:query("www.google.com")
+                if not answers then
+                    ngx.say("failed to query the DNS server: ", err)
+                    return
+                end
+    
+                if answers.errcode then
+                    ngx.say("server returned error code: ", answers.errcode,
+                            ": ", answers.errstr)
+                end
+    
+                for i, ans in ipairs(answers) do
+                    ngx.say(ans.name, " ", ans.address or ans.cname,
+                            " type:", ans.type, " class:", ans.class,
+                            " ttl:", ans.ttl)
+                end
+            }
+        }
+    }
+
+
+
+
+=head1 Methods
+
+
+
+
+=head2 new
+
+C<syntax: r, err = class:new(opts)>
+
+Creates a dns.resolver object. Returns C<nil> and an message string on error.
+
+It accepts a C<opts> table argument. The following options are supported:
+
+
+=over
+
+
+=item *
+
+C<nameservers>
+
+
+=back
+
+a list of nameservers to be used. Each nameserver entry can be either a single hostname string or a table holding both the hostname string and the port number. The nameserver is picked up by a simple round-robin algorithm for each C<query> method call. This option is required.
+
+=over
+
+
+=item *
+
+C<retrans>
+
+
+=back
+
+the total number of times of retransmitting the DNS request when receiving a DNS response times out according to the C<timeout> setting. Defaults to C<5> times. When trying to retransmit the query, the next nameserver according to the round-robin algorithm will be picked up.
+
+=over
+
+
+=item *
+
+C<timeout>
+
+
+=back
+
+the time in milliseconds for waiting for the respond for a single attempt of request transmition. note that this is ''not'' the maximal total waiting time before giving up, the maximal total waiting time can be calculated by the expression C<timeout x retrans>. The C<timeout> setting can also be changed by calling the C<set_timeout> method. The default C<timeout> setting is 2000 milliseconds, or 2 seconds.
+
+=over
+
+
+=item *
+
+C<no_recurse>
+
+
+=back
+
+a boolean flag controls whether to disable the "recursion desired" (RD) flag in the UDP request. Defaults to C<false>.
+
+
+
+
+=head2 query
+
+C<syntax: answers, err = r:query(name, options?)>
+
+Performs a DNS standard query to the nameservers specified by the C<new> method,
+and returns all the answer records in an array-like Lua table. In case of errors, it will
+return C<nil> and a string describing the error instead.
+
+If the server returns a non-zero error code, the fields C<errcode> and C<errstr> will be set accordingly in the Lua table returned.
+
+Each entry in the C<answers> returned table value is also a hash-like Lua table
+which usually takes some of the following fields:
+
+
+=over
+
+
+=item *
+
+C<name>
+
+
+=back
+
+The resource record name.
+
+=over
+
+
+=item *
+
+C<type>
+
+
+=back
+
+The current resource record type, possible values are C<1> (C<TYPE_A>), C<5> (C<TYPE_CNAME>), C<28> (C<TYPE_AAAA>), and any other values allowed by RFC 1035.
+
+=over
+
+
+=item *
+
+C<address>
+
+
+=back
+
+The IPv4 or IPv6 address in their textual representations when the resource record type is either C<1> (C<TYPE_A>) or C<28> (C<TYPE_AAAA>), respectively. Secussesive 16-bit zero groups in IPv6 addresses will not be compressed by default, if you want that, you need to call the C<compress_ipv6_addr> static method instead.
+
+=over
+
+
+=item *
+
+C<section>
+
+
+=back
+
+The identifier of the section that the current answer record belongs to. Possible values are C<1> (C<SECTION_AN>), C<2> (C<SECTION_NS>), and C<3> (C<SECTION_AR>).
+
+=over
+
+
+=item *
+
+C<cname>
+
+
+=back
+
+The (decoded) record data value for C<CNAME> resource records. Only present for C<CNAME> records.
+
+=over
+
+
+=item *
+
+C<ttl>
+
+
+=back
+
+The time-to-live (TTL) value in seconds for the current resource record.
+
+=over
+
+
+=item *
+
+C<class>
+
+
+=back
+
+The current resource record class, possible values are C<1> (C<CLASS_IN>) or any other values allowed by RFC 1035.
+
+=over
+
+
+=item *
+
+C<preference>
+
+
+=back
+
+The preference integer number for C<MX> resource records. Only present for C<MX> type records.
+
+=over
+
+
+=item *
+
+C<exchange>
+
+
+=back
+
+The exchange domain name for C<MX> resource records. Only present for C<MX> type records.
+
+=over
+
+
+=item *
+
+C<nsdname>
+
+
+=back
+
+A domain-name which specifies a host which should be authoritative for the specified class and domain. Usually present for C<NS> type records.
+
+=over
+
+
+=item *
+
+C<rdata>
+
+
+=back
+
+The raw resource data (RDATA) for resource records that are not recognized.
+
+=over
+
+
+=item *
+
+C<txt>
+
+
+=back
+
+The record value for C<TXT> records. When there is only one character string in this record, then this field takes a single Lua string. Otherwise this field takes a Lua table holding all the strings.
+
+=over
+
+
+=item *
+
+C<ptrdname>
+
+
+=back
+
+The record value for C<PTR> records.
+
+This method also takes an optional C<options> argument table, which takes the following fields:
+
+
+=over
+
+
+=item *
+
+C<qtype>
+
+
+=back
+
+The type of the question. Possible values are C<1> (C<TYPE_A>), C<5> (C<TYPE_CNAME>), C<28> (C<TYPE_AAAA>), or any other QTYPE value specified by RFC 1035 and RFC 3596. Default to C<1> (C<TYPE_A>).
+
+=over
+
+
+=item *
+
+C<authority_section>
+
+
+=back
+
+When set to a true value, the C<answers> return value includes the C<Authority> section of the DNS response. Default to C<false>.
+
+=over
+
+
+=item *
+
+C<additional_section>
+
+
+=back
+
+When set to a true value, the C<answers> return value includes the C<Additional> section of the DNS response. Default to C<false>.
+
+When data truncation happens, the resolver will automatically retry using the TCP transport mode
+to query the current nameserver. All TCP connections are short lived.
+
+
+
+
+=head2 tcp_query
+
+C<syntax: answers, err = r:tcp_query(name, options?)>
+
+Just like the C<query> method, but enforce the TCP transport mode instead of UDP.
+
+All TCP connections are short lived.
+
+Here is an example:
+
+
+        local resolver = require "resty.dns.resolver"
+    
+        local r, err = resolver:new{
+            nameservers = { "8.8.8.8" }
+        }
+        if not r then
+            ngx.say("failed to instantiate resolver: ", err)
+            return
+        end
+    
+        local ans, err = r:tcp_query("www.google.com", { qtype = r.TYPE_A })
+        if not ans then
+            ngx.say("failed to query: ", err)
+            return
+        end
+    
+        local cjson = require "cjson"
+        ngx.say("records: ", cjson.encode(ans))
+
+
+
+
+=head2 set_timeout
+
+C<syntax: r:set_timeout(time)>
+
+Overrides the current C<timeout> setting by the C<time> argument in milliseconds for all the nameserver peers.
+
+
+
+
+=head2 compress_ipv6_addr
+
+C<syntax: compressed = resty.dns.resolver.compress_ipv6_addr(address)>
+
+Compresses the successive 16-bit zero groups in the textual format of the IPv6 address.
+
+For example,
+
+
+        local resolver = require "resty.dns.resolver"
+        local compress = resolver.compress_ipv6_addr
+        local new_addr = compress("FF01:0:0:0:0:0:0:101")
+
+will yield C<FF01::101> in the C<new_addr> return value.
+
+
+
+
+=head2 expand_ipv6_addr
+
+C<syntax: expanded = resty.dns.resolver.expand_ipv6_addr(address)>
+
+Expands the successive 16-bit zero groups in the textual format of the IPv6 address.
+
+For example,
+
+
+        local resolver = require "resty.dns.resolver"
+        local expand = resolver.expand_ipv6_addr
+        local new_addr = expand("FF01::101")
+
+will yield C<FF01:0:0:0:0:0:0:101> in the C<new_addr> return value.
+
+
+
+
+=head2 arpa_str
+
+C<syntax: arpa_record = resty.dns.resolver.arpa_str(address)>
+
+Generates the reverse domain name for PTR lookups for both IPv4 and IPv6 addresses. Compressed IPv6 addresses
+will be automatically expanded.
+
+For example,
+
+
+        local resolver = require "resty.dns.resolver"
+        local ptr4 = resolver.arpa_str("1.2.3.4")
+        local ptr6 = resolver.arpa_str("FF01::101")
+
+will yield C<4.3.2.1.in-addr.arpa> for C<ptr4> and C<1.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.1.0.F.F.ip6.arpa> for C<ptr6>.
+
+
+
+
+=head2 reverse_query
+
+C<syntax: answers, err = r:reverse_query(address)>
+
+Performs a PTR lookup for both IPv4 and IPv6 addresses. This function is basically a wrapper for the C<query> command
+which uses the C<arpa_str> command to convert the IP address on the fly.
+
+
+
+
+=head1 Constants
+
+
+
+
+=head2 TYPE_A
+
+The C<A> resource record type, equal to the decimal number C<1>.
+
+
+
+
+=head2 TYPE_NS
+
+The C<NS> resource record type, equal to the decimal number C<2>.
+
+
+
+
+=head2 TYPE_CNAME
+
+The C<CNAME> resource record type, equal to the decimal number C<5>.
+
+
+
+
+=head2 TYPE_PTR
+
+The C<PTR> resource record type, equal to the decimal number C<12>.
+
+
+
+
+=head2 TYPE_MX
+
+The C<MX> resource record type, equal to the decimal number C<15>.
+
+
+
+
+=head2 TYPE_TXT
+
+The C<TXT> resource record type, equal to the decimal number C<16>.
+
+
+
+
+=head2 TYPE_AAAA
+
+C<syntax: typ = r.TYPE_AAAA>
+
+The C<AAAA> resource record type, equal to the decimal number C<28>.
+
+
+
+
+=head2 TYPE_SRV
+
+C<syntax: typ = r.TYPE_SRV>
+
+The C<SRV> resource record type, equal to the decimal number C<33>.
+
+See RFC 2782 for details.
+
+
+
+
+=head2 TYPE_SPF
+
+C<syntax: typ = r.TYPE_SPF>
+
+The C<SPF> resource record type, equal to the decimal number C<99>.
+
+See RFC 4408 for details.
+
+
+
+
+=head2 CLASS_IN
+
+C<syntax: class = r.CLASS_IN>
+
+The C<Internet> resource record type, equal to the decimal number C<1>.
+
+
+
+
+=head2 SECTION_AN
+
+C<syntax: stype = r.SECTION_AN>
+
+Identifier of the C<Answer> section in the DNS response. Equal to decimal number C<1>.
+
+
+=head2 SECTION_NS
+
+C<syntax: stype = r.SECTION_NS>
+
+Identifier of the C<Authority> section in the DNS response. Equal to the decimal number C<2>.
+
+
+=head2 SECTION_AR
+
+C<syntax: stype = r.SECTION_AR>
+
+Idnetifier of the C<Additional> section in the DNS response. Equal to the decimal number C<3>.
+
+
+=head1 Automatic Error Logging
+
+By default the underlying L<ngx_lua|https://github.com/openresty/lua-nginx-module/#readme> module
+does error logging when socket errors happen. If you are already doing proper error
+handling in your own Lua code, then you are recommended to disable this automatic error logging by turning off L<ngx_lua|https://github.com/openresty/lua-nginx-module/#readme>'s L<lua_socket_log_errors|https://github.com/openresty/lua-nginx-module/#lua_socket_log_errors> directive, that is,
+
+
+        lua_socket_log_errors off;
+
+
+
+
+=head1 Limitations
+
+
+=over
+
+
+=item *
+
+This library cannot be used in code contexts like set_by_luaI<, log_by_lua>, and
+header_filter_by_lua* where the ngx_lua cosocket API is not available.
+
+=item *
+
+The C<resty.dns.resolver> object instance cannot be stored in a Lua variable at the Lua module level,
+because it will then be shared by all the concurrent requests handled by the same nginx
+worker process (see
+https://github.com/openresty/lua-nginx-module/#data-sharing-within-an-nginx-worker ) and
+result in bad race conditions when concurrent requests are trying to use the same C<resty.dns.resolver> instance.
+You should always initiate C<resty.dns.resolver> objects in function local
+variables or in the C<ngx.ctx> table. These places all have their own data copies for
+each request.
+
+
+=back
+
+
+
+
+=head1 TODO
+
+
+=over
+
+
+=item *
+
+Concurrent (or parallel) query mode
+
+=item *
+
+Better support for other resource record types like C<TLSA>.
+
+
+=back
+
+
+
+
+=head1 Author
+
+Yichun "agentzh" Zhang (章亦春) E<lt>agentzh@gmail.comE<gt>, CloudFlare Inc.
+
+
+
+
+=head1 Copyright and License
+
+This module is licensed under the BSD license.
+
+Copyright (C) 2012-2016, by Yichun "agentzh" Zhang (章亦春) E<lt>agentzh@gmail.comE<gt>, CloudFlare Inc.
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+
+=back
+
+
+=over
+
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+the ngx_lua module: https://github.com/openresty/lua-nginx-module/#readme
+
+=item *
+
+the L<lua-resty-memcached|https://github.com/agentzh/lua-resty-memcached> library.
+
+=item *
+
+the L<lua-resty-redis|https://github.com/agentzh/lua-resty-redis> library.
+
+=item *
+
+the L<lua-resty-mysql|https://github.com/agentzh/lua-resty-mysql> library.
+
+
+=back
+
+
+

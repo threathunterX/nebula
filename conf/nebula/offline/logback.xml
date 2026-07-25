@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <property name="LOG_DIR" value="/data/logs/offline"/>
+  <property name="LOG_FILE_NAME" value="offline.log"/>
+
+  <!-- Output to File and Rotate if it's necessary -->
+  <appender name="ROLLING" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/${LOG_FILE_NAME}</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+      <!-- rollover daily -->
+      <fileNamePattern>${LOG_DIR}/${LOG_FILE_NAME}.%i</fileNamePattern>
+      <minIndex>1</minIndex>
+      <maxIndex>10</maxIndex>
+    </rollingPolicy>
+
+    <triggeringPolicy name="ROLLING" class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+      <maxFileSize>500MB</maxFileSize>
+    </triggeringPolicy>
+
+    <encoder>
+      <pattern>%date [%-5thread] %-5level [%-10logger] %-10msg%n</pattern>
+    </encoder>
+  </appender>
+
+
+  <root level="DEBUG">
+    <appender-ref ref="ROLLING"/>
+  </root>
+</configuration>

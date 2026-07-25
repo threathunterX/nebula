@@ -1,0 +1,342 @@
+=encoding utf-8
+
+
+=head1 Name
+
+xss-nginx-module - Native cross-site scripting support in nginx
+
+
+=head1 Synopsis
+
+
+    # accessing /foo?callback=process gives the response
+    # body "process(...);" (without quotes) where "..."
+    # is the original response body of the /foo location.
+    server {
+        location /foo {
+            # your content handler goes here...
+    
+            xss_get on;
+            xss_callback_arg 'callback';
+            xss_input_types 'application/json'; # default
+            xss_output_type 'application/x-javascript'; # default
+        }
+        ...
+    }
+
+
+=head1 Description
+
+This module adds cross-site AJAX support to nginx. Currently only
+cross-site GET is supported. But cross-site POST will be added
+in the future.
+
+The cross-site GET is currently implemented as JSONP
+(or "JSON with padding"). See http://en.wikipedia.org/wiki/JSON#JSONP
+for more details.
+
+
+=head1 Directives
+
+
+
+
+=head2 xss_get
+
+B<syntax:> I<xss_get on | off>
+
+B<default:> I<xss_get off>
+
+B<context:> I<http, server, location, if location>
+
+Enables JSONP support for GET requests.
+
+
+
+
+=head2 xss_callback_arg
+
+B<syntax:> I<xss_callback_arg E<lt>nameE<gt>>
+
+B<default:> I<none>
+
+B<context:> I<http, http, location, if location>
+
+Specifies the JavaScript callback function name
+used in the responses.
+
+For example,
+
+
+    location /foo {
+        xss_get on;
+        xss_callback_arg c;
+        ...
+    }
+
+then
+
+
+    GET /foo?c=blah
+
+returns
+
+
+    blah(...);
+
+
+
+
+=head2 xss_override_status
+
+B<syntax:> I<xss_override_status on | off>
+
+B<default:> I<xss_check_status on>
+
+B<context:> I<http, server, location, if location>
+
+Specifies whether to override 30x, 40x and 50x status to 200
+when the response is actually being processed.
+
+
+
+
+=head2 xss_check_status
+
+B<syntax:> I<xss_check_status on | off>
+
+B<default:> I<xss_check_status on>
+
+B<context:> I<http, server, location, if location>
+
+By default, ngx_xss only process responses with the status code
+200 or 201.
+
+
+
+
+=head2 xss_input_types
+
+B<syntax:> I<xss_input_types [mime-type]...>
+
+B<default:> I<xss_input_types application/json>
+
+B<context:> I<http, server, location, if location>
+
+Only processes the responses of the specified MIME types.
+
+Example:
+
+
+    xss_input_types application/json text/plain;
+
+
+
+
+=head1 Limitations
+
+
+=over
+
+
+=item *
+
+ngx_xss will not work with L<ngx_echo|https://github.com/openresty/echo-nginx-module>'s
+subrequest interfaces, due to the underlying
+limitations imposed by subrequests' "postponed chain" mechanism in the nginx core.
+The standard ngx_addition module also falls into this category.  You're recommended,
+however, to use L<ngx_lua|https://github.com/openresty/lua-nginx-module> as the content
+handler to issue subrequests I<and> ngx_xss
+to do JSONP, because L<ngx_lua|https://github.com/openresty/lua-nginx-module>'s
+L<ngx.location.capture()|https://github.com/openresty/lua-nginx-module#ngxlocationcapture>
+interface does not utilize the "postponed chain" mechanism, thus getting out of this
+limitation. We're taking this approach in production and it works great.
+
+
+=back
+
+
+
+
+=head1 Trouble Shooting
+
+Use the "info" error log level (or lower) to get more
+diagnostics when things go wrong.
+
+
+
+
+=head1 Installation
+
+You're recommended to install this module (as well as the Nginx core and many other goodies) via the L<ngx_openresty bundle|http://openresty.org>. See L<the detailed instructions|http://openresty.org/#Installation> for downloading and installing ngx_openresty into your system. This is the easiest and most safe way to set things up.
+
+Alternatively, you can install this module manually with the Nginx source:
+
+Grab the nginx source code from L<nginx.org|http://nginx.org/>, for example,
+the version 1.7.10 (see L<nginx compatibility>), and then build the source with this module:
+
+
+     $ wget 'http://nginx.org/download/nginx-1.7.10.tar.gz'
+     $ tar -xzvf nginx-1.7.10.tar.gz
+     $ cd nginx-1.7.10/
+    
+     # Here we assume you would install you nginx under /opt/nginx/.
+     $ ./configure --prefix=/opt/nginx \
+         --add-module=/path/to/rds-json-nginx-module
+    
+     $ make -j2
+     $ make install
+
+Download the latest version of the release tarball of this module from L<xss-nginx-module file list|https://github.com/openresty/xss-nginx-module/tags>.
+
+Also, this module is included and enabled by default in the L<ngx_openresty bundle|http://openresty.org>.
+
+
+
+
+=head1 Compatibility
+
+The following versions of Nginx should work with this module:
+
+
+=over
+
+
+=item *
+
+B<1.7.x> (last tested: 1.7.10)
+
+=item *
+
+B<1.6.x>
+
+=item *
+
+B<1.5.x>
+
+=item *
+
+B<1.4.x> (last tested: 1.4.3)
+
+=item *
+
+B<1.2.x> (last tested: 1.2.9)
+
+=item *
+
+B<1.0.x> (last tested: 1.0.10)
+
+=item *
+
+B<0.9.x> (last tested: 0.9.4)
+
+=item *
+
+B<0.8.x> (last tested: 0.8.54)
+
+=item *
+
+B<0.7.x> E<gt>= 0.7.30 (last tested: 0.7.67)
+
+
+=back
+
+Earlier versions of Nginx like 0.6.x and 0.5.x will I<not> work.
+
+If you find that any particular version of Nginx above 0.7.30 does not
+work with this module, please consider reporting a bug.
+
+
+
+
+=head1 TODO
+
+
+=over
+
+
+=item *
+
+add cross-site POST support.
+
+
+=back
+
+
+
+
+=head1 Author
+
+Yichun "agentzh" Zhang (章亦春) E<lt>agentzh@gmail@comE<gt>
+
+
+
+
+=head1 Copyright & License
+
+The implementation of the builtin connection pool has borrowed
+a lot of code from Maxim Dounin's upstream_keepalive module.
+This part of code is copyrighted by Maxim Dounin.
+
+This module is licenced under the BSD license.
+
+Copyright (C) 2009-2015 by Yichun "agentzh" Zhang (章亦春) E<lt>agentzh@gmail.comE<gt>.
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+L<Introduction to JSONP|http://en.wikipedia.org/wiki/JSONP>
+
+=item *
+
+L<ngx_lua|https://github.com/openresty/lua-nginx-module>
+
+
+=back
+
+
+

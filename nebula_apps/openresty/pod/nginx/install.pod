@@ -1,0 +1,55 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+install - Installing nginx
+
+
+=head1
+
+
+
+nginx can be installed differently, depending on the operating system.
+
+
+
+
+=head1 Installation on Linux
+
+
+
+For Linux, nginx L<packages|linux_packages>
+from nginx.org can be used.
+
+
+
+
+=head1 Installation on FreeBSD
+
+
+
+On FreeBSD, nginx can be installed either from the L<packages|http://www.freebsd.org/doc/handbook/pkgng-intro.html>
+or through the
+L<ports|http://www.freebsd.org/doc/handbook/ports-using.html>
+system.
+The ports system provides greater flexibility, allowing selection among
+a wide range of options.
+The port will compile nginx with the specified options and install it.
+
+
+
+
+=head1 Building from Sources
+
+
+
+If some special functionality is required, not available with packages and
+ports, nginx can also be compiled from source files.
+While more flexible, this approach may be complex for a beginner.
+For more information, see L<configure>.
+
+
+
+

@@ -1,0 +1,615 @@
+=encoding utf-8
+
+
+=head1 Name
+
+B<ngx_headers_more> - Set and clear input and output headers...more than "add"!
+
+I<This module is not distributed with the Nginx source.> See L<the installation instructions>.
+
+
+=head1 Version
+
+This document describes headers-more-nginx-module L<v0.32|https://github.com/openresty/headers-more-nginx-module/tags> released on 4 November 2016.
+
+
+=head1 Synopsis
+
+
+     # set the Server output header
+     more_set_headers 'Server: my-server';
+    
+     # set and clear output headers
+     location /bar {
+         more_set_headers 'X-MyHeader: blah' 'X-MyHeader2: foo';
+         more_set_headers -t 'text/plain text/css' 'Content-Type: text/foo';
+         more_set_headers -s '400 404 500 503' -s 413 'Foo: Bar';
+         more_clear_headers 'Content-Type';
+    
+         # your proxy_pass/memcached_pass/or any other config goes here...
+     }
+    
+     # set output headers
+     location /type {
+         more_set_headers 'Content-Type: text/plain';
+         # ...
+     }
+    
+     # set input headers
+     location /foo {
+         set $my_host 'my dog';
+         more_set_input_headers 'Host: $my_host';
+         more_set_input_headers -t 'text/plain' 'X-Foo: bah';
+    
+         # now $host and $http_host have their new values...
+         # ...
+     }
+    
+     # replace input header X-Foo *only* if it already exists
+     more_set_input_headers -r 'X-Foo: howdy';
+
+
+=head1 Description
+
+This module allows you to add, set, or clear any output
+or input header that you specify.
+
+This is an enhanced version of the standard
+L<headers|http://nginx.org/en/docs/http/ngx_http_headers_module.html> module because it provides more utilities like
+resetting or clearing "builtin headers" like C<Content-Type>,
+C<Content-Length>, and C<Server>.
+
+It also allows you to specify an optional HTTP status code
+criteria using the C<-s> option and an optional content
+type criteria using the C<-t> option while modifying the
+output headers with the L<more_set_headers> and
+L<more_clear_headers> directives. For example,
+
+
+     more_set_headers -s 404 -t 'text/html' 'X-Foo: Bar';
+
+You can also specify multiple MIME types to filter out in a single C<-t> option.
+For example,
+
+
+    more_set_headers -t 'text/html text/plain' 'X-Foo: Bar';
+
+Never use other paramemters like C<charset=utf-8> in the C<-t> option values; they will not
+work as you would expect.
+
+Input headers can be modified as well. For example
+
+
+     location /foo {
+         more_set_input_headers 'Host: foo' 'User-Agent: faked';
+         # now $host, $http_host, $user_agent, and
+         #   $http_user_agent all have their new values.
+     }
+
+The option C<-t> is also available in the
+L<more_set_input_headers> and
+L<more_clear_input_headers> directives (for request header filtering) while the C<-s> option
+is not allowed.
+
+Unlike the standard L<headers|http://nginx.org/en/docs/http/ngx_http_headers_module.html> module, this module's directives will by
+default apply to all the status codes, including C<4xx> and C<5xx>.
+
+
+
+
+=head1 Directives
+
+
+
+
+=head2 more_set_headers
+
+B<syntax:> I<more_set_headers [-t E<lt>content-type listE<gt>]... [-s E<lt>status-code listE<gt>]... E<lt>new-headerE<gt>...>
+
+B<default:> I<no>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<output-header-filter>
+
+Replaces (if any) or adds (if not any) the specified output headers when the response status code matches the codes specified by the C<-s> option I<AND> the response content type matches the types specified by the C<-t> option.
+
+If either C<-s> or C<-t> is not specified or has an empty list value, then no match is required. Therefore, the following directive set the C<Server> output header to the custom value for I<any> status code and I<any> content type:
+
+
+       more_set_headers    "Server: my_server";
+
+Existing response headers with the same name are always overridden. If you want to add headers incrementally, use the standard L<add_header|http://nginx.org/en/docs/http/ngx_http_headers_module.html#add_header> directive instead.
+
+A single directive can set/add multiple output headers. For example
+
+
+       more_set_headers 'Foo: bar' 'Baz: bah';
+
+Multiple occurrences of the options are allowed in a single directive. Their values will be merged together. For instance
+
+
+       more_set_headers -s 404 -s '500 503' 'Foo: bar';
+
+is equivalent to
+
+
+       more_set_headers -s '404 500 503' 'Foo: bar';
+
+The new header should be the one of the forms:
+
+
+=over
+
+
+=item 1.
+
+C<Name: Value>
+
+=item 2.
+
+C<Name: >
+
+=item 3.
+
+C<Name>
+
+
+=back
+
+The last two effectively clear the value of the header C<Name>.
+
+Nginx variables are allowed in header values. For example:
+
+
+        set $my_var "dog";
+        more_set_headers "Server: $my_var";
+
+But variables won't work in header keys due to performance considerations.
+
+Multiple set/clear header directives are allowed in a single location, and they're executed sequentially.
+
+Directives inherited from an upper level scope (say, http block or server blocks) are executed before the directives in the location block.
+
+Note that although C<more_set_headers> is allowed in I<location> if blocks, it is I<not> allowed in the I<server> if blocks, as in
+
+
+       ?  # This is NOT allowed!
+       ?  server {
+       ?      if ($args ~ 'download') {
+       ?          more_set_headers 'Foo: Bar';
+       ?      }
+       ?      ...
+       ?  }
+
+Behind the scene, use of this directive and its friend L<more_clear_headers> will (lazily) register an ouput header filter that modifies C<< r->headers_out >> the way you specify.
+
+
+
+
+=head2 more_clear_headers
+
+B<syntax:> I<more_clear_headers [-t E<lt>content-type listE<gt>]... [-s E<lt>status-code listE<gt>]... E<lt>new-headerE<gt>...>
+
+B<default:> I<no>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<output-header-filter>
+
+Clears the specified output headers.
+
+In fact,
+
+
+        more_clear_headers -s 404 -t 'text/plain' Foo Baz;
+
+is exactly equivalent to
+
+
+        more_set_headers -s 404 -t 'text/plain' "Foo: " "Baz: ";
+
+or
+
+
+        more_set_headers -s 404 -t 'text/plain' Foo Baz
+
+See L<more_set_headers> for more details.
+
+Wildcard C<*> can also be used to specify a header name pattern. For example, the following directive effectively clears I<any> output headers starting by "C<X-Hidden->":
+
+
+     more_clear_headers 'X-Hidden-*';
+
+The C<*> wildcard support was first introduced in L<v0.09>.
+
+
+
+
+=head2 more_set_input_headers
+
+B<syntax:> I<more_set_input_headers [-r] [-t E<lt>content-type listE<gt>]... E<lt>new-headerE<gt>...>
+
+B<default:> I<no>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<rewrite tail>
+
+Very much like L<more_set_headers> except that it operates on input headers (or request headers) and it only supports the C<-t> option.
+
+Note that using the C<-t> option in this directive means filtering by the C<Content-Type> I<request> header, rather than the response header.
+
+Behind the scene, use of this directive and its friend L<more_clear_input_headers> will (lazily)
+register a C<rewrite phase> handler that modifies C<< r->headers_in >> the way you specify. Note that it always run at the I<end> of
+the C<rewrite> phase so that it runs I<after> the standard L<rewrite module|http://nginx.org/en/docs/http/ngx_http_rewrite_module.html>
+and works in subrequests as well.
+
+If the C<-r> option is specified, then the headers will be replaced to the new values I<only if> they already exist.
+
+
+
+
+=head2 more_clear_input_headers
+
+B<syntax:> I<more_clear_input_headers [-t E<lt>content-type listE<gt>]... E<lt>new-headerE<gt>...>
+
+B<default:> I<no>
+
+B<context:> I<http, server, location, location if>
+
+B<phase:> I<rewrite tail>
+
+Clears the specified input headers.
+
+In fact,
+
+
+        more_clear_input_headers -s 404 -t 'text/plain' Foo Baz;
+
+is exactly equivalent to
+
+
+        more_set_input_headers -s 404 -t 'text/plain' "Foo: " "Baz: ";
+
+or
+
+
+        more_set_input_headers -s 404 -t 'text/plain' Foo Baz
+
+See L<more_set_input_headers> for more details.
+
+
+
+
+=head1 Limitations
+
+
+=over
+
+
+=item *
+
+Unlike the standard L<headers|http://nginx.org/en/docs/http/ngx_http_headers_module.html> module, this module does not automatically take care of the constraint among the C<Expires>, C<Cache-Control>, and C<Last-Modified> headers. You have to get them right yourself or use the L<headers|http://nginx.org/en/docs/http/ngx_http_headers_module.html> module together with this module.
+
+=item *
+
+You cannot remove the C<Connection> response header using this module because the C<Connection> response header is generated by the standard C<ngx_http_header_filter_module> in the Nginx core, whose output header filter runs always I<after> the filter of this module. The only way to actually remove the C<Connection> header is to patch the Nginx core, that is, editing the C function C<ngx_http_header_filter> in the C<src/http/ngx_http_header_filter_module.c> file.
+
+
+=back
+
+
+
+
+=head1 Installation
+
+Grab the nginx source code from L<nginx.org|http://nginx.org/>, for example,
+the version 1.11.2 (see L<nginx compatibility>), and then build the source with this module:
+
+
+     wget 'http://nginx.org/download/nginx-1.11.2.tar.gz'
+     tar -xzvf nginx-1.11.2.tar.gz
+     cd nginx-1.11.2/
+    
+     # Here we assume you would install you nginx under /opt/nginx/.
+     ./configure --prefix=/opt/nginx \
+         --add-module=/path/to/headers-more-nginx-module
+    
+     make
+     make install
+
+Download the latest version of the release tarball of this module from L<headers-more-nginx-module file list|https://github.com/openresty/headers-more-nginx-module/tags>.
+
+Starting from NGINX 1.9.11, you can also compile this module as a dynamic module, by using the C<--add-dynamic-module=PATH> option instead of C<--add-module=PATH> on the
+C<./configure> command line above. And then you can explicitly load the module in your C<nginx.conf> via the L<load_module|http://nginx.org/en/docs/ngx_core_module.html#load_module>
+directive, for example,
+
+
+    load_module /path/to/modules/ngx_http_headers_more_filter_module.so;
+
+Also, this module is included and enabled by default in the L<OpenResty bundle|http://openresty.org>.
+
+
+
+
+=head1 Compatibility
+
+The following versions of Nginx should work with this module:
+
+
+=over
+
+
+=item *
+
+B<1.11.x>                      (last tested: 1.11.2)
+
+=item *
+
+B<1.10.x>
+
+=item *
+
+B<1.9.x>                       (last tested: 1.9.15)
+
+=item *
+
+B<1.8.x>
+
+=item *
+
+B<1.7.x>                       (last tested: 1.7.10)
+
+=item *
+
+B<1.6.x>                       (last tested: 1.6.2)
+
+=item *
+
+B<1.5.x>                       (last tested: 1.5.8)
+
+=item *
+
+B<1.4.x>                       (last tested: 1.4.4)
+
+=item *
+
+B<1.3.x>                       (last tested: 1.3.7)
+
+=item *
+
+B<1.2.x>                       (last tested: 1.2.9)
+
+=item *
+
+B<1.1.x>                       (last tested: 1.1.5)
+
+=item *
+
+B<1.0.x>                       (last tested: 1.0.11)
+
+=item *
+
+B<0.9.x>                       (last tested: 0.9.4)
+
+=item *
+
+B<0.8.x>                       (last tested: 0.8.54)
+
+=item *
+
+B<0.7.x E<gt>= 0.7.44>             (last tested: 0.7.68)
+
+
+=back
+
+Earlier versions of Nginx like 0.6.x and 0.5.x will I<not> work.
+
+If you find that any particular version of Nginx above 0.7.44 does not work with this module, please consider L<reporting a bug>.
+
+
+
+
+=head1 Community
+
+
+
+
+=head2 English Mailing List
+
+The L<openresty-en|https://groups.google.com/group/openresty-en> mailing list is for English speakers.
+
+
+
+
+=head2 Chinese Mailing List
+
+The L<openresty|https://groups.google.com/group/openresty> mailing list is for Chinese speakers.
+
+
+
+
+=head1 Bugs and Patches
+
+Please submit bug reports, wishlists, or patches by
+
+
+=over
+
+
+=item 1.
+
+creating a ticket on the L<GitHub Issue Tracker|https://github.com/chaoslawful/lua-nginx-module/issues>,
+
+=item 2.
+
+or posting to the L<OpenResty community>.
+
+
+=back
+
+
+
+
+=head1 Source Repository
+
+Available on github at L<openrestyE<sol>headers-more-nginx-module|https://github.com/openresty/headers-more-nginx-module>.
+
+
+
+
+=head1 Changes
+
+The changes of every release of this module can be obtained from the OpenResty bundle's change logs:
+
+E<lt>http://openresty.org/#ChangesE<gt>
+
+
+
+
+=head1 Test Suite
+
+This module comes with a Perl-driven test suite. The L<test cases|https://github.com/openresty/headers-more-nginx-module/tree/master/t/> are
+L<declarative|https://github.com/openresty/headers-more-nginx-module/blob/master/t/sanity.t> too. Thanks to the L<Test::Nginx|http://search.cpan.org/perldoc?Test::Nginx> module in the Perl world.
+
+To run it on your side:
+
+
+     $ PATH=/path/to/your/nginx-with-headers-more-module:$PATH prove -r t
+
+To run the test suite with valgrind's memcheck, use the following commands:
+
+
+     $ export PATH=/path/to/your/nginx-with-headers-more-module:$PATH
+     $ TEST_NGINX_USE_VALGRIND=1 prove -r t
+
+You need to terminate any Nginx processes before running the test suite if you have changed the Nginx server binary.
+
+Because a single nginx server (by default, C<localhost:1984>) is used across all the test scripts (C<.t> files), it's meaningless to run the test suite in parallel by specifying C<-jN> when invoking the C<prove> utility.
+
+Some parts of the test suite requires modules L<proxy|http://nginx.org/en/docs/http/ngx_http_proxy_module.html>, L<rewrite|http://nginx.org/en/docs/http/ngx_http_rewrite_module.html>, and L<echo|https://github.com/openresty/echo-nginx-module> to be enabled as well when building Nginx.
+
+
+
+
+=head1 TODO
+
+
+=over
+
+
+=item *
+
+Support variables in new headers' keys.
+
+
+=back
+
+
+
+
+=head1 Getting involved
+
+You'll be very welcomed to submit patches to the L<author> or just ask for a commit bit to the L<source repository> on GitHub.
+
+
+
+
+=head1 Authors
+
+
+=over
+
+
+=item *
+
+Yichun "agentzh" Zhang (章亦春) I<E<lt>agentzh@gmail.comE<gt>>, CloudFlare Inc.
+
+=item *
+
+Bernd Dorn ( E<lt>http://www.lovelysystems.com/E<gt> )
+
+
+=back
+
+This wiki page is also maintained by the author himself, and everybody is encouraged to improve this page as well.
+
+
+
+
+=head1 Copyright & License
+
+The code base is borrowed directly from the standard L<headers|http://nginx.org/en/docs/http/ngx_http_headers_module.html> module in Nginx 0.8.24. This part of code is copyrighted by Igor Sysoev.
+
+Copyright (c) 2009-2014, Yichun "agentzh" Zhang (章亦春) E<lt>agentzh@gmail.comE<gt>, CloudFlare Inc.
+
+Copyright (c) 2010-2013, Bernd Dorn.
+
+This module is licensed under the terms of the BSD license.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+The original thread on the Nginx mailing list that inspires this module's development: L<"A question about add_header replication"|http://forum.nginx.org/read.php?2,11206,11738>.
+
+=item *
+
+The orginal announcement thread on the Nginx mailing list: L<"The "headers_more" module: Set and clear output headers...more than 'add'!"|http://forum.nginx.org/read.php?2,23460>.
+
+=item *
+
+The original L<blog post|http://agentzh.blogspot.com/2009/11/headers-more-module-scripting-input-and.html> about this module's initial development.
+
+=item *
+
+The L<echo module|https://github.com/openresty/echo-nginx-module> for Nginx module's automated testing.
+
+=item *
+
+The standard L<headers|http://nginx.org/en/docs/http/ngx_http_headers_module.html> module.
+
+
+=back
+
+
+

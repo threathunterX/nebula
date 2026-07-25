@@ -1,0 +1,100 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_index_module - Module ngx_http_index_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_index_module> module processes requests
+ending with the slash character (‘C<E<sol>>’).
+Such requests can also be processed by the
+L<ngx_http_autoindex_module|ngx_http_autoindex_module>
+and
+L<ngx_http_random_index_module|ngx_http_random_index_module>
+modules.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location / {
+        index index.$geo.html index.html;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 index
+
+
+B<syntax:> index I<I<C<file>> ...>
+
+
+B<default:> I<index.html>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines files that will be used as an index.
+The I<C<file>> name can contain variables.
+Files are checked in the specified order.
+The last element of the list can be a file with an absolute path.
+Example:
+
+    
+    index index.$geo.html index.0.html /index.html;
+
+
+
+
+
+
+
+It should be noted that using an index file causes an internal redirect,
+and the request can be processed in a different location.
+For example, with the following configuration:
+
+    
+    location = / {
+        index index.html;
+    }
+    
+    location / {
+        ...
+    }
+
+
+a “C<E<sol>>” request will actually be processed in the
+second location as “C<E<sol>index.html>”.
+
+
+
+
+
+
+

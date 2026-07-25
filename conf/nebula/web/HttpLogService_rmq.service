@@ -1,0 +1,13 @@
+
+{
+    "name": "httplog_notify",
+    "callmode": "notify",
+    "delivermode": "sharding",
+    "serverimpl": "rabbitmq",
+    "coder": "mail",
+    "options": {
+        "serversubname": "web",
+        "sdc":"sh",
+        "cdc":"sh"
+    }
+}

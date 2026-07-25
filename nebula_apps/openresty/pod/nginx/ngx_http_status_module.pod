@@ -1,0 +1,1929 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_status_module - Module ngx_http_status_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_status_module> module provides
+access to various status information.
+
+
+
+
+
+
+B<NOTE>
+
+This module is available as part of our
+commercial subscription.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    http {
+        upstream <emphasis>backend</emphasis> {
+            <emphasis>zone</emphasis> http_backend 64k;
+    
+            server backend1.example.com weight=5;
+            server backend2.example.com;
+        }
+    
+        proxy_cache_path /data/nginx/cache_backend keys_zone=<emphasis>cache_backend</emphasis>:10m;
+    
+        server {
+            server_name backend.example.com;
+    
+            location / {
+                proxy_pass  http://backend;
+                proxy_cache cache_backend;
+    
+                health_check;
+            }
+    
+            <emphasis>status_zone server_backend;</emphasis>
+        }
+    
+        server {
+            listen 127.0.0.1;
+    
+            location /upstream_conf {
+                upstream_conf;
+            }
+    
+            location /status {
+                status;
+            }
+    
+            location = /status.html {
+            }
+        }
+    }
+    
+    stream {
+        upstream <emphasis>backend</emphasis> {
+            <emphasis>zone</emphasis> stream_backend 64k;
+    
+            server backend1.example.com:12345 weight=5;
+            server backend2.example.com:12345;
+        }
+    
+        server {
+            listen      127.0.0.1:12345;
+            proxy_pass  backend;
+            <emphasis>status_zone server_backend;</emphasis>
+            health_check;
+        }
+    }
+
+
+
+
+
+
+
+Examples of status requests with this configuration:
+
+    
+    http://127.0.0.1/status
+    http://127.0.0.1/status/nginx_version
+    http://127.0.0.1/status/caches/cache_backend
+    http://127.0.0.1/status/upstreams
+    http://127.0.0.1/status/upstreams/backend
+    http://127.0.0.1/status/upstreams/backend/peers/1
+    http://127.0.0.1/status/upstreams/backend/peers/1/weight
+    http://127.0.0.1/status/stream
+    http://127.0.0.1/status/stream/upstreams
+    http://127.0.0.1/status/stream/upstreams/backend
+    http://127.0.0.1/status/stream/upstreams/backend/peers/1
+    http://127.0.0.1/status/stream/upstreams/backend/peers/1/weight
+
+
+
+
+
+
+
+The simple monitoring page is shipped with this distribution,
+accessible as “C<E<sol>status.html>” in the default configuration.
+It requires the locations “C<E<sol>status>” and
+“C<E<sol>status.html>” to be configured as shown above.
+
+
+
+
+=head1 Directives
+
+=head2 status
+
+
+
+
+B<context:> I<location>
+
+
+
+
+
+The status information will be accessible from the surrounding location.
+Access to this location should be
+L<limited|ngx_http_core_module>.
+
+
+
+
+
+
+
+=head2 status_format
+
+
+B<syntax:> status_format I<C<json>>
+
+
+B<syntax:> status_format I<C<jsonp> [I<C<callback>>]>
+
+
+B<default:> I<json>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+By default, status information is output in the JSON format.
+
+
+
+
+
+Alternatively, data may be output as JSONP.
+The I<C<callback>> parameter specifies the name of a callback function.
+The value can contain variables.
+If parameter is omitted, or the computed value is an empty string,
+then “C<ngx_status_jsonp_callback>” is used.
+
+
+
+
+
+
+
+=head2 status_zone
+
+
+B<syntax:> status_zone I<I<C<zone>>>
+
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables collection of virtual
+L<http|ngx_http_core_module>
+or
+L<stream|ngx_stream_core_module>
+(1.7.11) server status information in the specified I<C<zone>>.
+Several servers may share the same zone.
+
+
+
+
+
+
+
+=head1 Data
+
+
+
+The following status information is provided:
+
+=over
+
+
+
+=item C<version>
+
+
+
+
+Version of the provided data set.
+The current version is 8.
+
+
+
+=item C<nginx_version>
+
+
+
+
+Version of nginx.
+
+
+
+=item C<nginx_build>
+
+
+
+
+Name of nginx build.
+
+
+
+=item C<address>
+
+
+
+
+The address of the server that accepted status request.
+
+
+
+=item C<generation>
+
+
+
+
+The total number of configuration
+L<reloads|control>.
+
+
+
+=item C<load_timestamp>
+
+
+
+
+Time of the last reload of configuration, in milliseconds since Epoch.
+
+
+
+=item C<timestamp>
+
+
+
+
+Current time in milliseconds since Epoch.
+
+
+
+=item C<pid>
+
+
+
+
+The ID of the worker process that handled status request.
+
+
+
+=item C<ppid>
+
+
+
+
+The ID of the master process that started
+the worker process.
+
+
+
+=item C<processes>
+
+
+
+
+
+=over
+
+
+
+=item C<respawned>
+
+
+
+
+The total number of abnormally terminated and respawned
+child processes.
+
+
+
+
+=back
+
+
+
+
+
+=item C<connections>
+
+
+
+
+
+=over
+
+
+
+=item C<accepted>
+
+
+
+
+The total number of accepted client connections.
+
+
+
+=item C<dropped>
+
+
+
+
+The total number of dropped client connections.
+
+
+
+=item C<active>
+
+
+
+
+The current number of active client connections.
+
+
+
+=item C<idle>
+
+
+
+
+The current number of idle client connections.
+
+
+
+
+=back
+
+
+
+
+
+=item C<ssl>
+
+
+
+
+
+=over
+
+
+
+=item C<handshakes>
+
+
+
+
+The total number of successful SSL handshakes.
+
+
+
+=item C<handshakes_failed>
+
+
+
+
+The total number of failed SSL handshakes.
+
+
+
+=item C<session_reuses>
+
+
+
+
+The total number of session reuses during SSL handshake.
+
+
+
+
+=back
+
+
+
+
+
+=item C<requests>
+
+
+
+
+
+=over
+
+
+
+=item C<total>
+
+
+
+
+The total number of client requests.
+
+
+
+=item C<current>
+
+
+
+
+The current number of client requests.
+
+
+
+
+=back
+
+
+
+
+
+=item C<server_zones>
+
+
+
+
+For each L</status_zone>:
+
+=over
+
+
+
+=item C<processing>
+
+
+
+
+The number of
+client requests that are currently being processed.
+
+
+
+=item C<requests>
+
+
+
+
+The total number of
+client requests received from clients.
+
+
+
+=item C<responses>
+
+
+
+
+
+=over
+
+
+
+=item C<total>
+
+
+
+
+The total number of
+responses sent to clients.
+
+
+
+=item 
+C<1xx>,
+C<2xx>,
+C<3xx>,
+C<4xx>,
+C<5xx>
+
+
+
+
+
+The number of responses with status codes 1xx, 2xx, 3xx, 4xx, and 5xx.
+
+
+
+
+=back
+
+
+
+
+
+=item C<discarded>
+
+
+
+
+The total number of requests completed without sending a response.
+
+
+
+=item C<received>
+
+
+
+
+The total number of bytes received from clients.
+
+
+
+=item C<sent>
+
+
+
+
+The total number of bytes sent to clients.
+
+
+
+
+=back
+
+
+
+
+
+=item C<slabs>
+
+
+
+
+For each shared memory zone that uses slab allocator:
+
+=over
+
+
+
+=item C<pages>
+
+
+
+
+
+=over
+
+
+
+=item C<used>
+
+
+
+
+The current number of used memory pages.
+
+
+
+=item C<free>
+
+
+
+
+The current number of free memory pages.
+
+
+
+
+=back
+
+
+
+
+
+=item C<slots>
+
+
+
+
+For each memory slot size (8, 16, 32, 64, 128, etc.)
+the following data are provided:
+
+=over
+
+
+
+=item C<used>
+
+
+
+
+The current number of used memory slots.
+
+
+
+=item C<free>
+
+
+
+
+The current number of free memory slots.
+
+
+
+=item C<reqs>
+
+
+
+
+The total number of attempts to allocate memory of specified size.
+
+
+
+=item C<fails>
+
+
+
+
+The number of unsuccessful attempts to allocate memory of specified size.
+
+
+
+
+=back
+
+
+
+
+
+
+=back
+
+
+
+
+
+=item C<upstreams>
+
+
+
+
+For each
+L<dynamically
+configurable|ngx_http_upstream_module>
+L<group|ngx_http_upstream_module>,
+the following data are provided:
+
+=over
+
+
+
+=item C<peers>
+
+
+
+
+For each
+L<ngx_http_upstream_module>,
+the following data are provided:
+
+=over
+
+
+
+=item C<id>
+
+
+
+
+The ID of the server.
+
+
+
+=item C<server>
+
+
+
+
+An
+L<address|ngx_http_upstream_module>
+of the server.
+
+
+
+=item C<name>
+
+
+
+
+The name of the server specified in the
+L<ngx_http_upstream_module>
+directive.
+
+
+
+=item C<service>
+
+
+
+
+The L<ngx_http_upstream_module>
+parameter value of the
+L<ngx_http_upstream_module> directive.
+
+
+
+=item C<backup>
+
+
+
+
+A boolean value indicating whether the server is a
+L<ngx_http_upstream_module>
+server.
+
+
+
+=item C<weight>
+
+
+
+
+L<Weight|ngx_http_upstream_module>
+of the server.
+
+
+
+=item C<state>
+
+
+
+
+Current state, which may be one of
+“C<up>”,
+“C<draining>”,
+“C<down>”,
+“C<unavail>”,
+“C<checking>”,
+or
+“C<unhealthy>”.
+
+
+
+=item C<active>
+
+
+
+
+The current number of active connections.
+
+
+
+=item C<max_conns>
+
+
+
+
+The L<ngx_http_upstream_module> limit
+for the server.
+
+
+
+=item C<requests>
+
+
+
+
+The total number of
+client requests forwarded to this server.
+
+
+
+=item C<responses>
+
+
+
+
+
+=over
+
+
+
+=item C<total>
+
+
+
+
+The total number of
+responses obtained from this server.
+
+
+
+=item 
+C<1xx>,
+C<2xx>,
+C<3xx>,
+C<4xx>,
+C<5xx>
+
+
+
+
+
+The number of responses with status codes 1xx, 2xx, 3xx, 4xx, and 5xx.
+
+
+
+
+=back
+
+
+
+
+
+=item C<sent>
+
+
+
+
+The total number of bytes sent to this server.
+
+
+
+=item C<received>
+
+
+
+
+The total number of bytes received from this server.
+
+
+
+=item C<fails>
+
+
+
+
+The total number of
+unsuccessful attempts to communicate with the server.
+
+
+
+=item C<unavail>
+
+
+
+
+How many times
+the server became unavailable for client requests
+(state “C<unavail>”)
+due to the number of unsuccessful attempts reaching the
+L<ngx_http_upstream_module>
+threshold.
+
+
+
+=item C<health_checks>
+
+
+
+
+
+=over
+
+
+
+=item C<checks>
+
+
+
+
+The total number of
+L<health check|ngx_http_upstream_hc_module>
+requests made.
+
+
+
+=item C<fails>
+
+
+
+
+The number of failed health checks.
+
+
+
+=item C<unhealthy>
+
+
+
+
+How many times
+the server became unhealthy (state “C<unhealthy>”).
+
+
+
+=item C<last_passed>
+
+
+
+
+Boolean indicating
+if the last health check request was successful and passed
+L<tests|ngx_http_upstream_hc_module>.
+
+
+
+
+=back
+
+
+
+
+
+=item C<downtime>
+
+
+
+
+Total time
+the server was in the “C<unavail>”,
+“C<checking>”, and “C<unhealthy>” states.
+
+
+
+=item C<downstart>
+
+
+
+
+The time (in milliseconds since Epoch)
+when the server became
+“C<unavail>”,
+“C<checking>”, or “C<unhealthy>”.
+
+
+
+=item C<selected>
+
+
+
+
+The time (in milliseconds since Epoch)
+when the server was last selected to process a request (1.7.5).
+
+
+
+=item C<header_time>
+
+
+
+
+The average time to get the
+L<response
+header|ngx_http_upstream_module> from the server (1.7.10).
+Prior to version 1.11.6,
+the field was available only when using the
+L<ngx_http_upstream_module>
+load balancing method.
+
+
+
+=item C<response_time>
+
+
+
+
+The average time to get the
+L<full
+response|ngx_http_upstream_module> from the server (1.7.10).
+Prior to version 1.11.6,
+the field was available only when using the
+L<ngx_http_upstream_module>
+load balancing method.
+
+
+
+
+=back
+
+
+
+
+
+=item C<keepalive>
+
+
+
+
+The current number of
+idle L<ngx_http_upstream_module> connections.
+
+
+
+=item C<zombies>
+
+
+
+
+The current number of servers removed
+from the group but still processing active client requests.
+
+
+
+=item C<zone>
+
+
+
+
+The name of the shared memory
+L<ngx_http_upstream_module>
+that keeps the group’s configuration and run-time state.
+
+
+
+=item C<queue>
+
+
+
+
+For the requests L<ngx_http_upstream_module>,
+the following data are provided:
+
+=over
+
+
+
+=item C<size>
+
+
+
+
+The current number of requests in the queue.
+
+
+
+=item C<max_size>
+
+
+
+
+The maximum number of requests that can be in the queue at the same time.
+
+
+
+=item C<overflows>
+
+
+
+
+The total number of requests rejected due to the queue overflow.
+
+
+
+
+=back
+
+
+
+
+
+
+=back
+
+
+
+
+
+=item C<caches>
+
+
+
+
+For each cache (configured by
+L<ngx_http_proxy_module> and the likes):
+
+=over
+
+
+
+=item C<size>
+
+
+
+
+The current size of the cache.
+
+
+
+=item C<max_size>
+
+
+
+
+The limit on the maximum size of the cache specified in the configuration.
+
+
+
+=item C<cold>
+
+
+
+
+A boolean value indicating whether the “cache loader” process is still loading
+data from disk into the cache.
+
+
+
+=item 
+    C<hit>,
+    C<stale>,
+    C<updating>,
+    C<revalidated>
+
+
+
+
+
+
+=over
+
+
+
+=item C<responses>
+
+
+
+
+The total number of responses read from the cache (hits, or stale responses
+due to L<ngx_http_proxy_module>
+and the likes).
+
+
+
+=item C<bytes>
+
+
+
+
+The total number of bytes read from the cache.
+
+
+
+
+=back
+
+
+
+
+
+=item 
+    C<miss>,
+    C<expired>,
+    C<bypass>
+
+
+
+
+
+
+=over
+
+
+
+=item C<responses>
+
+
+
+
+The total number of responses not taken from the cache (misses, expires, or
+bypasses due to
+L<ngx_http_proxy_module>
+and the likes).
+
+
+
+=item C<bytes>
+
+
+
+
+The total number of bytes read from the proxied server.
+
+
+
+=item C<responses_written>
+
+
+
+
+The total number of responses written to the cache.
+
+
+
+=item C<bytes_written>
+
+
+
+
+The total number of bytes written to the cache.
+
+
+
+
+=back
+
+
+
+
+
+
+=back
+
+
+
+
+
+=item C<stream>
+
+
+
+
+
+
+=over
+
+
+=item C<server_zones>
+
+
+
+
+For each L</status_zone>:
+
+=over
+
+
+
+=item C<processing>
+
+
+
+
+The number of
+client connections that are currently being processed.
+
+
+
+=item C<connections>
+
+
+
+
+The total number of
+connections accepted from clients.
+
+
+
+=item C<sessions>
+
+
+
+
+
+=over
+
+
+
+=item C<total>
+
+
+
+
+The total number of completed client sessions.
+
+
+
+=item 
+C<2xx>,
+C<4xx>,
+C<5xx>
+
+
+
+
+
+The number of sessions completed with
+L<status codes|ngx_stream_core_module>
+2xx, 4xx, or 5xx.
+
+
+
+
+=back
+
+
+
+
+
+=item C<discarded>
+
+
+
+
+The total number of connections completed without creating a session.
+
+
+
+=item C<received>
+
+
+
+
+The total number of bytes received from clients.
+
+
+
+=item C<sent>
+
+
+
+
+The total number of bytes sent to clients.
+
+
+
+
+=back
+
+
+
+
+
+=item C<upstreams>
+
+
+
+
+For each
+L<dynamically
+configurable|ngx_stream_upstream_module>
+L<group|ngx_stream_upstream_module>,
+the following data are provided:
+
+=over
+
+
+
+=item C<peers>
+
+
+
+
+For each
+L<ngx_stream_upstream_module>
+the following data are provided:
+
+=over
+
+
+
+=item C<id>
+
+
+
+
+The ID of the server.
+
+
+
+=item C<server>
+
+
+
+
+An
+L<address|ngx_stream_upstream_module>
+of the server.
+
+
+
+
+=item C<name>
+
+
+
+
+The name of the server specified in the
+L<ngx_stream_upstream_module> directive.
+
+
+
+=item C<service>
+
+
+
+
+The L<ngx_stream_upstream_module>
+parameter value of the
+L<ngx_stream_upstream_module> directive.
+
+
+
+=item C<backup>
+
+
+
+
+A boolean value indicating whether the server is a
+L<ngx_stream_upstream_module>
+server.
+
+
+
+=item C<weight>
+
+
+
+
+L<Weight|ngx_stream_upstream_module>
+of the server.
+
+
+
+=item C<state>
+
+
+
+
+Current state, which may be one of
+“C<up>”,
+“C<down>”,
+“C<unavail>”,
+“C<checking>”,
+or
+“C<unhealthy>”.
+
+
+
+=item C<active>
+
+
+
+
+The current number of connections.
+
+
+
+=item C<connections>
+
+
+
+
+The total number of
+client connections forwarded to this server.
+
+
+
+=item C<connect_time>
+
+
+
+
+The average time to connect to the upstream server.
+Prior to version 1.11.6,
+the field was available only when using the
+L<ngx_stream_upstream_module>
+load balancing method.
+
+
+
+=item C<first_byte_time>
+
+
+
+
+The average time to receive the first byte of data.
+Prior to version 1.11.6,
+the field was available only when using the
+L<ngx_stream_upstream_module>
+load balancing method.
+
+
+
+=item C<response_time>
+
+
+
+
+The average time to receive the last byte of data.
+Prior to version 1.11.6,
+the field was available only when using the
+L<ngx_stream_upstream_module>
+load balancing method.
+
+
+
+=item C<sent>
+
+
+
+
+The total number of bytes sent to this server.
+
+
+
+=item C<received>
+
+
+
+
+The total number of bytes received from this server.
+
+
+
+=item C<fails>
+
+
+
+
+The total number of
+unsuccessful attempts to communicate with the server.
+
+
+
+=item C<unavail>
+
+
+
+
+How many times
+the server became unavailable for client connections
+(state “C<unavail>”)
+due to the number of unsuccessful attempts reaching the
+L<ngx_stream_upstream_module>
+threshold.
+
+
+
+=item C<health_checks>
+
+
+
+
+
+=over
+
+
+
+=item C<checks>
+
+
+
+
+The total number of
+L<health check|ngx_stream_upstream_hc_module>
+requests made.
+
+
+
+=item C<fails>
+
+
+
+
+The number of failed health checks.
+
+
+
+=item C<unhealthy>
+
+
+
+
+How many times
+the server became unhealthy (state “C<unhealthy>”).
+
+
+
+=item C<last_passed>
+
+
+
+
+Boolean indicating
+if the last health check request was successful and passed
+L<tests|ngx_stream_upstream_hc_module>.
+
+
+
+
+=back
+
+
+
+
+
+=item C<downtime>
+
+
+
+
+Total time
+the server was in the “C<unavail>”,
+“C<checking>”, and “C<unhealthy>” states.
+
+
+
+=item C<downstart>
+
+
+
+
+The time (in milliseconds since Epoch)
+when the server became
+“C<unavail>”,
+“C<checking>”, or “C<unhealthy>”.
+
+
+
+=item C<selected>
+
+
+
+
+The time (in milliseconds since Epoch)
+when the server was last selected to process a connection.
+
+
+
+
+=back
+
+
+
+
+
+=item C<zombies>
+
+
+
+
+The current number of servers removed
+from the group but still processing active client connections.
+
+
+
+=item C<zone>
+
+
+
+
+The name of the shared memory
+L<ngx_stream_upstream_module>
+that keeps the group’s configuration and run-time state.
+
+
+
+
+=back
+
+
+
+
+
+
+=back
+
+
+
+
+
+
+=back
+
+
+
+
+
+
+=head1 Compatibility
+
+
+
+
+=over
+
+
+
+
+=item *
+
+The
+L</zone> field in
+http and stream
+upstreams
+was added in L</version> 8.
+
+
+
+=item *
+
+The L</slabs> status data
+were added in L</version> 8.
+
+
+
+=item *
+
+The
+checking state
+was added in L</version> 8.
+
+
+
+=item *
+
+The
+L</name> and L</service> fields in
+http and stream
+upstreams
+were added in L</version> 8.
+
+
+
+=item *
+
+The
+L</nginx_build> and L</ppid> fields
+were added in L</version> 8.
+
+
+
+=item *
+
+The
+L</sessions> status data
+and the discarded field in
+stream server_zones
+were added in L</version> 7.
+
+
+
+=item *
+
+The L</zombies> field
+was moved from nginx L<debug|debugging_log> version
+in L</version> 6.
+
+
+
+=item *
+
+The L</ssl> status data
+were added in L</version> 6.
+
+
+
+=item *
+
+The
+L</discarded> field in
+L</server_zones>
+was added in L</version> 6.
+
+
+
+=item *
+
+The L</queue> status data
+were added in L</version> 6.
+
+
+
+=item *
+
+The
+L</pid> field
+was added in L</version> 6.
+
+
+
+=item *
+
+The list of servers in L</upstreams>
+was moved into L</peers> in
+L</version> 6.
+
+
+
+=item *
+
+The C<keepalive> field of an upstream server
+was removed in L</version> 5.
+
+
+
+=item *
+
+The stream status data
+were added in L</version> 5.
+
+
+
+=item *
+
+The
+L</generation> field
+was added in L</version> 5.
+
+
+
+=item *
+
+The
+L</respawned> field in
+L</processes>
+was added in L</version> 5.
+
+
+
+=item *
+
+The
+L</header_time> and L</response_time> fields in
+L</upstreams>
+were added in L</version> 5.
+
+
+
+=item *
+
+The
+L</selected> field in
+L</upstreams>
+was added in L</version> 4.
+
+
+
+=item *
+
+The draining state in
+L</upstreams>
+was added in L</version> 4.
+
+
+
+=item *
+
+The
+L</id> and L</max_conns> fields in
+L</upstreams>
+were added in L</version> 3.
+
+
+
+=item *
+
+The C<revalidated> field in
+L</caches>
+was added in L</version> 3.
+
+
+
+=item *
+
+The L</server_zones>, L</caches>,
+and L</load_timestamp> status data
+were added in L</version> 2.
+
+
+
+=back
+
+
+
+
+
+

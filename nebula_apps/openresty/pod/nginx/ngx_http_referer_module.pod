@@ -1,0 +1,255 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_referer_module - Module ngx_http_referer_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_referer_module> module is used to block
+access to a site for requests with invalid values in the
+C<Referer> header field.
+It should be kept in mind that fabricating a request with an appropriate
+C<Referer> field value is quite easy, and so the intended
+purpose of this module is not to block such requests thoroughly but to block
+the mass flow of requests sent by regular browsers.
+It should also be taken into consideration that regular browsers may
+not send the C<Referer> field even for valid requests.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    valid_referers none blocked server_names
+                   *.example.com example.* www.example.org/galleries/
+                   ~\.google\.;
+    
+    if ($invalid_referer) {
+        return 403;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 referer_hash_bucket_size
+
+
+B<syntax:> referer_hash_bucket_size I<I<C<size>>>
+
+
+B<default:> I<64>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.0.5.
+
+
+
+
+
+Sets the bucket size for the valid referers hash tables.
+The details of setting up hash tables are provided in a separate
+L<document|hash>.
+
+
+
+
+
+
+
+=head2 referer_hash_max_size
+
+
+B<syntax:> referer_hash_max_size I<I<C<size>>>
+
+
+B<default:> I<2048>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.0.5.
+
+
+
+
+
+Sets the maximum I<C<size>> of the valid referers hash tables.
+The details of setting up hash tables are provided in a separate
+L<document|hash>.
+
+
+
+
+
+
+
+=head2 valid_referers
+
+
+B<syntax:> valid_referers I<
+    C<none> E<verbar>
+    C<blocked> E<verbar>
+    C<server_names> E<verbar>
+    I<C<string>>
+    ...>
+
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Specifies the C<Referer> request header field values
+that will cause the embedded C<$invalid_referer> variable to
+be set to an empty string.
+Otherwise, the variable will be set to “C<1>”.
+Search for a match is case-insensitive.
+
+
+
+
+
+Parameters can be as follows:
+
+=over
+
+
+
+=item C<none>
+
+
+
+
+the C<Referer> field is missing in the request header;
+
+
+
+=item C<blocked>
+
+
+
+
+the C<Referer> field is present in the request header,
+but its value has been deleted by a firewall or proxy server;
+such values are strings that do not start with
+“C<http:E<sol>E<sol>>” or “C<https:E<sol>E<sol>>”;
+
+
+
+=item C<server_names>
+
+
+
+
+the C<Referer> request header field contains
+one of the server names;
+
+
+
+=item arbitrary string
+
+
+
+
+defines a server name and an optional URI prefix.
+A server name can have an “C<*>” at the beginning or end.
+During the checking, the server’s port in the C<Referer> field
+is ignored;
+
+
+
+=item regular expression
+
+
+
+
+the first symbol should be a “C<~>”.
+It should be noted that an expression will be matched against
+the text starting after the “C<http:E<sol>E<sol>>”
+or “C<https:E<sol>E<sol>>”.
+
+
+
+
+=back
+
+
+
+
+
+
+
+Example:
+
+    
+    valid_referers none blocked server_names
+                   *.example.com example.* www.example.org/galleries/
+                   ~\.google\.;
+
+
+
+
+
+
+
+
+
+=head1 Embedded Variables
+
+
+
+
+=over
+
+
+
+=item C<$invalid_referer>
+
+
+
+
+Empty string, if the C<Referer> request header field
+value is considered
+valid, otherwise “C<1>”.
+
+
+
+
+=back
+
+
+
+
+
+

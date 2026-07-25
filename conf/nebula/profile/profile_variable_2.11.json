@@ -1,0 +1,276 @@
+{
+  "status": 0,
+  "msg": "ok",
+  "values": [
+    {
+      "topValue": false,
+      "remark": "爬虫总请求量[total]",
+      "srcVariablesID": [],
+      "name": "page__crawler_request_amount__profile",
+      "config": {
+        "field": "",
+        "code": "90",
+        "putMethod": "mysql:crawler_pages",
+        "srcEvent": [
+          "VISIT"
+        ]
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "爬虫总请求量[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "long",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "爬虫风险数[total]",
+      "srcVariablesID": [],
+      "name": "page__crawler_crawler_risk_amount__profile",
+      "config": {
+        "field": "",
+        "code": "91",
+        "putMethod": "mysql:crawler_pages",
+        "srcEvent": [
+          "VISIT"
+        ]
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "爬虫风险数[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "long",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "爬虫上行数据量[total]",
+      "srcVariablesID": [],
+      "name": "page__crawler_upstream_size__profile",
+      "config": {
+        "field": "",
+        "code": "92",
+        "putMethod": "mysql:crawler_pages",
+        "srcEvent": [
+          "VISIT"
+        ]
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "爬虫上行数据量[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "long",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "爬虫延迟[total]",
+      "srcVariablesID": [],
+      "name": "page__crawler_latency__profile",
+      "config": {
+        "field": "",
+        "code": "93",
+        "putMethod": "mysql:crawler_pages",
+        "srcEvent": [
+          "VISIT"
+        ]
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "爬虫延迟[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "long",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "爬虫成功[total]",
+      "srcVariablesID": [],
+      "name": "page__crawler_status_2__profile",
+      "config": {
+        "field": "",
+        "code": "94",
+        "putMethod": "mysql:crawler_pages",
+        "srcEvent": [
+          "VISIT"
+        ]
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "爬虫成功[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "long",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "爬虫重定向[total]",
+      "srcVariablesID": [],
+      "name": "page__crawler_status_3__profile",
+      "config": {
+        "field": "",
+        "code": "95",
+        "putMethod": "mysql:crawler_pages",
+        "srcEvent": [
+          "VISIT"
+        ]
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "爬虫重定向[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "long",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "爬虫请求错误[total]",
+      "srcVariablesID": [],
+      "name": "page__crawler_status_4__profile",
+      "config": {
+        "field": "",
+        "code": "96",
+        "putMethod": "mysql:crawler_pages",
+        "srcEvent": [
+          "VISIT"
+        ]
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "爬虫请求错误[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "long",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "爬虫服务器错误[total]",
+      "srcVariablesID": [],
+      "name": "page__crawler_status_5__profile",
+      "config": {
+        "field": "",
+        "code": "97",
+        "putMethod": "mysql:crawler_pages",
+        "srcEvent": [
+          "VISIT"
+        ]
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "爬虫服务器错误[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "page",
+      "valueType": "long",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "页面小时请求总数[total]",
+      "srcVariablesID": [],
+      "name": "page__request_amount__profile",
+      "config": {
+        "field": "",
+        "code": "98",
+        "putMethod": "send_map_increment_visit",
+        "srcEvent": [
+          "VISIT"
+        ]
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面小时请求总数[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "global",
+      "valueType": "map:int",
+      "srcEventID": null
+    },
+    {
+      "topValue": false,
+      "remark": "页面小时爬虫风险总数[total]",
+      "srcVariablesID": [],
+      "name": "page__request_crawler_risk_amount__profile",
+      "config": {
+        "field": "",
+        "code": "99",
+        "putMethod": "send_map_increment_visit",
+        "srcEvent": [
+          "VISIT"
+        ]
+      },
+      "app": "nebula",
+      "internal": true,
+      "module": "profile",
+      "properties": [],
+      "priority": 0,
+      "chineseName": "页面小时爬虫风险总数[total]",
+      "keyTopValue": false,
+      "expire": 0,
+      "ttl": 0,
+      "type": "basic",
+      "dimension": "global",
+      "valueType": "map:int",
+      "srcEventID": null
+    }
+  ]
+}

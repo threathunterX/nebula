@@ -1,0 +1,243 @@
+=encoding utf-8
+
+
+
+=head1 Name
+
+iconv-nginx-module
+
+
+=head1 Description
+
+This is a nginx module that uses libiconv to convert characters of different
+encoding. It brings the 'set_iconv' command to nginx.
+
+This module depends on the ngx_devel_kit(NDK) module.
+
+
+=head1 Usage
+
+
+=head2 set_iconv
+
+B<syntax:> I<set_iconv E<lt>destination_variableE<gt> E<lt>from_variableE<gt> from=E<lt>from_encodingE<gt> to=E<lt>to_encodingE<gt>>
+
+B<default:> I<none>
+
+B<phase:> I<rewrite>
+
+
+
+
+=head2 iconv_buffer_size
+
+B<syntax:> I<iconv_buffer_size E<lt>sizeE<gt>>
+
+B<default:> I<iconv_buffer_size E<lt>pagesizeE<gt>>
+
+
+
+
+=head2 iconv_filter
+
+B<syntax:> I<iconv_filter from=E<lt>from_encodingE<gt> to=E<lt>to_encodingE<gt>>
+
+B<default:> I<none>
+
+B<phase:> I<output-filter>
+
+Here is a basic example:
+
+
+     #nginx.conf
+    
+     location /foo {
+         set $src '你好'; #in UTF-8
+         set_iconv $dst $src from=utf8 to=gbk; #now $dst holds 你好 in GBK
+     }
+    
+     #everything generated from /foo will be converted from utf8 to gbk
+     location /bar {
+         iconv_filter from=utf-8 to=gbk;
+         iconv_buffer_size 1k;
+         #content handler here
+     }
+
+
+
+
+=head1 Compatibility
+
+The following versions of Nginx should work with this module:
+
+
+=over
+
+
+=item *
+
+1.9.x (last tested: 1.9.15)
+
+=item *
+
+1.8.x
+
+=item *
+
+1.7.x
+
+=item *
+
+1.6.x
+
+=item *
+
+1.5.x
+
+=item *
+
+1.4.x
+
+=item *
+
+1.3.x
+
+=item *
+
+1.2.x (last tested: 1.2.7)
+
+=item *
+
+1.1.x (last tested: 1.1.5)
+
+=item *
+
+1.0.x (last tested: 1.0.8)
+
+=item *
+
+0.9.x (last tested: 0.9.4)
+
+=item *
+
+0.8.x (last tested: 0.8.54)
+
+=item *
+
+0.7.x (last tested: 0.7.68)
+
+
+=back
+
+
+
+
+=head1 Installation
+
+Get the nginx source code from L<nginx.org|http://nginx.org/>.
+Untar the source code and build nginx with this module.
+
+
+     wget 'http://sysoev.ru/nginx/nginx-1.9.15.tar.gz'
+     tar -xzvf nginx-1.9.15.tar.gz
+     cd nginx-1.9.15/
+    
+     git-clone http://github.com/simpl-it/ngx_devel_kit.git
+     git-clone http://github.com/calio/form-input-module.git
+    
+     ./configure --add-module=/path/to/iconv-nginx-module/ --add-module=/path/to/ngx_devel_kit
+     make -j2
+     make install
+
+
+
+
+=head2 Building as a dynamic module
+
+Starting from NGINX 1.9.11, you can also compile this module as a dynamic module, by using the C<--add-dynamic-module=PATH> option instead of C<--add-module=PATH> on the
+C<./configure> command line above. And then you can explicitly load the module in your C<nginx.conf> via the L<load_module|http://nginx.org/en/docs/ngx_core_module.html#load_module>
+directive, for example,
+
+
+    load_module /path/to/modules/ndk_http_module.so;  # assuming NDK is built as a dynamic module too
+    load_module /path/to/modules/ngx_http_iconv_module.so;
+
+
+
+
+=head1 Copyright & License
+
+This program is licenced under the BSD license.
+
+Copyright (c) 2010-2016, Calio E<lt>vipcalio@gmail.comE<gt>.
+
+Copyright (c) 2010-2016, Yichun Zhang E<lt>agentzh@gmail.comE<gt>.
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+
+=item *
+
+Neither the name of the Taobao Inc. nor the names of its
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 Changelog
+
+This module's change logs are part of the OpenResty bundle's change logs. Please see
+See E<lt>http://openresty.org/#ChangesE<gt>
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+The L<OpenResty|https://openresty.org> bundle.
+
+
+=back
+
+
+

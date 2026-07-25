@@ -1,0 +1,115 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_realip_module - Module ngx_stream_realip_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_realip_module> module is used
+to change the client address and port
+to the ones sent in the PROXY protocol header (1.11.4).
+The PROXY protocol must be previously enabled by setting the
+L<ngx_stream_core_module> parameter
+in the C<listen> directive.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+C<--with-stream_realip_module>
+configuration parameter.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    listen 12345 proxy_protocol;
+    
+    set_real_ip_from  192.168.1.0/24;
+    set_real_ip_from  192.168.2.1;
+    set_real_ip_from  2001:0db8::/32;
+
+
+
+
+
+
+=head1 Directives
+
+=head2 set_real_ip_from
+
+
+B<syntax:> set_real_ip_from I<
+    I<C<address>> E<verbar>
+    I<C<CIDR>> E<verbar>
+    C<unix:>>
+
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Defines trusted addresses that are known to send correct
+replacement addresses.
+If the special value C<unix:> is specified,
+all UNIX-domain sockets will be trusted.
+
+
+
+
+
+
+
+=head1 Embedded Variables
+
+
+
+
+=over
+
+
+
+=item C<$realip_remote_addr>
+
+
+
+
+keeps the original client address
+
+
+
+=item C<$realip_remote_port>
+
+
+
+
+keeps the original client port
+
+
+
+
+=back
+
+
+
+
+
+

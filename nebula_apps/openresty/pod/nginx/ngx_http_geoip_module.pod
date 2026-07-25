@@ -1,0 +1,393 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_geoip_module - Module ngx_http_geoip_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_geoip_module> module (0.8.6+) creates variables
+with values depending on the client IP address, using the precompiled
+L<MaxMind|http://www.maxmind.com> databases.
+
+
+
+
+
+When using the databases with IPv6 support (1.3.12, 1.2.7),
+IPv4 addresses are looked up as IPv4-mapped IPv6 addresses.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+C<--with-http_geoip_module>
+configuration parameter.
+
+B<NOTE>
+
+This module requires the
+L<MaxMind GeoIP|http://www.maxmind.com/app/c> library.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    http {
+        geoip_country         GeoIP.dat;
+        geoip_city            GeoLiteCity.dat;
+        geoip_proxy           192.168.100.0/24;
+        geoip_proxy           2001:0db8::/32;
+        geoip_proxy_recursive on;
+        ...
+
+
+
+
+
+
+=head1 Directives
+
+=head2 geoip_country
+
+
+B<syntax:> geoip_country I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Specifies a database used to determine the country
+depending on the client IP address.
+The following variables are available when using this database:
+
+=over
+
+
+
+=item C<$geoip_country_code>
+
+
+
+
+two-letter country code, for example,
+“C<RU>”, “C<US>”.
+
+
+
+=item C<$geoip_country_code3>
+
+
+
+
+
+three-letter country code, for example,
+“C<RUS>”, “C<USA>”.
+
+
+
+=item C<$geoip_country_name>
+
+
+
+
+country name, for example,
+“C<Russian Federation>”, “C<United States>”.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 geoip_city
+
+
+B<syntax:> geoip_city I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Specifies a database used to determine the country, region, and city
+depending on the client IP address.
+The following variables are available when using this database:
+
+=over
+
+
+
+=item C<$geoip_area_code>
+
+
+
+telephone area code (US only).
+
+B<NOTE>
+
+This variable may contain outdated information since
+the corresponding database field is deprecated.
+
+
+
+
+=item 
+C<$geoip_city_continent_code>
+
+
+
+two-letter continent code, for example,
+“C<EU>”, “C<NA>”.
+
+
+
+=item C<$geoip_city_country_code>
+
+
+
+
+
+two-letter country code, for example,
+“C<RU>”, “C<US>”.
+
+
+
+=item C<$geoip_city_country_code3>
+
+
+
+
+
+three-letter country code, for example,
+“C<RUS>”, “C<USA>”.
+
+
+
+=item C<$geoip_city_country_name>
+
+
+
+
+
+country name, for example,
+“C<Russian Federation>”, “C<United States>”.
+
+
+
+=item C<$geoip_dma_code>
+
+
+
+
+DMA region code in US (also known as “metro code”), according to the
+L<geotargeting|https://developers.google.com/adwords/api/docs/appendix/cities-DMAregions>
+in Google AdWords API.
+
+
+
+=item C<$geoip_latitude>
+
+
+
+latitude.
+
+
+=item C<$geoip_longitude>
+
+
+
+longitude.
+
+
+=item C<$geoip_region>
+
+
+
+
+two-symbol country region code (region, territory, state, province, federal land
+and the like), for example,
+“C<48>”, “C<DC>”.
+
+
+
+=item C<$geoip_region_name>
+
+
+
+
+country region name (region, territory, state, province, federal land
+and the like), for example,
+“C<Moscow City>”, “C<District of Columbia>”.
+
+
+
+=item C<$geoip_city>
+
+
+
+
+city name, for example,
+“C<Moscow>”, “C<Washington>”.
+
+
+
+=item C<$geoip_postal_code>
+
+
+
+
+postal code.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 geoip_org
+
+
+B<syntax:> geoip_org I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+
+This directive appeared in version 1.0.3.
+
+
+
+
+
+Specifies a database used to determine the organization
+depending on the client IP address.
+The following variable is available when using this database:
+
+=over
+
+
+
+=item C<$geoip_org>
+
+
+
+
+organization name, for example, “The University of Melbourne”.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 geoip_proxy
+
+
+B<syntax:> geoip_proxy I<I<C<address>> E<verbar> I<C<CIDR>>>
+
+
+
+B<context:> I<http>
+
+
+
+This directive appeared in version 1.3.0.
+
+
+
+This directive appeared in version 1.2.1.
+
+
+
+
+
+Defines trusted addresses.
+When a request comes from a trusted address,
+an address from the C<X-Forwarded-For> request
+header field will be used instead.
+
+
+
+
+
+
+
+=head2 geoip_proxy_recursive
+
+
+B<syntax:> geoip_proxy_recursive I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+
+This directive appeared in version 1.3.0.
+
+
+
+This directive appeared in version 1.2.1.
+
+
+
+
+
+If recursive search is disabled then instead of the original client
+address that matches one of the trusted addresses, the last
+address sent in C<X-Forwarded-For> will be used.
+If recursive search is enabled then instead of the original client
+address that matches one of the trusted addresses, the last
+non-trusted address sent in C<X-Forwarded-For> will be used.
+
+
+
+
+
+
+

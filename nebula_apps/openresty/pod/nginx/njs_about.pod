@@ -1,0 +1,367 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+njs_about - About nginScript
+
+
+=head1
+
+
+
+nginScript is a subset of the JavaScript language that allows
+implementing location and variable handlers in
+L<http|ngx_http_js_module> and
+L<stream|ngx_stream_js_module>.
+nginScript is created in compliance with
+L<ECMAScript 5.1|http://www.ecma-international.org/ecma-262/5.1/>
+with some
+L<ECMAScript 6|http://www.ecma-international.org/ecma-262/6.0/>
+extensions.
+The compliance is still evolving.
+
+
+
+
+=head1 What is currently supported
+
+
+
+
+=over
+
+
+
+
+=item *
+
+Boolean values, numbers, strings, objects, arrays,
+functions, and regular expressions
+
+
+
+=item *
+
+ES5.1 operators, ES7 exponentiation operators
+
+
+
+=item *
+
+ES5.1 statements: C<var>, C<if>,
+C<else>, C<switch>, C<for>,
+C<for in>, C<while>,
+C<do while>, C<break>,
+C<continue>, C<return>, C<try>,
+C<catch>, C<throw>, C<finally>
+
+
+
+=item *
+
+ES6 C<Number> and
+C<Math> properties and methods
+
+
+
+=item *
+
+C<String> methods:
+
+=over
+
+
+
+
+=item *
+
+ES5.1:
+C<fromCharCode>, C<concat>,
+C<slice>, C<substring>,
+C<substr>, C<charAt>,
+C<charCodeAt>, C<indexOf>,
+C<lastIndexOf>, C<toLowerCase>,
+C<toUpperCase>, C<trim>,
+C<search>, C<match>, C<split>,
+C<replace>
+
+
+
+=item *
+
+ES6:
+C<fromCodePoint>, C<codePointAt>,
+C<includes>, C<startsWith>,
+C<endsWith>, C<repeat>
+
+
+
+=item *
+
+non-standard:
+C<fromUTF8>, C<toUTF8>,
+C<fromBytes>, C<toBytes>
+
+
+=back
+
+
+
+
+
+
+=item *
+
+C<Object>:
+rudimentary C<Object.create()> support without properties list
+
+
+
+=item *
+
+C<Array> methods:
+
+=over
+
+
+
+=item *
+
+ES5.1:
+C<isArray>, C<slice>, C<splice>,
+C<push>, C<pop>, C<unshift>,
+C<shift>, C<reverse>, C<sort>,
+C<join>, C<concat>, C<indexOf>,
+C<lastIndexOf>, C<forEach>,
+C<some>, C<every>, C<filter>,
+C<map>, C<reduce>,
+C<reduceRight>
+
+
+
+=item *
+
+ES6:
+C<of>, C<fill>, C<find>,
+C<findIndex>
+
+
+
+=item *
+
+ES7: C<includes>
+
+
+=back
+
+
+
+
+
+
+=item *
+
+ES5.1 C<Function> methods:
+C<call>, C<apply>, C<bind>
+
+
+
+=item *
+
+ES5.1 C<RegExp> methods:
+C<test>, C<exec>
+
+
+
+=item *
+
+ES5.1 C<Date> methods
+
+
+
+=item *
+
+ES5.1 global functions:
+C<isFinite>, C<isNaN>,
+C<parseFloat>, C<parseInt>,
+C<decodeURI>, C<decodeURIComponent>,
+C<encodeURI>, C<encodeURIComponent>
+
+
+
+=back
+
+
+
+
+
+
+=head1 What is not supported yet
+
+
+
+
+=over
+
+
+
+
+=item *
+
+ES6 C<let> and C<const> declarations
+
+
+
+=item *
+
+labels
+
+
+
+=item *
+
+C<arguments> array
+
+
+
+=item *
+
+C<eval> function
+
+
+
+=item *
+
+C<JSON> object
+
+
+
+=item *
+
+C<Error> object
+
+
+
+=item *
+
+C<setTimeout>, C<setInterval>,
+C<setImmediate> functions
+
+
+
+=item *
+
+non-integer fractions (C<.235>),
+exponential (C<3.35e10>),
+binary (C<0b0101>),
+octal (C<0o77>),
+hexadecimal (C<0x1123>) literals
+
+
+
+=back
+
+
+
+
+
+
+=head1 Download and install
+
+
+
+nginScript is available in two modules:
+
+=over
+
+
+
+
+=item *
+
+L<ngx_http_js_module|ngx_http_js_module>
+
+
+
+=item *
+
+L<ngx_stream_js_module|ngx_stream_js_module>
+
+
+
+=back
+
+
+Both modules are not built by default,
+they should be either compiled from the sources
+or installed as a Linux package.
+
+
+
+
+
+=head2 Installing as a Linux package
+
+
+
+For Linux, nginScript modules
+L<packages|linux_packages> can be used:
+
+=over
+
+
+
+
+=item *
+
+C<nginx-module-njs> — nginScript
+L<dynamic|ngx_core_module> modules
+
+
+
+=item *
+
+C<nginx-module-njs-dbg> — debug symbols for the
+C<nginx-module-njs> package
+
+
+
+=back
+
+
+
+
+
+
+=head2 Building from the sources
+
+
+
+The L<repository|http://hg.nginx.org/njs>
+with nginScript sources can be cloned with the following command:
+(requires L<Mercurial|https://www.mercurial-scm.org> client):
+
+    
+    hg clone http://hg.nginx.org/njs
+
+
+Then the modules should be compiled using the
+C<--add_module> configuration parameter:
+
+    
+    ./configure --add-module=<value>path-to-njs</value>/nginx
+
+
+The modules can also be built as
+L<dynamic|ngx_core_module>:
+
+    
+    ./configure --add-dynamic_module=<value>path-to-njs</value>/nginx
+
+
+
+
+
+

@@ -1,0 +1,707 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_rewrite_module - Module ngx_http_rewrite_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_rewrite_module> module is used to
+change request URI using PCRE regular expressions, return redirects, and
+conditionally select configurations.
+
+
+
+
+
+The C<ngx_http_rewrite_module> module directives are
+processed in the following order:
+
+=over
+
+
+
+
+=item *
+
+the directives of this module specified on the
+L<ngx_http_core_module> level
+are executed sequentially;
+
+
+
+=item *
+
+repeatedly:
+
+=over
+
+
+
+
+=item *
+
+a
+L<ngx_http_core_module>
+is searched based on a request URI;
+
+
+
+=item *
+
+the directives of this module specified inside the found location
+are executed sequentially;
+
+
+
+=item *
+
+the loop is repeated if a request URI was rewritten,
+but not more than
+L<10 times|ngx_http_core_module>.
+
+
+
+=back
+
+
+
+
+
+=back
+
+
+
+
+
+
+=head1 Directives
+
+=head2 break
+
+
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<if>
+
+
+
+
+
+Stops processing the current set of
+C<ngx_http_rewrite_module> directives.
+
+
+
+
+
+If a directive is specified inside the
+L<ngx_http_core_module>,
+further processing of the request continues in this location.
+
+
+
+
+
+Example:
+
+    
+    if ($slow) {
+        limit_rate 10k;
+        break;
+    }
+
+
+
+
+
+
+
+
+
+=head2 if
+
+
+B<syntax:> if I<(I<C<condition>>) { B<...> } >
+
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+The specified I<C<condition>> is evaluated.
+If true, this module directives specified inside the braces are
+executed, and the request is assigned the configuration inside the
+C<if> directive.
+Configurations inside the C<if> directives are
+inherited from the previous configuration level.
+
+
+
+
+
+A condition may be any of the following:
+
+=over
+
+
+
+
+=item *
+
+a variable name; false if the value of a variable is an empty string
+or “C<0>”;
+
+B<NOTE>
+
+Before version 1.0.1, any string starting with “C<0>”
+was considered a false value.
+
+
+
+
+=item *
+
+comparison of a variable with a string using the
+“C<=>” and “C<!=>” operators;
+
+
+
+=item *
+
+matching of a variable against a regular expression using the
+“C<~>” (for case-sensitive matching) and
+“C<~*>” (for case-insensitive matching) operators.
+Regular expressions can contain captures that are made available for
+later reuse in the C<$1>..C<$9> variables.
+Negative operators “C<!~>” and “C<!~*>”
+are also available.
+If a regular expression includes the “C<}>”
+or “C<;>” characters, the whole expressions should be enclosed
+in single or double quotes.
+
+
+
+=item *
+
+checking of a file existence with the “C<-f>” and
+“C<!-f>” operators;
+
+
+
+=item *
+
+checking of a directory existence with the “C<-d>” and
+“C<!-d>” operators;
+
+
+
+=item *
+
+checking of a file, directory, or symbolic link existence with the
+“C<-e>” and “C<!-e>” operators;
+
+
+
+=item *
+
+checking for an executable file with the “C<-x>”
+and “C<!-x>” operators.
+
+
+
+=back
+
+
+
+
+
+
+
+Examples:
+
+    
+    if ($http_user_agent ~ MSIE) {
+        rewrite ^(.*)$ /msie/$1 break;
+    }
+    
+    if ($http_cookie ~* "id=([^;]+)(?:;|$)") {
+        set $id $1;
+    }
+    
+    if ($request_method = POST) {
+        return 405;
+    }
+    
+    if ($slow) {
+        limit_rate 10k;
+    }
+    
+    if ($invalid_referer) {
+        return 403;
+    }
+
+
+
+B<NOTE>
+
+A value of the C<$invalid_referer> embedded variable is set by the
+L<ngx_http_referer_module> directive.
+
+
+
+
+
+
+
+
+=head2 return
+
+
+B<syntax:> return I<I<C<code>> [I<C<text>>]>
+
+
+B<syntax:> return I<I<C<code>> I<C<URL>>>
+
+
+B<syntax:> return I<I<C<URL>>>
+
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<if>
+
+
+
+
+
+Stops processing and returns the specified I<C<code>> to a client.
+The non-standard code 444 closes a connection without sending
+a response header.
+
+
+
+
+
+Starting from version 0.8.42, it is possible to specify
+either a redirect URL (for codes 301, 302, 303, 307, and 308)
+or the response body I<C<text>> (for other codes).
+A response body text and redirect URL can contain variables.
+As a special case, a redirect URL can be specified as a URI
+local to this server, in which case the full redirect URL
+is formed according to the request scheme (C<$scheme>) and the
+L<ngx_http_core_module> and
+L<ngx_http_core_module> directives.
+
+
+
+
+
+In addition, a I<C<URL>> for temporary redirect with the code 302
+can be specified as the sole parameter.
+Such a parameter should start with the “C<http:E<sol>E<sol>>”,
+“C<https:E<sol>E<sol>>”, or “C<$scheme>” string.
+A I<C<URL>> can contain variables.
+
+
+
+
+
+
+B<NOTE>
+
+Only the following codes could be returned before version 0.7.51:
+204, 400, 402 — 406, 408, 410, 411, 413, 416, and 500 — 504.
+
+
+
+B<NOTE>
+
+The code 307 was not treated as a redirect until versions 1.1.16 and 1.0.13.
+
+
+
+B<NOTE>
+
+The code 308 was not treated as a redirect until version 1.13.0.
+
+
+
+
+
+
+See also the L<ngx_http_core_module> directive.
+
+
+
+
+
+
+
+=head2 rewrite
+
+
+B<syntax:> rewrite I<
+    I<C<regex>>
+    I<C<replacement>>
+    [I<C<flag>>]>
+
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<if>
+
+
+
+
+
+If the specified regular expression matches a request URI, URI is changed
+as specified in the I<C<replacement>> string.
+The C<rewrite> directives are executed sequentially
+in order of their appearance in the configuration file.
+It is possible to terminate further processing of the directives using flags.
+If a replacement string starts with “C<http:E<sol>E<sol>>”,
+“C<https:E<sol>E<sol>>”, or “C<$scheme>”,
+the processing stops and the redirect is returned to a client.
+
+
+
+
+
+An optional I<C<flag>> parameter can be one of:
+
+=over
+
+
+
+=item C<last>
+
+
+
+
+stops processing the current set of
+C<ngx_http_rewrite_module> directives and starts
+a search for a new location matching the changed URI;
+
+
+
+=item C<break>
+
+
+
+
+stops processing the current set of
+C<ngx_http_rewrite_module> directives
+as with the L</break> directive;
+
+
+
+=item C<redirect>
+
+
+
+
+returns a temporary redirect with the 302 code;
+used if a replacement string does not start with
+“C<http:E<sol>E<sol>>”, “C<https:E<sol>E<sol>>”,
+or “C<$scheme>”;
+
+
+
+=item C<permanent>
+
+
+
+
+returns a permanent redirect with the 301 code.
+
+
+
+
+=back
+
+
+The full redirect URL is formed according to the
+request scheme (C<$scheme>) and the
+L<ngx_http_core_module> and
+L<ngx_http_core_module> directives.
+
+
+
+
+
+Example:
+
+    
+    server {
+        ...
+        rewrite ^(/download/.*)/media/(.*)\..*$ $1/mp3/$2.mp3 last;
+        rewrite ^(/download/.*)/audio/(.*)\..*$ $1/mp3/$2.ra  last;
+        return  403;
+        ...
+    }
+
+
+
+
+
+
+
+But if these directives are put inside the “C<E<sol>downloadE<sol>>”
+location, the C<last> flag should be replaced by
+C<break>, or otherwise nginx will make 10 cycles and
+return the 500 error:
+
+    
+    location /download/ {
+        rewrite ^(/download/.*)/media/(.*)\..*$ $1/mp3/$2.mp3 break;
+        rewrite ^(/download/.*)/audio/(.*)\..*$ $1/mp3/$2.ra  break;
+        return  403;
+    }
+
+
+
+
+
+
+
+If a I<C<replacement>> string includes the new request arguments,
+the previous request arguments are appended after them.
+If this is undesired, putting a question mark at the end of a replacement
+string avoids having them appended, for example:
+
+    
+    rewrite ^/users/(.*)$ /show?user=$1? last;
+
+
+
+
+
+
+
+If a regular expression includes the “C<}>”
+or “C<;>” characters, the whole expressions should be enclosed
+in single or double quotes.
+
+
+
+
+
+
+
+=head2 rewrite_log
+
+
+B<syntax:> rewrite_log I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<if>
+
+
+
+
+
+Enables or disables logging of C<ngx_http_rewrite_module>
+module directives processing results
+into the L<ngx_core_module> at
+the C<notice> level.
+
+
+
+
+
+
+
+=head2 set
+
+
+B<syntax:> set I<I<C<$variable>> I<C<value>>>
+
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<if>
+
+
+
+
+
+Sets a I<C<value>> for the specified I<C<variable>>.
+The I<C<value>> can contain text, variables, and their combination.
+
+
+
+
+
+
+
+=head2 uninitialized_variable_warn
+
+
+B<syntax:> uninitialized_variable_warn I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<if>
+
+
+
+
+
+Controls whether warnings about uninitialized variables are logged.
+
+
+
+
+
+
+
+=head1 Internal Implementation
+
+
+
+The C<ngx_http_rewrite_module> module directives
+are compiled at the configuration stage into internal instructions
+that are interpreted during request processing.
+An interpreter is a simple virtual stack machine.
+
+
+
+
+
+For example, the directives
+
+    
+    location /download/ {
+        if ($forbidden) {
+            return 403;
+        }
+    
+        if ($slow) {
+            limit_rate 10k;
+        }
+    
+        rewrite ^/(download/.*)/media/(.*)\..*$ /$1/mp3/$2.mp3 break;
+    }
+
+
+will be translated into these instructions:
+
+    
+    variable $forbidden
+    check against zero
+        return 403
+        end of code
+    variable $slow
+    check against zero
+    match of regular expression
+    copy "/"
+    copy $1
+    copy "/mp3/"
+    copy $2
+    copy ".mp3"
+    end of regular expression
+    end of code
+
+
+
+
+
+
+
+Note that there are no instructions for the
+L<ngx_http_core_module>
+directive above as it is unrelated to the
+C<ngx_http_rewrite_module> module.
+A separate configuration is created for the L</if> block.
+If the condition holds true, a request is assigned this configuration
+where C<limit_rate> equals to 10k.
+
+
+
+
+
+The directive
+
+    
+    rewrite ^/(download/.*)/media/(.*)\..*$ /$1/mp3/$2.mp3 break;
+
+
+can be made smaller by one instruction if the first slash in the regular expression
+is put inside the parentheses:
+
+    
+    rewrite ^(<emphasis>/</emphasis>download/.*)/media/(.*)\..*$ $1/mp3/$2.mp3 break;
+
+
+The corresponding instructions will then look like this:
+
+    
+    match of regular expression
+    copy $1
+    copy "/mp3/"
+    copy $2
+    copy ".mp3"
+    end of regular expression
+    end of code
+
+
+
+
+
+

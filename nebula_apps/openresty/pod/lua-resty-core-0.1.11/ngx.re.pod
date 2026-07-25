@@ -1,0 +1,234 @@
+=encoding utf-8
+
+
+=head1 Name
+
+ngx.re - Lua API for convenience utilities for C<ngx.re>.
+
+
+=head1 Status
+
+This Lua module is currently considered experimental.
+
+
+=head1 Synopsis
+
+
+    local ngx_re = require "ngx.re"
+    
+    -- split
+    local res, err = ngx_re.split("a,b,c,d", ",")
+    --> res is now {"a", "b", "c", "d"}
+
+
+
+
+=head1 Description
+
+This Lua module provides a Lua API which implements convenience utilities for
+the C<ngx.re> API.
+
+
+
+
+=head1 Methods
+
+All the methods of this module are static (or module-level). That is, you do
+not need an object (or instance) to call these methods.
+
+
+
+
+=head2 split
+
+B<syntax:> I<res, err = ngx_re.split(subject, regex, options?, ctx?, max?, res?)>
+
+Splits the C<subject> string using the Perl compatible regular expression
+C<regex> with the optional C<options>.
+
+This function returns a Lua (array) table (with integer keys) containing the
+splitted values.
+
+In case of error, C<nil> will be returned as well as a string describing the
+error.
+
+When C<regex> contains a sub-match capturing group, and when such a match is
+found, the first submatch capture will be inserted in between each splitted
+value, like so:
+
+
+    local ngx_re = require "ngx.re"
+    
+    local res, err = ngx_re.split("a,b,c,d", "(,)")
+    -- res is now {"a", ",", "b", ",", "c", ",", "d"}
+
+When C<regex> is empty string C<"">, the C<subject> will be split into chars,
+like so:
+
+
+    local ngx_re = require "ngx.re"
+    
+    local res, err = ngx_re.split("abcd", "")
+    -- res is now {"a", "b", "c", "d"}
+
+The optional C<ctx> table argument can be a Lua table holding an optional C<pos>
+field. When the C<pos> field in the C<ctx> table argument is specified,
+C<ngx_re.split> will start splitting the C<subject> from that index:
+
+
+    local ngx_re = require "ngx.re"
+    
+    local res, err = ngx_re.split("a,b,c,d", ",", nil, {pos = 5})
+    -- res is now {"c", "d"}
+
+The optional C<max> argument is a number that when specified, will prevent
+C<ngx_re.split> from adding more than C<max> matches to the C<res> array:
+
+
+    local ngx_re = require "ngx.re"
+    
+    local res, err = ngx_re.split("a,b,c,d", ",", nil, nil, 3)
+    -- res is now {"a", "b", "c,d"}
+
+Specifying C<max <= 0> disables this behavior, meaning that the number of
+results won't be limited.
+
+The optional 6th argument C<res> can be a table that C<ngx_re.split> will re-use
+to hold the results instead of creating a new one, which can improve
+performance in hot code paths. It is used like so:
+
+
+    local ngx_re = require "ngx.re"
+    
+    local my_table = {"hello world"}
+    
+    local res, err = ngx_re.split("a,b,c,d", ",", nil, nil, nil, my_table)
+    -- res/my_table is now {"a", "b", "c", "d"}
+
+When provided with a C<res> table, C<ngx_re.split> won't clear the table
+for performance reasons, but will rather insert a trailing C<nil> value
+when the split is completed:
+
+
+    local ngx_re = require "ngx.re"
+    
+    local my_table = {"W", "X", "Y", "Z"}
+    
+    local res, err = ngx_re.split("a,b", ",", nil, nil, nil, my_table)
+    -- res/my_table is now {"a", "b", nil, "Z"}
+
+When the trailing C<nil> is not enough for your purpose, you should
+clear the table yourself before feeding it into the C<split> function.
+
+
+
+
+=head1 Community
+
+
+
+
+=head2 English Mailing List
+
+The L<openresty-en|https://groups.google.com/group/openresty-en> mailing list
+is for English speakers.
+
+
+
+
+=head2 Chinese Mailing List
+
+The L<openresty|https://groups.google.com/group/openresty> mailing list is for
+Chinese speakers.
+
+
+
+
+=head1 Bugs and Patches
+
+Please report bugs or submit patches by
+
+
+=over
+
+
+=item 1.
+
+creating a ticket on the L<GitHub Issue Tracker|https://github.com/openresty/lua-resty-core/issues>,
+
+=item 2.
+
+or posting to the L<OpenResty community>.
+
+
+=back
+
+
+
+
+=head1 Author
+
+Thibault Charbonnier - (L<@thibaultcha|https://github.com/thibaultcha>)
+
+
+
+
+=head1 Copyright and License
+
+This module is licensed under the BSD license.
+
+Copyright (C) 2016-2017, by Yichun "agentzh" Zhang, OpenResty Inc.
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+
+=back
+
+
+=over
+
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+library L<lua-resty-core|https://github.com/openresty/lua-resty-core>
+
+=item *
+
+the ngx_lua module: https://github.com/openresty/lua-nginx-module
+
+=item *
+
+OpenResty: http://openresty.org
+
+
+=back
+
+

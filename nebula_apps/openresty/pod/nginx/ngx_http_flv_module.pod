@@ -1,0 +1,72 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_flv_module - Module ngx_http_flv_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_flv_module> module provides pseudo-streaming
+server-side support for Flash Video (FLV) files.
+
+
+
+
+
+It handles requests with the C<start> argument in
+the request URI’s query string specially, by sending back the contents
+of a file starting from the requested byte offset and with the prepended FLV
+header.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+C<--with-http_flv_module>
+configuration parameter.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location ~ \.flv$ {
+        flv;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 flv
+
+
+
+
+B<context:> I<location>
+
+
+
+
+
+Turns on module processing in a surrounding location.
+
+
+
+
+
+
+

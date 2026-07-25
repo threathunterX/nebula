@@ -1,0 +1,472 @@
+=encoding utf-8
+
+
+=head1 Name
+
+array-var-nginx-module - Add support for array-typed variables to nginx config files
+
+I<This module is not distributed with the Nginx source.> See the
+installation instructions.
+
+
+=head1 Status
+
+This module is production ready.
+
+
+=head1 Synopsis
+
+
+    location /foo {
+        array_split ',' $arg_files to=$array;
+    
+        # use the set_quote_sql_str directive in the ngx_set_misc
+        # module to map to each element in the array $array:
+        array_map_op set_quote_sql_str $array;
+    
+        array_map "name = $array_it" $array;
+    
+        array_join ' or ' $array to=$sql_condition;
+    
+        # well, we could feed it to ngx_drizzle to talk to MySQL, for example ;)
+        echo "select * from files where $sql_condition";
+    }
+
+
+=head1 Description
+
+This module provides array typed nginx variables to C<nginx.conf>.
+
+Under the hood, this module just "abuses" the nginx string values to hold binary pointers
+to C data structures (NGINX core's C<ngx_array_t> struct on the C land).
+
+The array type gives C<nginx.onf> wonderful capabilities of handling value lists. Nowadays, however,
+you are highly recommended to use the L<ngx_lua|https://github.com/openresty/lua-nginx-module> module
+so as to have the full scripting power provided by the Lua language in nginx.
+
+
+
+
+=head1 Directives
+
+
+
+
+=head2 array_split
+
+B<syntax:> I<array_split E<lt>separatorE<gt> E<lt>subjectE<gt> to=$target_variable>
+
+B<default:> I<no>
+
+B<context:> I<http, server, server if, location, location if>
+
+Splits the string value in the C<subject> argument with the separator string specified by the
+C<separator> argument. The result is an array-typed value saved to the nginx variable specified by the C<to=VAR> option.
+
+For example,
+
+
+    array_split "," $arg_names to=$names;
+
+will split the string values in the URI query argument C<names> into an array-typed value saved to the custom nginx variable
+C<$names>.
+
+This directive creates an array-typed variable. Array-typed variables cannot be used outside
+the directives offered by this module. If you want to use the values in an array-typed variable
+in other contexts,
+you must use the L<array_join> directive to produce a normal string value.
+
+
+
+
+=head2 array_join
+
+B<syntax:> I<array_split E<lt>separatorE<gt> $array_var>
+
+B<default:> I<no>
+
+B<context:> I<http, server, server if, location, location if>
+
+Joins the elements in the array-typed nginx variable (C<$array_var>) into a single string value
+with the separator specified by the first argument.
+
+For example,
+
+
+    location /foo {
+        array_split ',' $arg_names to=$names;
+        array_join '+' $names;
+        echo $names;
+    }
+
+Then request C<GET /foo?names=Bob,Marry,John> will yield the response body
+
+
+    Bob+Marry+John
+
+In the example above, we use the L<ngx_echo|https://github.com/openresty/echo-nginx-module> module's L<echo|https://github.com/openresty/echo-nginx-module#echo> directive to output
+the final result.
+
+
+
+
+=head2 array_map
+
+B<syntax:> I<array_map E<lt>templateE<gt> $array_var>
+
+B<syntax:> I<array_map E<lt>templateE<gt> $array_var to=$new_array_var>
+
+B<default:> I<no>
+
+B<context:> I<http, server, server if, location, location if>
+
+Maps the string template to each element in the array-typed nginx variable specified. Within
+the string template, you can use the special iterator variable C<$array_it> to reference the current
+array element in the array being mapped.
+
+For example,
+
+
+    array_map "[$array_it]" $names;
+
+will change each element in the array variable C<$names> by putting the square brackets around
+each element's string value. The modification is in-place in this case.
+
+If you do not want in-place modifications, you can use the C<to=$var> option to specify a new nginx variable to hold the results. For instance,
+
+
+    array_map "[$array_it]" $names to=$new_names;
+
+where the results are saved into another (array-typed) nginx variable named C<$new_names> while
+the C<$names> variable keeps intact.
+
+Below is a complete example for this:
+
+
+    location /foo {
+        array_split ',' $arg_names to=$names;
+        array_map '[$array_it]' $names;
+        array_join '+' $names;
+        echo "$names";
+    }
+
+Then request C<GET /foo?names=bob,marry,nomas> will yield the response body
+
+
+    [bob]+[marry]+[nomas]
+
+
+
+
+=head2 array_map_op
+
+B<syntax:> I<array_map_op E<lt>directiveE<gt> $array_var>
+
+B<syntax:> I<array_map_op E<lt>directiveE<gt> $array_var to=$new_array_var>
+
+B<default:> I<no>
+
+B<context:> I<http, server, server if, location, location if>
+
+Similar to the L<array_map> directive but maps the specified nginx configuration directive instead of
+a string template to each element in the array-typed nginx variable specified. The result
+of applying the specified configuration directive becomes the result of the mapping.
+
+The nginx configuration directive being used as the iterator must be implemented by L<Nginx Devel Kit|https://github.com/simpl/ngx_devel_kit> (NDK)'s set_var submodule's C<ndk_set_var_value>.
+For example, the following L<set-misc-nginx-module|http://github.com/openresty/set-misc-nginx-module> directives can be invoked this way:
+
+
+=over
+
+
+=item *
+
+L<set_quote_sql_str|http://github.com/openresty/set-misc-nginx-module#set_quote_sql_str>
+
+=item *
+
+L<set_quote_pgsql_str|http://github.com/openresty/set-misc-nginx-module#set_quote_pgsql_str>
+
+=item *
+
+L<set_quote_json_str|http://github.com/openresty/set-misc-nginx-module#set_quote_json_str>
+
+=item *
+
+L<set_unescape_uri|http://github.com/openresty/set-misc-nginx-module#set_unescape_uri>
+
+=item *
+
+L<set_escape_uri|http://github.com/openresty/set-misc-nginx-module#set_escape_uri>
+
+=item *
+
+L<set_encode_base32|http://github.com/openresty/set-misc-nginx-module#set_encode_base32>
+
+=item *
+
+L<set_decode_base32|http://github.com/openresty/set-misc-nginx-module#set_decode_base32>
+
+=item *
+
+L<set_encode_base64|http://github.com/openresty/set-misc-nginx-module#set_encode_base64>
+
+=item *
+
+L<set_decode_base64|http://github.com/openresty/set-misc-nginx-module#set_decode_base64>
+
+=item *
+
+L<set_encode_hex|http://github.com/openresty/set-misc-nginx-module#set_encode_base64>
+
+=item *
+
+L<set_decode_hex|http://github.com/openresty/set-misc-nginx-module#set_decode_base64>
+
+=item *
+
+L<set_sha1|http://github.com/openresty/set-misc-nginx-module#set_encode_base64>
+
+=item *
+
+L<set_md5|http://github.com/openresty/set-misc-nginx-module#set_decode_base64>
+
+
+=back
+
+This is a higher-order operation where other nginx configuration directives can be used
+as arguments for this C<map_array_op> directive.
+
+Consider the following example,
+
+
+    array_map_op set_quote_sql_str $names;
+
+This line changes each element in the array-typed nginx variable C<$names> by applying the
+L<set_quote_sql_str|https://github.com/openresty/set-misc-nginx-module#set_quote_sql_str>
+directive provided by the L<ngx_set_misc|https://github.com/openresty/set-misc-nginx-module>
+module one by one. The result is that each element in the array C<$names> has been escaped as SQL string literal values.
+
+You can also specify the C<to=$var> option if you do not want in-place modifications of the input arrays. For instance,
+
+
+    array_map_op set_quote_sql_str $names to=$quoted_names;
+
+will save the escaped elements into a new (array-typed) nginx variable named C<$quoted_names> with C<$names> intact.
+
+The following is a relatively complete example:
+
+
+    location /foo {
+        array_split ',' $arg_names to=$names;
+        array_map_op set_quote_sql_str $names;
+        array_join '+' $names to=$res;
+        echo $res;
+    }
+
+Then request C<GET /foo?names=bob,marry,nomas> will yield the response body
+
+
+    'bob'+'marry'+'nomas'
+
+Pretty cool, huh?
+
+
+
+
+=head1 Installation
+
+You're recommended to install this module (as well as the Nginx core and many other goodies) via the L<OpenResty bundle|http://openresty.org>. See L<the detailed instructions|http://openresty.org/#Installation> for downloading and installing OpenResty into your system. This is the easiest and most safe way to set things up.
+
+Alternatively, you can install this module manually with the Nginx source:
+
+Grab the nginx source code from L<nginx.org|http://nginx.org/>, for example,
+the version 1.9.7 (see L<nginx compatibility>), and then build the source with this module:
+
+
+     $ wget 'http://nginx.org/download/nginx-1.9.7.tar.gz'
+     $ tar -xzvf nginx-1.9.7.tar.gz
+     $ cd nginx-1.9.7/
+    
+     # Here we assume you would install you nginx under /opt/nginx/.
+     $ ./configure --prefix=/opt/nginx \
+         --add-module=/path/to/array-var-nginx-module
+    
+     $ make -j2
+     $ make install
+
+Download the latest version of the release tarball of this module from L<array-var-nginx-module file list|https://github.com/openresty/array-var-nginx-module/tags>.
+
+Also, this module is included and enabled by default in the L<OpenResty bundle|http://openresty.org>.
+
+
+
+
+=head2 Building as a dynamic module
+
+Starting from NGINX 1.9.11, you can also compile this module as a dynamic module, by using the C<--add-dynamic-module=PATH> option instead of C<--add-module=PATH> on the
+C<./configure> command line above. And then you can explicitly load the module in your C<nginx.conf> via the L<load_module|http://nginx.org/en/docs/ngx_core_module.html#load_module>
+directive, for example,
+
+
+    load_module /path/to/modules/ndk_http_module.so;  # assuming NDK is built as a dynamic module too
+    load_module /path/to/modules/ngx_http_array_var_module.so;
+
+
+
+
+=head1 Compatibility
+
+The following versions of Nginx should work with this module:
+
+
+=over
+
+
+=item *
+
+B<1.9.x> (last tested: 1.9.7)
+
+=item *
+
+B<1.8.x>
+
+=item *
+
+B<1.7.x> (last tested: 1.7.10)
+
+=item *
+
+B<1.6.x>
+
+=item *
+
+B<1.5.x> (last tested: 1.5.12)
+
+=item *
+
+B<1.4.x> (last tested: 1.4.2)
+
+=item *
+
+B<1.2.x> (last tested: 1.2.9)
+
+=item *
+
+B<1.1.x> (last tested: 1.1.5)
+
+=item *
+
+B<1.0.x> (last tested: 1.0.8)
+
+=item *
+
+B<0.9.x> (last tested: 0.9.4)
+
+=item *
+
+B<0.8.x> (last tested: 0.8.54)
+
+=item *
+
+B<0.7.x E<gt>= 0.7.44> (last tested: 0.7.68)
+
+
+=back
+
+Earlier versions of Nginx like 0.6.x and 0.5.x will I<not> work.
+
+If you find that any particular version of Nginx above 0.7.44 does not
+work with this module, please consider reporting a bug.
+
+
+
+
+=head1 Source Repository
+
+Available on github at L<openrestyE<sol>array-var-nginx-module|https://github.com/openresty/array-var-nginx-module>.
+
+
+
+
+=head1 Getting involved
+
+You'll be very welcomed to submit patches to the author or just ask for
+a commit bit to the source repository on GitHub.
+
+
+
+
+=head1 Author
+
+Yichun "agentzh" Zhang (章亦春) E<lt>agentzh@gmail.comE<gt>, CloudFlare Inc.
+
+
+
+
+=head1 Copyright & License
+
+Copyright (c) 2009-2016, Yichun Zhang (agentzh) E<lt>agentzh@gmail.comE<gt>, CloudFlare Inc.
+
+This module is licensed under the terms of the BSD license.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+L<NDK|https://github.com/simpl/ngx_devel_kit>
+
+=item *
+
+L<ngx_lua|https://github.com/openresty/lua-nginx-module>
+
+=item *
+
+L<ngx_set_misc|https://github.com/openresty/set-misc-nginx-module>
+
+
+=back
+
+
+

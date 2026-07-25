@@ -1,0 +1,425 @@
+=encoding utf-8
+
+
+=head1 Name
+
+encrypted-session-nginx-module - encrypt and decrypt nginx variable values
+
+I<This module is not distributed with the Nginx source.> See the
+installation instructions.
+
+
+=head1 Status
+
+This module is production ready.
+
+
+=head1 Synopsis
+
+
+    # key must be of 32 bytes long
+    encrypted_session_key "abcdefghijklmnopqrstuvwxyz123456";
+    
+    # iv must not be longer than 16 bytes
+    #   default: "deadbeefdeadbeef" (w/o quotes)
+    encrypted_session_iv "1234567812345678";
+    
+    # default: 1d (1 day)
+    encrypted_session_expires 2; # in sec
+    
+    location /encrypt {
+        set $raw 'text to encrypted'; # from the ngx_rewrite module
+        set_encrypt_session $session $raw;
+        set_encode_base32 $session; # from the ngx_set_misc module
+    
+        add_header Set-Cookie 'my_login=$session';  # from the ngx_headers module
+    
+        # your content handler goes here...
+    }
+    
+    location /decrypt {
+        set_decode_base32 $session $cookie_my_login; # from the ngx_set_misc module
+        set_decrypt_session $raw $session;
+    
+        if ($raw = '') {
+            # bad session
+        }
+    
+        # your content handler goes here...
+    }
+
+
+=head1 Description
+
+This module provides encryption and decryption support for
+nginx variables based on AES-256 with Mac.
+
+This module is usually used with the L<ngx_set_misc module|http://github.com/agentzh/set-misc-nginx-module>
+and the standard rewrite module's directives.
+
+This module can be used to implement simple user login and ACL.
+
+Usually, you just decrypt data in nginx level, and pass the unencrypted
+data to your FastCGI/HTTP backend, as in
+
+
+    location /blah {
+        set_decrypt_session $raw_text $encrypted;
+    
+        # this directive is from the ngx_set_misc module
+        set_escape_uri $escaped_raw_text $raw_text;
+    
+        fastcgi_param QUERY_STRING "uid=$uid";
+        fastcgi_pass unix:/path/to/my/php/or/python/fastcgi.sock;
+    }
+
+Lua web applications running directly on L<ngx_lua|https://github.com/openresty/lua-nginx-module> can call
+this module's directives directly from within Lua code:
+
+
+    local raw_text = ndk.set_var.set_decrypt_session(encrypted_text)
+
+
+
+
+=head1 Directives
+
+
+
+
+=head2 encrypted_session_key
+
+B<syntax:> I<encrypted_session_key E<lt>keyE<gt>>
+
+B<default:> I<no>
+
+B<context:> I<http, server, server if, location, location if>
+
+Sets the key for the cipher (must be 32 bytes long). For example,
+
+
+    encrypted_session_key "abcdefghijklmnopqrstuvwxyz123456";
+
+
+
+
+=head2 encrypted_session_iv
+
+B<syntax:> I<encrypted_session_iv E<lt>ivE<gt>>
+
+B<default:> I<encrypted_session_iv "deadbeefdeadbeef";>
+
+B<context:> I<http, server, server if, location, location if>
+
+Sets the initial vector used for the cipher (must be I<no longer> than 16 bytes).
+
+For example,
+
+
+    encrypted_session_iv "12345678";
+
+
+
+
+=head2 encrypted_session_expires
+
+B<syntax:> I<encrypted_session_expires E<lt>timeE<gt>>
+
+B<default:> I<encrypted_session_expires 1d;>
+
+B<context:> I<http, server, server if, location, location if>
+
+Sets expiration time difference (in seconds by default).
+
+For example, consider the following configuration:
+
+
+    encypted_session_expires 1d;
+
+When your session is being generated, ngx_encrypted_session will plant
+an expiration time (1 day in the future in this example) into the
+encrypted session string, such that when the session is being decrypted
+later, the server can pull the expiration time out of the session and
+compare it with the server's current system time. No matter how you
+transfer and store your session, like using cookies, or URI query arguments,
+or whatever.
+
+People may confuse this setting with the expiration date of HTTP
+cookies. This directive simply controls when the session gets expired;
+it knows nothing about HTTP cookies. Even if the end user intercepted
+this session from cookie by himself and uses it later manually, the
+server will still reject it when the expiration time gets passed.
+
+
+
+
+=head2 set_encrypt_session
+
+B<syntax:> I<set_encrypt_session $target E<lt>valueE<gt>>
+
+B<default:> I<no>
+
+B<context:> I<http, server, server if, location, location if>
+
+Encrypts the string value specified by the C<value> argument and saves the result into
+the variable specified by C<$target>.
+
+For example,
+
+
+    set_encrypt_session $res $value;
+
+will encrypts the value in the variable $value into the target variable C<$res>.
+
+The C<value> argument can also be an nginx string value, for example,
+
+
+    set_encrypt_session $res "my value = $value";
+
+The resulting data can later be decrypted via the L<set_decrypt_session> directive.
+
+
+
+
+=head2 set_decrypt_session
+
+B<syntax:> I<set_decrypt_session $target E<lt>valueE<gt>>
+
+B<default:> I<no>
+
+B<context:> I<http, server, server if, location, location if>
+
+Similar to L<set_encrypt_session>, but performs the inverse operation, that is,
+to decrypt things.
+
+
+
+
+=head1 Installation
+
+You're recommended to install this module (as well as the Nginx core and many other goodies) via the L<ngx_openresty bundle|http://openresty.org>. See L<the detailed instructions|http://openresty.org/#Installation> for downloading and installing ngx_openresty into your system. This is the easiest and most safe way to set things up.
+
+Alternatively, you can install this module manually with the Nginx source:
+
+Grab the nginx source code from L<nginx.org|http://nginx.org/>, for example,
+the version 1.11.2 (see L<nginx compatibility>), and then build the source with this module:
+
+
+    wget 'http://nginx.org/download/nginx-1.11.2.tar.gz'
+    tar -xzvf nginx-1.11.2.tar.gz
+    cd nginx-1.11.2/
+    
+    Here we assume you would install you nginx under /opt/nginx/.
+    ./configure --prefix=/opt/nginx \
+        --with-http_ssl_module \
+        --add-module=/path/to/encrypted-session-nginx-module
+    
+    make -j2
+    make install
+
+Download the latest version of the release tarball of this module from L<encrypted-session-nginx-module file list|https://github.com/openresty/encrypted-session-nginx-module/tags>.
+
+Also, this module is included and enabled by default in the L<ngx_openresty bundle|http://openresty.org>.
+
+OpenSSL should not be disabled in your Nginx build.
+
+
+
+
+=head2 Building as a dynamic module
+
+Starting from NGINX 1.9.11, you can also compile this module as a dynamic module, by using the C<--add-dynamic-module=PATH> option instead of C<--add-module=PATH> on the
+C<./configure> command line above. And then you can explicitly load the module in your C<nginx.conf> via the L<load_module|http://nginx.org/en/docs/ngx_core_module.html#load_module>
+directive, for example,
+
+
+    load_module /path/to/modules/ndk_http_module.so;  # assuming NDK is built as a dynamic module too
+    load_module /path/to/modules/ngx_http_encrypted_session_module.so;
+
+
+
+
+=head1 Compatibility
+
+The following versions of Nginx should work with this module:
+
+
+=over
+
+
+=item *
+
+B<1.11.x> (last tested: 1.11.2)
+
+=item *
+
+B<1.10.x>
+
+=item *
+
+B<1.9.x> (last tested: 1.9.15)
+
+=item *
+
+B<1.8.x>
+
+=item *
+
+B<1.7.x> (last tested: 1.7.10)
+
+=item *
+
+B<1.6.x>
+
+=item *
+
+B<1.5.x> (last tested: 1.5.12)
+
+=item *
+
+B<1.4.x> (last tested: 1.4.4)
+
+=item *
+
+B<1.2.x> (last tested: 1.2.9)
+
+=item *
+
+B<1.1.x> (last tested: 1.1.5)
+
+=item *
+
+B<1.0.x> (last tested: 1.0.11)
+
+=item *
+
+B<0.9.x> (last tested: 0.9.4)
+
+=item *
+
+B<0.8.x> (last tested: 0.8.54)
+
+=item *
+
+B<0.7.x E<gt>= 0.7.46> (last tested: 0.7.68)
+
+
+=back
+
+Earlier versions of Nginx like 0.6.x and 0.5.x will I<not> work.
+
+If you find that any particular version of Nginx above 0.7.44 does not
+work with this module, please consider reporting a bug.
+
+
+
+
+=head1 Report Bugs
+
+Although a lot of effort has been put into testing and code tuning,
+there must be some serious bugs lurking somewhere in this module. So
+whenever you are bitten by any quirks, please don't hesitate to
+
+
+=over
+
+
+=item 1.
+
+send a bug report or even patches to E<lt>agentzh@gmail.comE<gt>,
+
+=item 2.
+
+or create a ticket on the L<issue tracking interface|http://github.com/openresty/encrypted-session-nginx-module/issues>
+provided by GitHub.
+
+
+=back
+
+
+
+
+=head1 Source Repository
+
+Available on github at L<openrestyE<sol>encrypted-session-nginx-module|http://github.com/openresty/encrypted-session-nginx-module>.
+
+
+
+
+=head1 Getting involved
+
+You'll be very welcomed to submit patches to the author or just ask for
+a commit bit to the source repository on GitHub.
+
+
+
+
+=head1 Author
+
+Yichun "agentzh" Zhang (章亦春) E<lt>agentzh@gmail.comE<gt>
+
+
+
+
+=head1 Copyright & License
+
+Copyright (c) 2009-2016, Yichun Zhang (agentzh) E<lt>agentzh@gmail.comE<gt>, Cloud Flare Inc.
+
+This module is licensed under the terms of the BSD license.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+L<NDK|http://github.com/simpl-it/ngx_devel_kit>
+
+=item *
+
+L<ngx_set_misc module|http://github.com/agentzh/set-misc-nginx-module>
+
+
+=back
+
+
+

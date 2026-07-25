@@ -1,0 +1,297 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_map_module - Module ngx_stream_map_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_map_module> module (1.11.2) creates variables
+whose values depend on values of other variables.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    map $remote_addr $limit {
+        127.0.0.1    "";
+        default      $binary_remote_addr;
+    }
+    
+    limit_conn_zone $limit zone=addr:10m;
+    limit_conn addr 1;
+
+
+
+
+
+
+=head1 Directives
+
+=head2 map
+
+
+B<syntax:> map I<
+    I<C<string>>
+    I<C<$variable>> { B<...> } >
+
+
+
+B<context:> I<stream>
+
+
+
+
+
+Creates a new variable whose value
+depends on values of one or more of the source variables
+specified in the first parameter.
+
+
+
+
+
+
+B<NOTE>
+
+Since variables are evaluated only when they are used, the mere declaration
+even of a large number of “C<map>” variables
+does not add any extra costs to connection processing.
+
+
+
+
+
+
+Parameters inside the C<map> block specify a mapping
+between source and resulting values.
+
+
+
+
+
+Source values are specified as strings or regular expressions.
+
+
+
+
+
+Strings are matched ignoring the case.
+
+
+
+
+
+A regular expression should either start from the “C<~>”
+symbol for a case-sensitive matching, or from the “C<~*>”
+symbols for case-insensitive matching.
+A regular expression can contain named and positional captures
+that can later be used in other directives along with the
+resulting variable.
+
+
+
+
+
+If a source value matches one of the names of special parameters
+described below, it should be prefixed with the “C<\>” symbol.
+
+
+
+
+
+The resulting value can contain text,
+variable, and their combination.
+
+
+
+
+
+The following special parameters are also supported:
+
+=over
+
+
+=item C<default> I<C<value>>
+
+
+
+
+sets the resulting value if the source value matches none
+of the specified variants.
+When C<default> is not specified, the default
+resulting value will be an empty string.
+
+
+
+=item C<hostnames>
+
+
+
+
+indicates that source values can be hostnames with a prefix or suffix mask:
+
+    
+    *.example.com 1;
+    example.*     1;
+
+
+The following two records
+
+    
+    example.com   1;
+    *.example.com 1;
+
+
+can be combined:
+
+    
+    .example.com  1;
+
+
+This parameter should be specified before the list of values.
+
+
+
+=item C<include> I<C<file>>
+
+
+
+
+includes a file with values.
+There can be several inclusions.
+
+
+
+=item C<volatile>
+
+
+
+
+indicates that the variable is not cacheable (1.11.7).
+
+
+
+
+=back
+
+
+
+
+
+
+
+If the source value matches more than one of the specified variants,
+e.g. both a mask and a regular expression match, the first matching
+variant will be chosen, in the following order of priority:
+
+=over
+
+
+
+
+=item 1.
+
+string value without a mask
+
+
+
+=item 2.
+
+longest string value with a prefix mask,
+e.g. “C<*.example.com>”
+
+
+
+=item 3.
+
+longest string value with a suffix mask,
+e.g. “C<mail.*>”
+
+
+
+=item 4.
+
+first matching regular expression
+(in order of appearance in a configuration file)
+
+
+
+=item 5.
+
+default value
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 map_hash_bucket_size
+
+
+B<syntax:> map_hash_bucket_size I<I<C<size>>>
+
+
+B<default:> I<32E<verbar>64E<verbar>128>
+
+
+B<context:> I<stream>
+
+
+
+
+
+Sets the bucket size for the L</map> variables hash tables.
+Default value depends on the processor’s cache line size.
+The details of setting up hash tables are provided in a separate
+L<document|hash>.
+
+
+
+
+
+
+
+=head2 map_hash_max_size
+
+
+B<syntax:> map_hash_max_size I<I<C<size>>>
+
+
+B<default:> I<2048>
+
+
+B<context:> I<stream>
+
+
+
+
+
+Sets the maximum I<C<size>> of the L</map> variables
+hash tables.
+The details of setting up hash tables are provided in a separate
+L<document|hash>.
+
+
+
+
+
+
+

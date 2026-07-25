@@ -1,0 +1,1563 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_upstream_module - Module ngx_http_upstream_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_upstream_module> module
+is used to define groups of servers that can be referenced
+by the L<ngx_http_proxy_module>,
+L<ngx_http_fastcgi_module>,
+L<ngx_http_uwsgi_module>,
+L<ngx_http_scgi_module>, and
+L<ngx_http_memcached_module> directives.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    upstream <emphasis>backend</emphasis> {
+        server backend1.example.com       weight=5;
+        server backend2.example.com:8080;
+        server unix:/tmp/backend3;
+    
+        server backup1.example.com:8080   backup;
+        server backup2.example.com:8080   backup;
+    }
+    
+    server {
+        location / {
+            proxy_pass http://<emphasis>backend</emphasis>;
+        }
+    }
+
+
+
+
+
+
+
+Dynamically configurable group with
+periodic L<health checks|ngx_http_upstream_hc_module> is
+available as part of our
+commercial subscription:
+
+    
+    resolver 10.0.0.1;
+    
+    upstream <emphasis>dynamic</emphasis> {
+        zone upstream_dynamic 64k;
+    
+        server backend1.example.com      weight=5;
+        server backend2.example.com:8080 fail_timeout=5s slow_start=30s;
+        server 192.0.2.1                 max_fails=3;
+        server backend3.example.com      resolve;
+        server backend4.example.com      service=http resolve;
+    
+        server backup1.example.com:8080  backup;
+        server backup2.example.com:8080  backup;
+    }
+    
+    server {
+        location / {
+            proxy_pass http://<emphasis>dynamic</emphasis>;
+            health_check;
+        }
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 upstream
+
+
+B<syntax:> upstream I<I<C<name>> { B<...> } >
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Defines a group of servers.
+Servers can listen on different ports.
+In addition, servers listening on TCP and UNIX-domain sockets
+can be mixed.
+
+
+
+
+
+Example:
+
+    
+    upstream backend {
+        server backend1.example.com weight=5;
+        server 127.0.0.1:8080       max_fails=3 fail_timeout=30s;
+        server unix:/tmp/backend3;
+    
+        server backup1.example.com  backup;
+    }
+
+
+
+
+
+
+
+By default, requests are distributed between the servers using a
+weighted round-robin balancing method.
+In the above example, each 7 requests will be distributed as follows:
+5 requests go to C<backend1.example.com>
+and one request to each of the second and third servers.
+If an error occurs during communication with a server, the request will
+be passed to the next server, and so on until all of the functioning
+servers will be tried.
+If a successful response could not be obtained from any of the servers,
+the client will receive the result of the communication with the last server.
+
+
+
+
+
+
+
+=head2 server
+
+
+B<syntax:> server I<I<C<address>> [I<C<parameters>>]>
+
+
+
+B<context:> I<upstream>
+
+
+
+
+
+Defines the I<C<address>> and other I<C<parameters>>
+of a server.
+The address can be specified as a domain name or IP address,
+with an optional port, or as a UNIX-domain socket path
+specified after the “C<unix:>” prefix.
+If a port is not specified, the port 80 is used.
+A domain name that resolves to several IP addresses defines
+multiple servers at once.
+
+
+
+
+
+The following parameters can be defined:
+
+=over
+
+
+
+=item 
+C<weight>=I<C<number>>
+
+
+
+
+
+sets the weight of the server, by default, 1.
+
+
+
+=item 
+C<max_conns>=I<C<number>>
+
+
+
+
+
+limits the maximum I<C<number>> of simultaneous active
+connections to the proxied server (1.11.5).
+Default value is zero, meaning there is no limit.
+If the server group does not reside in the shared memory,
+the limitation works per each worker process.
+
+B<NOTE>
+
+If idle keepalive connections,
+multiple L<workers|ngx_core_module>,
+and the shared memory are enabled,
+the total number of active and idle connections to the proxied server
+may exceed the C<max_conns> value.
+
+
+B<NOTE>
+
+Since version 1.5.9 and prior to version 1.11.5,
+this parameter was available as part of our
+commercial subscription.
+
+
+
+
+=item 
+C<max_fails>=I<C<number>>
+
+
+
+
+
+sets the number of unsuccessful attempts to communicate with the server
+that should happen in the duration set by the C<fail_timeout>
+parameter to consider the server unavailable for a duration also set by the
+C<fail_timeout> parameter.
+By default, the number of unsuccessful attempts is set to 1.
+The zero value disables the accounting of attempts.
+What is considered an unsuccessful attempt is defined by the
+L<ngx_http_proxy_module>,
+L<ngx_http_fastcgi_module>,
+L<ngx_http_uwsgi_module>,
+L<ngx_http_scgi_module>, and
+L<ngx_http_memcached_module>
+directives.
+
+
+
+=item 
+C<fail_timeout>=I<C<time>>
+
+
+
+
+
+sets
+
+=over
+
+
+
+
+=item *
+
+the time during which the specified number of unsuccessful attempts to
+communicate with the server should happen to consider the server unavailable;
+
+
+
+=item *
+
+and the period of time the server will be considered unavailable.
+
+
+
+=back
+
+
+By default, the parameter is set to 10 seconds.
+
+
+
+=item 
+C<backup>
+
+
+
+
+
+marks the server as a backup server.
+It will be passed requests when the primary servers are unavailable.
+
+
+
+=item 
+C<down>
+
+
+
+
+
+marks the server as permanently unavailable.
+
+
+
+
+=back
+
+
+
+
+
+
+
+Additionally,
+the following parameters are available as part of our
+commercial subscription:
+
+=over
+
+
+
+=item 
+C<resolve>
+
+
+
+
+
+monitors changes of the IP addresses
+that correspond to a domain name of the server,
+and automatically modifies the upstream configuration
+without the need of restarting nginx (1.5.12).
+The server group must reside in the shared memory.
+
+
+In order for this parameter to work,
+the L<ngx_http_core_module> directive
+must be specified in the
+L<ngx_http_core_module> block.
+Example:
+
+    
+    http {
+        resolver 10.0.0.1;
+    
+        upstream u {
+            zone ...;
+            ...
+            server example.com resolve;
+        }
+    }
+
+
+
+
+
+
+
+=item 
+C<route>=I<C<string>>
+
+
+
+
+
+sets the server route name.
+
+
+
+=item 
+C<service>=I<C<name>>
+
+
+
+
+
+enables resolving of DNS
+L<SRV|https://tools.ietf.org/html/rfc2782>
+records and sets the service I<C<name>> (1.9.13).
+In order for this parameter to work, it is necessary to specify
+the L</resolve> parameter for the server
+and specify a hostname without a port number.
+
+
+If the service name does not contain a dot (“C<.>”), then
+the L<RFC|https://tools.ietf.org/html/rfc2782>-compliant name
+is constructed
+and the TCP protocol is added to the service prefix.
+For example, to look up the
+C<_http._tcp.backend.example.com> SRV record,
+it is necessary to specify the directive:
+
+    
+    server backend.example.com service=http resolve;
+
+
+If the service name contains one or more dots, then the name is constructed
+by joining the service prefix and the server name.
+For example, to look up the C<_http._tcp.backend.example.com>
+and C<server1.backend.example.com> SRV records,
+it is necessary to specify the directives:
+
+    
+    server backend.example.com service=_http._tcp resolve;
+    server example.com service=server1.backend resolve;
+
+
+
+
+
+
+
+Highest-priority SRV records
+(records with the same lowest-number priority value)
+are resolved as primary servers,
+the rest of SRV records are resolved as backup servers.
+If the L</backup> parameter is specified for the server,
+high-priority SRV records are resolved as backup servers,
+the rest of SRV records are ignored.
+
+
+
+
+
+=item 
+C<slow_start>=I<C<time>>
+
+
+
+
+
+sets the I<C<time>> during which the server will recover its weight
+from zero to a nominal value, when unhealthy server becomes
+L<healthy|ngx_http_upstream_hc_module>,
+or when the server becomes available after a period of time
+it was considered unavailable.
+Default value is zero, i.e. slow start is disabled.
+
+B<NOTE>
+
+The parameter cannot be used along with the
+L</hash> and L</ip_hash> load balancing methods.
+
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+B<NOTE>
+
+If there is only a single server in a group, C<max_fails>,
+C<fail_timeout> and C<slow_start> parameters
+are ignored, and such a server will never be considered unavailable.
+
+
+
+
+
+
+
+
+=head2 zone
+
+
+B<syntax:> zone I<I<C<name>> [I<C<size>>]>
+
+
+
+B<context:> I<upstream>
+
+
+
+This directive appeared in version 1.9.0.
+
+
+
+
+
+Defines the I<C<name>> and I<C<size>> of the shared
+memory zone that keeps the group’s configuration and run-time state that are
+shared between worker processes.
+Several groups may share the same zone.
+In this case, it is enough to specify the I<C<size>> only once.
+
+
+
+
+
+Additionally,
+as part of our commercial subscription,
+such groups allow changing the group membership
+or modifying the settings of a particular server
+without the need of restarting nginx.
+The configuration is accessible via a special location
+handled by
+L<ngx_http_upstream_conf_module>.
+
+
+
+
+
+
+
+=head2 state
+
+
+B<syntax:> state I<I<C<file>>>
+
+
+
+B<context:> I<upstream>
+
+
+
+This directive appeared in version 1.9.7.
+
+
+
+
+
+Specifies a I<C<file>> that keeps the state
+of the dynamically configurable group.
+
+
+
+
+
+Examples:
+
+    
+    state /var/lib/nginx/state/servers.conf; # path for Linux
+    state /var/db/nginx/state/servers.conf;  # path for FreeBSD
+
+
+
+
+
+
+
+The state is currently limited to the list of servers with their parameters.
+The file is read when parsing the configuration and is updated each time
+the upstream configuration is
+L<changed|ngx_http_upstream_conf_module>.
+Changing the file content directly should be avoided.
+The directive cannot be used
+along with the L</server> directive.
+
+
+
+
+
+
+B<NOTE>
+
+Changes made during
+L<configuration reload|control>
+or L<binary upgrade|control>
+can be lost.
+
+
+
+
+
+
+
+B<NOTE>
+
+This directive is available as part of our
+commercial subscription.
+
+
+
+
+
+
+
+
+=head2 hash
+
+
+B<syntax:> hash I<I<C<key>> [C<consistent>]>
+
+
+
+B<context:> I<upstream>
+
+
+
+This directive appeared in version 1.7.2.
+
+
+
+
+
+Specifies a load balancing method for a server group
+where the client-server mapping is based on the hashed I<C<key>> value.
+The I<C<key>> can contain text, variables, and their combinations.
+Note that adding or removing a server from the group
+may result in remapping most of the keys to different servers.
+The method is compatible with the
+L<Cache::Memcached|http://search.cpan.org/perldoc?Cache%3A%3AMemcached>
+Perl library.
+
+
+
+
+
+If the C<consistent> parameter is specified
+the L<ketama|http://www.last.fm/user/RJ/journal/2007/04/10/392555/>
+consistent hashing method will be used instead.
+The method ensures that only a few keys
+will be remapped to different servers
+when a server is added to or removed from the group.
+This helps to achieve a higher cache hit ratio for caching servers.
+The method is compatible with the
+L<Cache::Memcached::Fast|http://search.cpan.org/perldoc?Cache%3A%3AMemcached%3A%3AFast>
+Perl library with the I<C<ketama_points>> parameter set to 160.
+
+
+
+
+
+
+
+=head2 ip_hash
+
+
+
+
+B<context:> I<upstream>
+
+
+
+
+
+Specifies that a group should use a load balancing method where requests
+are distributed between servers based on client IP addresses.
+The first three octets of the client IPv4 address, or the entire IPv6 address,
+are used as a hashing key.
+The method ensures that requests from the same client will always be
+passed to the same server except when this server is unavailable.
+In the latter case client requests will be passed to another server.
+Most probably, it will always be the same server as well.
+
+B<NOTE>
+
+IPv6 addresses are supported starting from versions 1.3.2 and 1.2.2.
+
+
+
+
+
+
+If one of the servers needs to be temporarily removed, it should
+be marked with the C<down> parameter in
+order to preserve the current hashing of client IP addresses.
+
+
+
+
+
+Example:
+
+    
+    upstream backend {
+        ip_hash;
+    
+        server backend1.example.com;
+        server backend2.example.com;
+        server backend3.example.com <emphasis>down</emphasis>;
+        server backend4.example.com;
+    }
+
+
+
+
+
+
+
+
+B<NOTE>
+
+Until versions 1.3.1 and 1.2.2, it was not possible to specify a weight for
+servers using the C<ip_hash> load balancing method.
+
+
+
+
+
+
+
+
+=head2 keepalive
+
+
+B<syntax:> keepalive I<I<C<connections>>>
+
+
+
+B<context:> I<upstream>
+
+
+
+This directive appeared in version 1.1.4.
+
+
+
+
+
+Activates the cache for connections to upstream servers.
+
+
+
+
+
+The I<C<connections>> parameter sets the maximum number of
+idle keepalive connections to upstream servers that are preserved in
+the cache of each worker process.
+When this number is exceeded, the least recently used connections
+are closed.
+
+B<NOTE>
+
+It should be particularly noted that the C<keepalive> directive
+does not limit the total number of connections to upstream servers
+that an nginx worker process can open.
+The I<C<connections>> parameter should be set to a number small enough
+to let upstream servers process new incoming connections as well.
+
+
+
+
+
+
+Example configuration of memcached upstream with keepalive connections:
+
+    
+    upstream memcached_backend {
+        server 127.0.0.1:11211;
+        server 10.0.0.2:11211;
+    
+        keepalive 32;
+    }
+    
+    server {
+        ...
+    
+        location /memcached/ {
+            set $memcached_key $uri;
+            memcached_pass memcached_backend;
+        }
+    
+    }
+
+
+
+
+
+
+
+For HTTP, the L<ngx_http_proxy_module>
+directive should be set to “C<1.1>”
+and the C<Connection> header field should be cleared:
+
+    
+    upstream http_backend {
+        server 127.0.0.1:8080;
+    
+        keepalive 16;
+    }
+    
+    server {
+        ...
+    
+        location /http/ {
+            proxy_pass http://http_backend;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            ...
+        }
+    }
+
+
+
+
+
+
+
+
+B<NOTE>
+
+Alternatively, HTTPE<sol>1.0 persistent connections can be used by passing the
+C<Connection: Keep-Alive> header field to an upstream server,
+though this method is not recommended.
+
+
+
+
+
+
+For FastCGI servers, it is required to set
+L<ngx_http_fastcgi_module>
+for keepalive connections to work:
+
+    
+    upstream fastcgi_backend {
+        server 127.0.0.1:9000;
+    
+        keepalive 8;
+    }
+    
+    server {
+        ...
+    
+        location /fastcgi/ {
+            fastcgi_pass fastcgi_backend;
+            fastcgi_keep_conn on;
+            ...
+        }
+    }
+
+
+
+
+
+
+
+
+B<NOTE>
+
+When using load balancer methods other than the default
+round-robin method, it is necessary to activate them before
+the C<keepalive> directive.
+
+
+
+B<NOTE>
+
+SCGI and uwsgi protocols do not have a notion of keepalive connections.
+
+
+
+
+
+
+
+
+=head2 ntlm
+
+
+
+
+B<context:> I<upstream>
+
+
+
+This directive appeared in version 1.9.2.
+
+
+
+
+
+Allows proxying requests with
+L<NTLM
+Authentication|https://en.wikipedia.org/wiki/Integrated_Windows_Authentication>.
+The upstream connection is bound to the client connection
+once the client sends a request with the C<Authorization>
+header field value
+starting with “C<Negotiate>” or “C<NTLM>”.
+Further client requests will be proxied through the same upstream connection,
+keeping the authentication context.
+
+
+
+
+
+In order for NTLM authentication to work,
+it is necessary to enable keepalive connections to upstream servers.
+The L<ngx_http_proxy_module>
+directive should be set to “C<1.1>”
+and the C<Connection> header field should be cleared:
+
+    
+    upstream http_backend {
+        server 127.0.0.1:8080;
+    
+        ntlm;
+    }
+    
+    server {
+        ...
+    
+        location /http/ {
+            proxy_pass http://http_backend;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            ...
+        }
+    }
+
+
+
+
+
+
+
+
+B<NOTE>
+
+When using load balancer methods other than the default
+round-robin method, it is necessary to activate them before
+the C<ntlm> directive.
+
+
+
+
+
+
+
+B<NOTE>
+
+This directive is available as part of our
+commercial subscription.
+
+
+
+
+
+
+
+
+=head2 least_conn
+
+
+
+
+B<context:> I<upstream>
+
+
+
+This directive appeared in version 1.3.1.
+
+
+
+This directive appeared in version 1.2.2.
+
+
+
+
+
+Specifies that a group should use a load balancing method where a request
+is passed to the server with the least number of active connections,
+taking into account weights of servers.
+If there are several such servers, they are tried in turn using a
+weighted round-robin balancing method.
+
+
+
+
+
+
+
+=head2 least_time
+
+
+B<syntax:> least_time I<
+    C<header> E<verbar>
+    C<last_byte>
+    [C<inflight>]>
+
+
+
+B<context:> I<upstream>
+
+
+
+This directive appeared in version 1.7.10.
+
+
+
+
+
+Specifies that a group should use a load balancing method where a request
+is passed to the server with the least average response time and
+least number of active connections, taking into account weights of servers.
+If there are several such servers, they are tried in turn using a
+weighted round-robin balancing method.
+
+
+
+
+
+If the C<header> parameter is specified,
+time to receive the
+response header is used.
+If the C<last_byte> parameter is specified,
+time to receive the full response
+is used.
+If the C<inflight> parameter is specified (1.11.6),
+incomplete requests are also taken into account.
+
+B<NOTE>
+
+Prior to version 1.11.6, incomplete requests were taken into account by default.
+
+
+
+
+
+
+
+B<NOTE>
+
+This directive is available as part of our
+commercial subscription.
+
+
+
+
+
+
+
+
+=head2 queue
+
+
+B<syntax:> queue I<
+I<C<number>>
+[C<timeout>=I<C<time>>]>
+
+
+
+B<context:> I<upstream>
+
+
+
+This directive appeared in version 1.5.12.
+
+
+
+
+
+If an upstream server cannot be selected immediately
+while processing a request,
+the request will be placed into the queue.
+The directive specifies the maximum number of requests that can be in the queue
+at the same time.
+If the queue is filled up,
+or the server to pass the request to cannot be selected within
+the time period specified in the C<timeout> parameter,
+the C<502> (C<Bad Gateway>)
+error will be returned to the client.
+
+
+
+
+
+The default value of the C<timeout> parameter is 60 seconds.
+
+
+
+
+
+
+B<NOTE>
+
+When using load balancer methods other than the default
+round-robin method, it is necessary to activate them before
+the C<queue> directive.
+
+
+
+B<NOTE>
+
+This directive is available as part of our
+commercial subscription.
+
+
+
+
+
+
+
+
+=head2 sticky
+
+
+B<syntax:> sticky I<
+    C<cookie> I<C<name>>
+    [C<expires=>I<C<time>>]
+    [C<domain=>I<C<domain>>]
+    [C<httponly>]
+    [C<secure>]
+    [C<path=>I<C<path>>]>
+
+
+B<syntax:> sticky I<
+    C<route> I<C<$variable>> ...>
+
+
+B<syntax:> sticky I<
+    C<learn>
+    C<create=>I<C<$variable>>
+    C<lookup=>I<C<$variable>>
+    C<zone=>I<C<name>>:I<C<size>>
+    [C<timeout=>I<C<time>>]>
+
+
+
+B<context:> I<upstream>
+
+
+
+This directive appeared in version 1.5.7.
+
+
+
+
+
+Enables session affinity, which causes requests from the same client to be
+passed to the same server in a group of servers.
+Three methods are available:
+
+=over
+
+
+=item C<cookie>
+
+
+
+
+
+
+
+When the C<cookie> method is used, information about the
+designated server is passed in an HTTP cookie generated by nginx:
+
+    
+    upstream backend {
+        server backend1.example.com;
+        server backend2.example.com;
+    
+        sticky cookie srv_id expires=1h domain=.example.com path=/;
+    }
+
+
+
+
+
+
+
+A request that comes from a client not yet bound to a particular server
+is passed to the server selected by the configured balancing method.
+Further requests with this cookie will be passed to the designated server.
+If the designated server cannot process a request, the new server is
+selected as if the client has not been bound yet.
+
+
+
+
+
+The first parameter sets the name of the cookie to be set or inspected.
+Additional parameters may be as follows:
+
+=over
+
+
+
+=item C<expires=>I<C<time>>
+
+
+
+
+Sets the I<C<time>> for which a browser should keep the cookie.
+The special value C<max> will cause the cookie to expire on
+“C<31 Dec 2037 23:55:55 GMT>”.
+If the parameter is not specified, it will cause the cookie to expire at
+the end of a browser session.
+
+
+
+=item C<domain=>I<C<domain>>
+
+
+
+
+Defines the I<C<domain>> for which the cookie is set.
+Parameter value can contain variables (1.11.5).
+
+
+
+=item C<httponly>
+
+
+
+
+Adds the C<HttpOnly> attribute to the cookie (1.7.11).
+
+
+
+=item C<secure>
+
+
+
+
+Adds the C<Secure> attribute to the cookie (1.7.11).
+
+
+
+
+=item C<path=>I<C<path>>
+
+
+
+
+Defines the I<C<path>> for which the cookie is set.
+
+
+
+
+=back
+
+
+If any parameters are omitted, the corresponding cookie fields are not set.
+
+
+
+
+
+=item C<route>
+
+
+
+
+
+
+
+When the C<route> method is used, proxied server assigns
+client a route on receipt of the first request.
+All subsequent requests from this client will carry routing information
+in a cookie or URI.
+This information is compared with the “C<route>” parameter
+of the L</server> directive to identify the server to which the
+request should be proxied.
+If the “C<route>” parameter is not specified, the route name
+will be a hexadecimal representation of the MD5 hash of the IP address and port,
+or of the UNIX-domain socket path.
+If the designated server cannot process a request, the new server is
+selected by the configured balancing method as if there is no routing
+information in the request.
+
+
+
+
+
+The parameters of the C<route> method specify variables that
+may contain routing information.
+The first non-empty variable is used to find the matching server.
+
+
+
+
+
+Example:
+
+    
+    map $cookie_jsessionid $route_cookie {
+        ~.+\.(?P<route>\w+)$ $route;
+    }
+    
+    map $request_uri $route_uri {
+        ~jsessionid=.+\.(?P<route>\w+)$ $route;
+    }
+    
+    upstream backend {
+        server backend1.example.com route=a;
+        server backend2.example.com route=b;
+    
+        sticky route $route_cookie $route_uri;
+    }
+
+
+Here, the route is taken from the “C<JSESSIONID>” cookie
+if present in a request.
+Otherwise, the route from the URI is used.
+
+
+
+
+
+
+=item C<learn>
+
+
+
+
+
+
+When the C<learn> method (1.7.1) is used, nginx
+analyzes upstream server responses and learns server-initiated sessions
+usually passed in an HTTP cookie.
+
+    
+    upstream backend {
+       server backend1.example.com:8080;
+       server backend2.example.com:8081;
+    
+       sticky learn
+              create=$upstream_cookie_examplecookie
+              lookup=$cookie_examplecookie
+              zone=client_sessions:1m;
+    }
+
+
+
+In the example, the upstream server creates a session by setting the
+cookie “C<EXAMPLECOOKIE>” in the response.
+Further requests with this cookie will be passed to the same server.
+If the server cannot process the request, the new server is
+selected as if the client has not been bound yet.
+
+
+
+
+
+The parameters C<create> and C<lookup>
+specify variables that indicate how new sessions are created and existing
+sessions are searched, respectively.
+Both parameters may be specified more than once, in which case the first
+non-empty variable is used.
+
+
+
+
+
+Sessions are stored in a shared memory zone, whose I<C<name>> and
+I<C<size>> are configured by the C<zone> parameter.
+One megabyte zone can store about 8000 sessions on the 64-bit platform.
+The sessions that are not accessed during the time specified by the
+C<timeout> parameter get removed from the zone.
+By default, C<timeout> is set to 10 minutes.
+
+
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+B<NOTE>
+
+This directive is available as part of our
+commercial subscription.
+
+
+
+
+
+
+
+
+=head2 sticky_cookie_insert
+
+
+B<syntax:> sticky_cookie_insert I<I<C<name>>
+[C<expires=>I<C<time>>]
+[C<domain=>I<C<domain>>]
+[C<path=>I<C<path>>]>
+
+
+
+B<context:> I<upstream>
+
+
+
+
+
+This directive is obsolete since version 1.5.7.
+An equivalent
+L</sticky> directive with a new syntax should be used instead:
+
+B<NOTE>
+
+C<sticky cookie> I<C<name>>
+[C<expires=>I<C<time>>]
+[C<domain=>I<C<domain>>]
+[C<path=>I<C<path>>];
+
+
+
+
+
+
+
+
+=head1 Embedded Variables
+
+
+
+The C<ngx_http_upstream_module> module
+supports the following embedded variables:
+
+=over
+
+
+
+=item C<$upstream_addr>
+
+
+
+
+keeps the IP address and port,
+or the path to the UNIX-domain socket of the upstream server.
+If several servers were contacted during request processing,
+their addresses are separated by commas, e.g.
+“C<192.168.1.1:80, 192.168.1.2:80, unix:E<sol>tmpE<sol>sock>”.
+If an internal redirect from one server group to another happens,
+initiated by
+C<X-Accel-Redirect> or
+L<ngx_http_core_module>,
+then the server addresses from different groups are separated by colons, e.g.
+“C<192.168.1.1:80, 192.168.1.2:80, unix:E<sol>tmpE<sol>sock : 192.168.10.1:80, 192.168.10.2:80>”.
+
+
+
+=item C<$upstream_bytes_received>
+
+
+
+
+number of bytes received from an upstream server (1.11.4).
+Values from several connections
+are separated by commas and colons like addresses in the
+$upstream_addr variable.
+
+
+
+=item C<$upstream_cache_status>
+
+
+
+
+
+keeps the status of accessing a response cache (0.8.3).
+The status can be either “C<MISS>”,
+“C<BYPASS>”, “C<EXPIRED>”,
+“C<STALE>”, “C<UPDATING>”,
+“C<REVALIDATED>”, or “C<HIT>”.
+
+
+
+=item C<$upstream_connect_time>
+
+
+
+
+
+keeps time spent on establishing a connection with the upstream server (1.9.1);
+the time is kept in seconds with millisecond resolution.
+In case of SSL, includes time spent on handshake.
+Times of several connections
+are separated by commas and colons like addresses in the
+$upstream_addr variable.
+
+
+
+=item C<$upstream_cookie_>I<C<name>>
+
+
+
+
+
+cookie with the specified I<C<name>> sent by the upstream server
+in the C<Set-Cookie> response header field (1.7.1).
+Only the cookies from the response of the last server are saved.
+
+
+
+=item C<$upstream_header_time>
+
+
+
+
+
+keeps time
+spent on receiving the response header from the upstream server (1.7.10);
+the time is kept in seconds with millisecond resolution.
+Times of several responses
+are separated by commas and colons like addresses in the
+$upstream_addr variable.
+
+
+
+=item C<$upstream_http_>I<C<name>>
+
+
+
+
+keep server response header fields.
+For example, the C<Server> response header field
+is available through the C<$upstream_http_server> variable.
+The rules of converting header field names to variable names are the same
+as for the variables that start with the
+“L<$http_|ngx_http_core_module>” prefix.
+Only the header fields from the response of the last server are saved.
+
+
+
+=item C<$upstream_response_length>
+
+
+
+
+
+keeps the length of the response obtained from the upstream server (0.7.27);
+the length is kept in bytes.
+Lengths of several responses
+are separated by commas and colons like addresses in the
+$upstream_addr variable.
+
+
+
+=item C<$upstream_response_time>
+
+
+
+
+
+keeps time spent on receiving the response from the upstream server;
+the time is kept in seconds with millisecond resolution.
+Times of several responses
+are separated by commas and colons like addresses in the
+$upstream_addr variable.
+
+
+
+=item C<$upstream_status>
+
+
+
+
+keeps status code of the response obtained from the upstream server.
+Status codes of several responses
+are separated by commas and colons like addresses in the
+$upstream_addr variable.
+
+
+
+
+=back
+
+
+
+
+
+

@@ -1,0 +1,76 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_google_perftools_module - Module ngx_google_perftools_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_google_perftoos_module> module (0.6.29) enables
+profiling of nginx worker processes using
+L<Google Performance Tools|https://github.com/gperftools/gperftools>.
+The module is intended for nginx developers.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+C<--with-google_perftools_module>
+configuration parameter.
+
+B<NOTE>
+
+This module requires the
+L<gperftools|https://github.com/gperftools/gperftools> library.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    google_perftools_profiles /path/to/profile;
+
+
+Profiles will be stored as
+C<E<sol>pathE<sol>toE<sol>profile.E<lt>worker_pidE<gt>>.
+
+
+
+
+=head1 Directives
+
+=head2 google_perftools_profiles
+
+
+B<syntax:> google_perftools_profiles I<I<C<file>>>
+
+
+
+B<context:> I<main>
+
+
+
+
+
+Sets a file name that keeps profiling information of
+nginx worker process.
+The ID of the worker process is always a part of the file name
+and is appended to the end of the file name, after a dot.
+
+
+
+
+
+
+

@@ -1,0 +1,13 @@
+{
+    "name": "profile_account_risk",
+    "callmode": "rpc",
+    "delivermode": "sharding",
+    "serverimpl": "rabbitmq",
+    "coder": "mail",
+    "options": {
+        "cdc": "sh",
+        "sdc": "sh",
+        "servercardinality": 1,
+        "serverseq": 1
+    }
+}

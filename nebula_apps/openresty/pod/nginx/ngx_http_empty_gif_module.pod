@@ -1,0 +1,55 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_empty_gif_module - Module ngx_http_empty_gif_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_empty_gif_module> module emits
+single-pixel transparent GIF.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location = /_.gif {
+        empty_gif;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 empty_gif
+
+
+
+
+B<context:> I<location>
+
+
+
+
+
+Turns on module processing in a surrounding location.
+
+
+
+
+
+
+

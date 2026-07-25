@@ -1,0 +1,329 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_mail_auth_http_module - Module ngx_mail_auth_http_module
+
+
+
+
+=head1 Directives
+
+=head2 auth_http
+
+
+B<syntax:> auth_http I<I<C<URL>>>
+
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the URL of the HTTP authentication server.
+The protocol is described below.
+
+
+
+
+
+
+
+=head2 auth_http_header
+
+
+B<syntax:> auth_http_header I<I<C<header>> I<C<value>>>
+
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+
+
+Appends the specified header to requests sent to the authentication server.
+This header can be used as the shared secret to verify
+that the request comes from nginx.
+For example:
+
+    
+    auth_http_header X-Auth-Key "secret_string";
+
+
+
+
+
+
+
+
+
+=head2 auth_http_pass_client_cert
+
+
+B<syntax:> auth_http_pass_client_cert I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.7.11.
+
+
+
+
+
+Appends the C<Auth-SSL-Cert> header with the
+L<client|ngx_mail_ssl_module>
+certificate in the PEM format (urlencoded)
+to requests sent to the authentication server.
+
+
+
+
+
+
+
+=head2 auth_http_timeout
+
+
+B<syntax:> auth_http_timeout I<I<C<time>>>
+
+
+B<default:> I<60s>
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the timeout for communication with the authentication server.
+
+
+
+
+
+
+
+=head1 Protocol
+
+
+
+The HTTP protocol is used to communicate with the authentication server.
+The data in the response body is ignored, the information is passed only in
+the headers.
+
+
+
+
+
+Examples of requests and responses:
+
+
+
+
+
+Request:
+
+    
+    GET /auth HTTP/1.0
+    Host: localhost
+    Auth-Method: plain # plain/apop/cram-md5/external
+    Auth-User: user
+    Auth-Pass: password
+    Auth-Protocol: imap # imap/pop3/smtp
+    Auth-Login-Attempt: 1
+    Client-IP: 192.0.2.42
+    Client-Host: client.example.org
+
+
+Good response:
+
+    
+    HTTP/1.0 200 OK
+    Auth-Status: OK
+    Auth-Server: 198.51.100.1
+    Auth-Port: 143
+
+
+Bad response:
+
+    
+    HTTP/1.0 200 OK
+    Auth-Status: Invalid login or password
+    Auth-Wait: 3
+
+
+
+
+
+
+
+If there is no C<Auth-Wait> header,
+an error will be returned and the connection will be closed.
+The current implementation allocates memory for each authentication attempt.
+The memory is freed only at the end of a session.
+Therefore, the number of invalid authentication attempts in a single session
+must be limited — the server must respond without
+the C<Auth-Wait> header after 10-20 attempts
+(the attempt number is passed in the C<Auth-Login-Attempt>
+header).
+
+
+
+
+
+When the APOP or CRAM-MD5 are used, request-response will look as follows:
+
+    
+    GET /auth HTTP/1.0
+    Host: localhost
+    Auth-Method: apop
+    Auth-User: user
+    Auth-Salt: <238188073.1163692009@mail.example.com>
+    Auth-Pass: auth_response
+    Auth-Protocol: imap
+    Auth-Login-Attempt: 1
+    Client-IP: 192.0.2.42
+    Client-Host: client.example.org
+
+
+Good response:
+
+    
+    HTTP/1.0 200 OK
+    Auth-Status: OK
+    Auth-Server: 198.51.100.1
+    Auth-Port: 143
+    Auth-Pass: plain-text-pass
+
+
+
+
+
+
+
+If the C<Auth-User> header exists in the response,
+it overrides the username used to authenticate with the backend.
+
+
+
+
+
+For the SMTP, the response additionally takes into account
+the C<Auth-Error-Code> header — if exists, it is used
+as a response code in case of an error.
+Otherwise, the 535 5.7.0 code will be added to
+the C<Auth-Status> header.
+
+
+
+
+
+For example, if the following response is received
+from the authentication server:
+
+    
+    HTTP/1.0 200 OK
+    Auth-Status: Temporary server problem, try again later
+    Auth-Error-Code: 451 4.3.0
+    Auth-Wait: 3
+
+
+then the SMTP client will receive an error
+
+    
+    451 4.3.0 Temporary server problem, try again later
+
+
+
+
+
+
+
+If proxying SMTP does not require authentication,
+the request will look as follows:
+
+    
+    GET /auth HTTP/1.0
+    Host: localhost
+    Auth-Method: none
+    Auth-User:
+    Auth-Pass:
+    Auth-Protocol: smtp
+    Auth-Login-Attempt: 1
+    Client-IP: 192.0.2.42
+    Client-Host: client.example.org
+    Auth-SMTP-Helo: client.example.org
+    Auth-SMTP-From: MAIL FROM: <>
+    Auth-SMTP-To: RCPT TO: <postmaster@mail.example.com>
+
+
+
+
+
+
+
+For the SSLE<sol>TLS client connection (1.7.11),
+the C<Auth-SSL> header is added, and
+C<Auth-SSL-Verify> will contain
+the result of client certificate verification, if
+L<enabled|ngx_mail_ssl_module>:
+“C<SUCCESS>”, “C<FAILED:>I<C<reason>>”,
+and “C<NONE>” if a certificate was not present.
+
+B<NOTE>
+
+Prior to version 1.11.7, the “C<FAILED>” result
+did not contain the I<C<reason>> string.
+
+When the client certificate was present,
+its details are passed in the following request headers:
+C<Auth-SSL-Subject>, C<Auth-SSL-Issuer>,
+C<Auth-SSL-Serial>, and C<Auth-SSL-Fingerprint>.
+If L</auth_http_pass_client_cert> is enabled,
+the certificate itself is passed in the
+C<Auth-SSL-Cert> header.
+The request will look as follows:
+
+    
+    GET /auth HTTP/1.0
+    Host: localhost
+    Auth-Method: plain
+    Auth-User: user
+    Auth-Pass: password
+    Auth-Protocol: imap
+    Auth-Login-Attempt: 1
+    Client-IP: 192.0.2.42
+    Auth-SSL: on
+    Auth-SSL-Verify: SUCCESS
+    Auth-SSL-Subject: /CN=example.com
+    Auth-SSL-Issuer: /CN=example.com
+    Auth-SSL-Serial: C07AD56B846B5BFF
+    Auth-SSL-Fingerprint: 29d6a80a123d13355ed16b4b04605e29cb55a5ad
+
+
+
+
+
+

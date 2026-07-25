@@ -1,0 +1,362 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_log_module - Module ngx_stream_log_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_log_module> module (1.11.4) writes session logs
+in the specified format.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    log_format basic '$remote_addr [$time_local] '
+                     '$protocol $status $bytes_sent $bytes_received '
+                     '$session_time';
+    
+    access_log /spool/logs/nginx-access.log basic buffer=32k;
+
+
+
+
+
+
+=head1 Directives
+
+=head2 access_log
+
+
+B<syntax:> access_log I<
+    I<C<path>>
+    I<C<format>>
+    [C<buffer>=I<C<size>>]
+    [C<gzip[=I<C<level>>]>]
+    [C<flush>=I<C<time>>]
+    [C<if>=I<C<condition>>]>
+
+
+B<syntax:> access_log I<C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the path, format,
+and configuration for a buffered log write.
+Several logs can be specified on the same level.
+Logging to L<syslog|syslog>
+can be configured by specifying
+the “C<syslog:>” prefix in the first parameter.
+The special value C<off> cancels all
+C<access_log> directives on the current level.
+
+
+
+
+
+If either the C<buffer> or C<gzip>
+parameter is used, writes to log will be buffered.
+
+B<NOTE>
+
+The buffer size must not exceed the size of an atomic write to a disk file.
+For FreeBSD this size is unlimited.
+
+
+
+
+
+
+When buffering is enabled, the data will be written to the file:
+
+=over
+
+
+
+
+=item *
+
+if the next log line does not fit into the buffer;
+
+
+
+=item *
+
+if the buffered data is older than specified by the C<flush>
+parameter;
+
+
+
+=item *
+
+when a worker process is L<re-opening|control> log
+files or is shutting down.
+
+
+
+=back
+
+
+
+
+
+
+
+If the C<gzip> parameter is used, then the buffered data will
+be compressed before writing to the file.
+The compression level can be set between 1 (fastest, less compression)
+and 9 (slowest, best compression).
+By default, the buffer size is equal to 64K bytes, and the compression level
+is set to 1.
+Since the data is compressed in atomic blocks, the log file can be decompressed
+or read by “C<zcat>” at any time.
+
+
+
+
+
+Example:
+
+    
+    access_log /path/to/log.gz basic gzip flush=5m;
+
+
+
+
+
+
+
+
+B<NOTE>
+
+For gzip compression to work, nginx must be built with the zlib library.
+
+
+
+
+
+
+The file path can contain variables,
+but such logs have some constraints:
+
+=over
+
+
+
+
+=item *
+
+the L<ngx_core_module>
+whose credentials are used by worker processes should
+have permissions to create files in a directory with
+such logs;
+
+
+
+=item *
+
+buffered writes do not work;
+
+
+
+=item *
+
+the file is opened and closed for each log write.
+However, since the descriptors of frequently used files can be stored
+in a cache, writing to the old file
+can continue during the time specified by the L</open_log_file_cache>
+directive’s C<valid> parameter
+
+
+
+=back
+
+
+
+
+
+
+
+The C<if> parameter enables conditional logging.
+A session will not be logged if the I<C<condition>> evaluates to “0”
+or an empty string.
+
+
+
+
+
+
+
+=head2 log_format
+
+
+B<syntax:> log_format I<
+    I<C<name>>
+    [C<escape>=C<default>E<verbar>C<json>]
+    I<C<string>> ...>
+
+
+B<default:> I<>
+
+
+B<context:> I<stream>
+
+
+
+
+
+Specifies the log format, for example:
+
+    
+    log_format proxy '$remote_addr [$time_local] '
+                     '$protocol $status $bytes_sent $bytes_received '
+                     '$session_time "$upstream_addr" '
+                     '"$upstream_bytes_sent" "$upstream_bytes_received" "$upstream_connect_time"';
+
+
+
+
+
+
+
+The C<escape> parameter (1.11.8) allows setting
+C<json> or C<default> characters escaping
+in variables, by default, C<default> escaping is used.
+
+
+
+
+
+
+
+=head2 open_log_file_cache
+
+
+
+B<syntax:> open_log_file_cache I<
+C<max>=I<C<N>>
+[C<inactive>=I<C<time>>]
+[C<min_uses>=I<C<N>>]
+[C<valid>=I<C<time>>]>
+
+
+B<syntax:> open_log_file_cache I<C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Defines a cache that stores the file descriptors of frequently used logs
+whose names contain variables.
+The directive has the following parameters:
+
+=over
+
+
+
+=item C<max>
+
+
+
+
+sets the maximum number of descriptors in a cache;
+if the cache becomes full the least recently used (LRU)
+descriptors are closed
+
+
+
+=item C<inactive>
+
+
+
+
+sets the time after which the cached descriptor is closed
+if there were no access during this time;
+by default, 10 seconds
+
+
+
+=item C<min_uses>
+
+
+
+
+sets the minimum number of file uses during the time
+defined by the C<inactive> parameter
+to let the descriptor stay open in a cache;
+by default, 1
+
+
+
+=item C<valid>
+
+
+
+
+sets the time after which it should be checked that the file
+still exists with the same name; by default, 60 seconds
+
+
+
+=item C<off>
+
+
+
+
+disables caching
+
+
+
+
+=back
+
+
+
+
+
+
+
+Usage example:
+
+    
+    open_log_file_cache max=1000 inactive=20s valid=1m min_uses=2;
+
+
+
+
+
+
+
+
+

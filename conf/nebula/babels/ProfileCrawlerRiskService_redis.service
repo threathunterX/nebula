@@ -1,0 +1,13 @@
+{
+    "name": "profile_crawler_risk",
+    "callmode": "rpc",
+    "delivermode": "sharding",
+    "serverimpl": "redis",
+    "coder": "mail",
+    "options": {
+        "cdc": "sh",
+        "sdc": "sh",
+        "serverseq": 1,
+        "servercardinality": 1
+    }
+}

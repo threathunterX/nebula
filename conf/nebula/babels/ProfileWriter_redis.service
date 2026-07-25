@@ -1,0 +1,8 @@
+{
+  "name": "profile_send",
+  "callmode": "notify",
+  "delivermode": "sharding",
+  "serverimpl": "redis",
+  "coder": "mail",
+  "options": { "cdc": "sh", "sdc": "sh", "servercardinality": 1, "serverseq": 1 }
+}

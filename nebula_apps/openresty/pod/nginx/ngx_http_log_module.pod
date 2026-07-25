@@ -1,0 +1,570 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_log_module - Module ngx_http_log_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_log_module> module writes request logs
+in the specified format.
+
+
+
+
+
+Requests are logged in the context of a location where processing ends.
+It may be different from the original location, if an
+L<internal
+redirect|ngx_http_core_module> happens during request processing.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    log_format compression '$remote_addr - $remote_user [$time_local] '
+                           '"$request" $status $bytes_sent '
+                           '"$http_referer" "$http_user_agent" "$gzip_ratio"';
+    
+    access_log /spool/logs/nginx-access.log compression buffer=32k;
+
+
+
+
+
+
+=head1 Directives
+
+=head2 access_log
+
+
+B<syntax:> access_log I<
+    I<C<path>>
+    [I<C<format>>
+    [C<buffer>=I<C<size>>]
+    [C<gzip[=I<C<level>>]>]
+    [C<flush>=I<C<time>>]
+    [C<if>=I<C<condition>>]]>
+
+
+B<syntax:> access_log I<C<off>>
+
+
+B<default:> I<logsE<sol>access.log combined>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<if in location>
+
+
+B<context:> I<limit_except>
+
+
+
+
+
+Sets the path, format, and configuration for a buffered log write.
+Several logs can be specified on the same level.
+Logging to L<syslog|syslog>
+can be configured by specifying
+the “C<syslog:>” prefix in the first parameter.
+The special value C<off> cancels all
+C<access_log> directives on the current level.
+If the format is not specified then the predefined
+“C<combined>” format is used.
+
+
+
+
+
+If either the C<buffer> or C<gzip>
+(1.3.10, 1.2.7)
+parameter is used, writes to log will be buffered.
+
+B<NOTE>
+
+The buffer size must not exceed the size of an atomic write to a disk file.
+For FreeBSD this size is unlimited.
+
+
+
+
+
+
+When buffering is enabled, the data will be written to the file:
+
+=over
+
+
+
+
+=item *
+
+if the next log line does not fit into the buffer;
+
+
+
+=item *
+
+if the buffered data is older than specified by the C<flush>
+parameter (1.3.10, 1.2.7);
+
+
+
+=item *
+
+when a worker process is L<re-opening|control> log
+files or is shutting down.
+
+
+
+=back
+
+
+
+
+
+
+
+If the C<gzip> parameter is used, then the buffered data will
+be compressed before writing to the file.
+The compression level can be set between 1 (fastest, less compression)
+and 9 (slowest, best compression).
+By default, the buffer size is equal to 64K bytes, and the compression level
+is set to 1.
+Since the data is compressed in atomic blocks, the log file can be decompressed
+or read by “C<zcat>” at any time.
+
+
+
+
+
+Example:
+
+    
+    access_log /path/to/log.gz combined gzip flush=5m;
+
+
+
+
+
+
+
+
+B<NOTE>
+
+For gzip compression to work, nginx must be built with the zlib library.
+
+
+
+
+
+
+The file path can contain variables (0.7.6+),
+but such logs have some constraints:
+
+=over
+
+
+
+
+=item *
+
+the L<ngx_core_module>
+whose credentials are used by worker processes should
+have permissions to create files in a directory with
+such logs;
+
+
+
+=item *
+
+buffered writes do not work;
+
+
+
+=item *
+
+the file is opened and closed for each log write.
+However, since the descriptors of frequently used files can be stored
+in a cache, writing to the old file
+can continue during the time specified by the L</open_log_file_cache>
+directive’s C<valid> parameter
+
+
+
+=item *
+
+during each log write the existence of the request’s
+L<root directory|ngx_http_core_module>
+is checked, and if it does not exist the log is not
+created.
+It is thus a good idea to specify both
+L<ngx_http_core_module>
+and C<access_log> on the same level:
+
+    
+    server {
+        root       /spool/vhost/data/$host;
+        access_log /spool/vhost/logs/$host;
+        ...
+
+
+
+
+
+=back
+
+
+
+
+
+
+
+The C<if> parameter (1.7.0) enables conditional logging.
+A request will not be logged if the I<C<condition>> evaluates to “0”
+or an empty string.
+In the following example, the requests with response codes 2xx and 3xx
+will not be logged:
+
+    
+    map $status $loggable {
+        ~^[23]  0;
+        default 1;
+    }
+    
+    access_log /path/to/access.log combined if=$loggable;
+
+
+
+
+
+
+
+
+
+=head2 log_format
+
+
+B<syntax:> log_format I<
+    I<C<name>>
+    [C<escape>=C<default>E<verbar>C<json>]
+    I<C<string>> ...>
+
+
+B<default:> I<combined "...">
+
+
+B<context:> I<http>
+
+
+
+
+
+Specifies log format.
+
+
+
+
+
+The C<escape> parameter (1.11.8) allows setting
+C<json> or C<default> characters escaping
+in variables, by default, C<default> escaping is used.
+
+
+
+
+
+The log format can contain common variables, and variables that
+exist only at the time of a log write:
+
+=over
+
+
+
+=item C<$bytes_sent>
+
+
+
+
+the number of bytes sent to a client
+
+
+
+=item C<$connection>
+
+
+
+
+connection serial number
+
+
+
+=item C<$connection_requests>
+
+
+
+
+
+the current number of requests made through a connection (1.1.18)
+
+
+
+=item C<$msec>
+
+
+
+
+time in seconds with a milliseconds resolution at the time of the log write
+
+
+
+=item C<$pipe>
+
+
+
+
+“C<p>” if request was pipelined, “C<.>”
+otherwise
+
+
+
+=item C<$request_length>
+
+
+
+
+request length (including request line, header, and request body)
+
+
+
+=item C<$request_time>
+
+
+
+
+request processing time in seconds with a milliseconds resolution;
+time elapsed between the first bytes were read from the client and
+the log write after the last bytes were sent to the client
+
+
+
+=item C<$status>
+
+
+
+
+response status
+
+
+
+=item C<$time_iso8601>
+
+
+
+
+local time in the ISO 8601 standard format
+
+
+
+=item C<$time_local>
+
+
+
+
+local time in the Common Log Format
+
+
+
+
+=back
+
+
+
+
+B<NOTE>
+
+In the modern nginx versions variables
+L<$status|ngx_http_core_module>
+(1.3.2, 1.2.2),
+L<$bytes_sent|ngx_http_core_module>
+(1.3.8, 1.2.5),
+L<$connection|ngx_http_core_module>
+(1.3.8, 1.2.5),
+L<$connection_requests|ngx_http_core_module>
+(1.3.8, 1.2.5),
+L<$msec|ngx_http_core_module>
+(1.3.9, 1.2.6),
+L<$request_time|ngx_http_core_module>
+(1.3.9, 1.2.6),
+L<$pipe|ngx_http_core_module>
+(1.3.12, 1.2.7),
+L<$request_length|ngx_http_core_module>
+(1.3.12, 1.2.7),
+L<$time_iso8601|ngx_http_core_module>
+(1.3.12, 1.2.7),
+and
+L<$time_local|ngx_http_core_module>
+(1.3.12, 1.2.7)
+are also available as common variables.
+
+
+
+
+
+
+
+Header lines sent to a client have the prefix
+“C<sent_http_>”, for example,
+C<$sent_http_content_range>.
+
+
+
+
+
+The configuration always includes the predefined
+“C<combined>” format:
+
+    
+    log_format combined '$remote_addr - $remote_user [$time_local] '
+                        '"$request" $status $body_bytes_sent '
+                        '"$http_referer" "$http_user_agent"';
+
+
+
+
+
+
+
+
+
+=head2 open_log_file_cache
+
+
+
+B<syntax:> open_log_file_cache I<
+C<max>=I<C<N>>
+[C<inactive>=I<C<time>>]
+[C<min_uses>=I<C<N>>]
+[C<valid>=I<C<time>>]>
+
+
+B<syntax:> open_log_file_cache I<C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines a cache that stores the file descriptors of frequently used logs
+whose names contain variables.
+The directive has the following parameters:
+
+=over
+
+
+
+=item C<max>
+
+
+
+
+sets the maximum number of descriptors in a cache;
+if the cache becomes full the least recently used (LRU)
+descriptors are closed
+
+
+
+=item C<inactive>
+
+
+
+
+sets the time after which the cached descriptor is closed
+if there were no access during this time;
+by default, 10 seconds
+
+
+
+=item C<min_uses>
+
+
+
+
+sets the minimum number of file uses during the time
+defined by the C<inactive> parameter
+to let the descriptor stay open in a cache;
+by default, 1
+
+
+
+=item C<valid>
+
+
+
+
+sets the time after which it should be checked that the file
+still exists with the same name; by default, 60 seconds
+
+
+
+=item C<off>
+
+
+
+
+disables caching
+
+
+
+
+=back
+
+
+
+
+
+
+
+Usage example:
+
+    
+    open_log_file_cache max=1000 inactive=20s valid=1m min_uses=2;
+
+
+
+
+
+
+
+
+

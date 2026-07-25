@@ -1,0 +1,1151 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_core_module - Core functionality
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    user www www;
+    worker_processes 2;
+    
+    error_log /var/log/nginx-error.log info;
+    
+    events {
+        use kqueue;
+        worker_connections 2048;
+    }
+    
+    ...
+
+
+
+
+
+
+=head1 Directives
+
+=head2 accept_mutex
+
+
+B<syntax:> accept_mutex I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<events>
+
+
+
+
+
+If C<accept_mutex> is enabled,
+worker processes will accept new connections by turn.
+Otherwise, all worker processes will be notified about new connections,
+and if volume of new connections is low, some of the worker processes
+may just waste system resources.
+
+B<NOTE>
+
+There is no need to enable C<accept_mutex>
+on systems that support the
+L<EPOLLEXCLUSIVE|events> flag (1.11.3) or
+when using L<ngx_http_core_module>.
+
+
+B<NOTE>
+
+Prior to version 1.11.3, the default value was C<on>.
+
+
+
+
+
+
+
+
+=head2 accept_mutex_delay
+
+
+B<syntax:> accept_mutex_delay I<I<C<time>>>
+
+
+B<default:> I<500ms>
+
+
+B<context:> I<events>
+
+
+
+
+
+If L</accept_mutex> is enabled, specifies the maximum time
+during which a worker process will try to restart accepting new
+connections if another worker process is currently accepting
+new connections.
+
+
+
+
+
+
+
+=head2 daemon
+
+
+B<syntax:> daemon I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<main>
+
+
+
+
+
+Determines whether nginx should become a daemon.
+Mainly used during development.
+
+
+
+
+
+
+
+=head2 debug_connection
+
+
+B<syntax:> debug_connection I<
+    I<C<address>> E<verbar>
+    I<C<CIDR>> E<verbar>
+    C<unix:>>
+
+
+
+B<context:> I<events>
+
+
+
+
+
+Enables debugging log for selected client connections.
+Other connections will use logging level set by the
+L</error_log> directive.
+Debugged connections are specified by IPv4 or IPv6 (1.3.0, 1.2.1)
+address or network.
+A connection may also be specified using a hostname.
+For connections using UNIX-domain sockets (1.3.0, 1.2.1),
+debugging log is enabled by the “C<unix:>” parameter.
+
+    
+    events {
+        debug_connection 127.0.0.1;
+        debug_connection localhost;
+        debug_connection 192.0.2.0/24;
+        debug_connection ::1;
+        debug_connection 2001:0db8::/32;
+        debug_connection unix:;
+        ...
+    }
+
+
+
+B<NOTE>
+
+For this directive to work, nginx needs to
+be built with C<--with-debug>,
+see “L<debugging_log>”.
+
+
+
+
+
+
+
+
+=head2 debug_points
+
+
+B<syntax:> debug_points I<C<abort> E<verbar> C<stop>>
+
+
+
+B<context:> I<main>
+
+
+
+
+
+This directive is used for debugging.
+
+
+
+
+
+When internal error is detected, e.g. the leak of sockets on
+restart of working processes, enabling C<debug_points>
+leads to a core file creation (C<abort>)
+or to stopping of a process (C<stop>) for further
+analysis using a system debugger.
+
+
+
+
+
+
+
+=head2 error_log
+
+
+B<syntax:> error_log I<I<C<file>> [I<C<level>>]>
+
+
+B<default:> I<logsE<sol>error.log error>
+
+
+B<context:> I<main>
+
+
+B<context:> I<http>
+
+
+B<context:> I<mail>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Configures logging.
+Several logs can be specified on the same level (1.5.2).
+If on the C<main> configuration level writing a log to a file
+is not explicitly defined, the default file will be used.
+
+
+
+
+
+The first parameter defines a I<C<file>> that will store the log.
+The special value C<stderr> selects the standard error file.
+Logging to L<syslog|syslog> can be configured by specifying
+the “C<syslog:>” prefix.
+Logging to a
+L<cyclic memory buffer|debugging_log>
+can be configured by specifying the “C<memory:>” prefix and
+buffer I<C<size>>, and is generally used for debugging (1.7.11).
+
+
+
+
+
+The second parameter determines the I<C<level>> of logging,
+and can be one of the following:
+C<debug>, C<info>, C<notice>,
+C<warn>, C<error>, C<crit>,
+C<alert>, or C<emerg>.
+Log levels above are listed in the order of increasing severity.
+Setting a certain log level will cause all messages of
+the specified and more severe log levels to be logged.
+For example, the default level C<error> will
+cause C<error>, C<crit>,
+C<alert>, and C<emerg> messages
+to be logged.
+If this parameter is omitted then C<error> is used.
+
+B<NOTE>
+
+For C<debug> logging to work, nginx needs to
+be built with C<--with-debug>,
+see “L<debugging_log>”.
+
+
+
+B<NOTE>
+
+The directive can be specified on the
+C<stream> level
+starting from version 1.7.11,
+and on the C<mail> level
+starting from version 1.9.0.
+
+
+
+
+
+
+
+
+=head2 env
+
+
+B<syntax:> env I<I<C<variable>>[=I<C<value>>]>
+
+
+B<default:> I<TZ>
+
+
+B<context:> I<main>
+
+
+
+
+
+By default, nginx removes all environment variables inherited
+from its parent process except the TZ variable.
+This directive allows preserving some of the inherited variables,
+changing their values, or creating new environment variables.
+These variables are then:
+
+=over
+
+
+
+
+=item *
+
+inherited during a L<live upgrade|control>
+of an executable file;
+
+
+
+=item *
+
+used by the
+L<ngx_http_perl_module|ngx_http_perl_module> module;
+
+
+
+=item *
+
+used by worker processes.
+One should bear in mind that controlling system libraries in this way
+is not always possible as it is common for libraries to check
+variables only during initialization, well before they can be set
+using this directive.
+An exception from this is an above mentioned
+L<live upgrade|control>
+of an executable file.
+
+
+
+=back
+
+
+
+
+
+
+
+The TZ variable is always inherited and available to the
+L<ngx_http_perl_module|ngx_http_perl_module>
+module, unless it is configured explicitly.
+
+
+
+
+
+Usage example:
+
+    
+    env MALLOC_OPTIONS;
+    env PERL5LIB=/data/site/modules;
+    env OPENSSL_ALLOW_PROXY_CERTS=1;
+
+
+
+
+
+
+
+
+B<NOTE>
+
+The NGINX environment variable is used internally by nginx
+and should not be set directly by the user.
+
+
+
+
+
+
+
+
+=head2 events
+
+
+events { B<...> }
+
+
+
+B<context:> I<main>
+
+
+
+
+
+Provides the configuration file context in which the directives that
+affect connection processing are specified.
+
+
+
+
+
+
+
+=head2 include
+
+
+B<syntax:> include I<I<C<file>> E<verbar> I<C<mask>>>
+
+
+
+
+
+
+
+Includes another I<C<file>>, or files matching the
+specified I<C<mask>>, into configuration.
+Included files should consist of
+syntactically correct directives and blocks.
+
+
+
+
+
+Usage example:
+
+    
+    include mime.types;
+    include vhosts/*.conf;
+
+
+
+
+
+
+
+
+
+=head2 load_module
+
+
+B<syntax:> load_module I<I<C<file>>>
+
+
+
+B<context:> I<main>
+
+
+
+This directive appeared in version 1.9.11.
+
+
+
+
+
+Loads a dynamic module.
+
+
+
+
+
+Example:
+
+    
+    load_module modules/ngx_mail_module.so;
+
+
+
+
+
+
+
+
+
+=head2 lock_file
+
+
+B<syntax:> lock_file I<I<C<file>>>
+
+
+B<default:> I<logsE<sol>nginx.lock>
+
+
+B<context:> I<main>
+
+
+
+
+
+nginx uses the locking mechanism to implement L</accept_mutex>
+and serialize access to shared memory.
+On most systems the locks are implemented using atomic operations,
+and this directive is ignored.
+On other systems the “lock file” mechanism is used.
+This directive specifies a prefix for the names of lock files.
+
+
+
+
+
+
+
+=head2 master_process
+
+
+B<syntax:> master_process I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<main>
+
+
+
+
+
+Determines whether worker processes are started.
+This directive is intended for nginx developers.
+
+
+
+
+
+
+
+=head2 multi_accept
+
+
+B<syntax:> multi_accept I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<events>
+
+
+
+
+
+If C<multi_accept> is disabled, a worker process
+will accept one new connection at a time.
+Otherwise, a worker process
+will accept all new connections at a time.
+
+B<NOTE>
+
+The directive is ignored if L<events>
+connection processing method is used, because it reports
+the number of new connections waiting to be accepted.
+
+
+
+
+
+
+
+
+=head2 pcre_jit
+
+
+B<syntax:> pcre_jit I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<main>
+
+
+
+This directive appeared in version 1.1.12.
+
+
+
+
+
+Enables or disables the use of “just-in-time compilation” (PCRE JIT)
+for the regular expressions known by the time of configuration parsing.
+
+
+
+
+
+PCRE JIT can speed up processing of regular expressions significantly.
+
+B<NOTE>
+
+The JIT is available in PCRE libraries starting from version 8.20
+built with the C<--enable-jit> configuration parameter.
+When the PCRE library is built with nginx (C<--with-pcre=>),
+the JIT support is enabled via the
+C<--with-pcre-jit> configuration parameter.
+
+
+
+
+
+
+
+
+=head2 pid
+
+
+B<syntax:> pid I<I<C<file>>>
+
+
+B<default:> I<nginx.pid>
+
+
+B<context:> I<main>
+
+
+
+
+
+Defines a I<C<file>> that will store the process ID of the main process.
+
+
+
+
+
+
+
+=head2 ssl_engine
+
+
+B<syntax:> ssl_engine I<I<C<device>>>
+
+
+
+B<context:> I<main>
+
+
+
+
+
+Defines the name of the hardware SSL accelerator.
+
+
+
+
+
+
+
+=head2 thread_pool
+
+
+B<syntax:> thread_pool I<
+    I<C<name>>
+    C<threads>=I<C<number>>
+    [C<max_queue>=I<C<number>>]>
+
+
+B<default:> I<default threads=32 max_queue=65536>
+
+
+B<context:> I<main>
+
+
+
+This directive appeared in version 1.7.11.
+
+
+
+
+
+Defines named thread pools
+used for multi-threaded reading and sending of files
+L<without blocking|ngx_http_core_module>
+worker processes.
+
+
+
+
+
+The C<threads> parameter
+defines the number of threads in the pool.
+
+
+
+
+
+In the event that all threads in the pool are busy,
+a new task will wait in the queue.
+The C<max_queue> parameter limits the number
+of tasks allowed to be waiting in the queue.
+By default, up to 65536 tasks can wait in the queue.
+When the queue overflows, the task is completed with an error.
+
+
+
+
+
+
+
+=head2 timer_resolution
+
+
+B<syntax:> timer_resolution I<I<C<interval>>>
+
+
+
+B<context:> I<main>
+
+
+
+
+
+Reduces timer resolution in worker processes, thus reducing the
+number of C<gettimeofday> system calls made.
+By default, C<gettimeofday> is called each time
+a kernel event is received.
+With reduced resolution, C<gettimeofday> is only
+called once per specified I<C<interval>>.
+
+
+
+
+
+Example:
+
+    
+    timer_resolution 100ms;
+
+
+
+
+
+
+
+Internal implementation of the interval depends on the method used:
+
+=over
+
+
+
+
+=item *
+
+the C<EVFILT_TIMER> filter if C<kqueue> is used;
+
+
+
+=item *
+
+C<timer_create> if C<eventport> is used;
+
+
+
+=item *
+
+C<setitimer> otherwise.
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 use
+
+
+B<syntax:> use I<I<C<method>>>
+
+
+
+B<context:> I<events>
+
+
+
+
+
+Specifies the L<connection processing|events>
+I<C<method>> to use.
+There is normally no need to specify it explicitly, because nginx will
+by default use the most efficient method.
+
+
+
+
+
+
+
+=head2 user
+
+
+B<syntax:> user I<I<C<user>> [I<C<group>>]>
+
+
+B<default:> I<nobody nobody>
+
+
+B<context:> I<main>
+
+
+
+
+
+Defines I<C<user>> and I<C<group>>
+credentials used by worker processes.
+If I<C<group>> is omitted, a group whose name equals
+that of I<C<user>> is used.
+
+
+
+
+
+
+
+=head2 worker_aio_requests
+
+
+B<syntax:> worker_aio_requests I<I<C<number>>>
+
+
+B<default:> I<32>
+
+
+B<context:> I<events>
+
+
+
+This directive appeared in version 1.1.4.
+
+
+
+This directive appeared in version 1.0.7.
+
+
+
+
+
+When using L<ngx_http_core_module>
+with the L<events>
+connection processing method, sets the maximum I<C<number>> of
+outstanding asynchronous IE<sol>O operations
+for a single worker process.
+
+
+
+
+
+
+
+=head2 worker_connections
+
+
+B<syntax:> worker_connections I<I<C<number>>>
+
+
+B<default:> I<512>
+
+
+B<context:> I<events>
+
+
+
+
+
+Sets the maximum number of simultaneous connections that
+can be opened by a worker process.
+
+
+
+
+
+It should be kept in mind that this number includes all connections
+(e.g. connections with proxied servers, among others),
+not only connections with clients.
+Another consideration is that the actual number of simultaneous
+connections cannot exceed the current limit on
+the maximum number of open files, which can be changed by
+L</worker_rlimit_nofile>.
+
+
+
+
+
+
+
+=head2 worker_cpu_affinity
+
+
+B<syntax:> worker_cpu_affinity I<I<C<cpumask>> ...>
+
+
+B<syntax:> worker_cpu_affinity I<C<auto> [I<C<cpumask>>]>
+
+
+
+B<context:> I<main>
+
+
+
+
+
+Binds worker processes to the sets of CPUs.
+Each CPU set is represented by a bitmask of allowed CPUs.
+There should be a separate set defined for each of the worker processes.
+By default, worker processes are not bound to any specific CPUs.
+
+
+
+
+
+For example,
+
+    
+    worker_processes    4;
+    worker_cpu_affinity 0001 0010 0100 1000;
+
+
+binds each worker process to a separate CPU, while
+
+    
+    worker_processes    2;
+    worker_cpu_affinity 0101 1010;
+
+
+binds the first worker process to CPU0E<sol>CPU2,
+and the second worker process to CPU1E<sol>CPU3.
+The second example is suitable for hyper-threading.
+
+
+
+
+
+The special value C<auto> (1.9.10) allows
+binding worker processes automatically to available CPUs:
+
+    
+    worker_processes auto;
+    worker_cpu_affinity auto;
+
+
+The optional mask parameter can be used to limit the CPUs
+available for automatic binding:
+
+    
+    worker_cpu_affinity auto 01010101;
+
+
+
+
+
+
+
+
+B<NOTE>
+
+The directive is only available on FreeBSD and Linux.
+
+
+
+
+
+
+
+
+=head2 worker_priority
+
+
+B<syntax:> worker_priority I<I<C<number>>>
+
+
+B<default:> I<0>
+
+
+B<context:> I<main>
+
+
+
+
+
+Defines the scheduling priority for worker processes like it is
+done by the C<nice> command: a negative
+I<C<number>>
+means higher priority.
+Allowed range normally varies from -20 to 20.
+
+
+
+
+
+Example:
+
+    
+    worker_priority -10;
+
+
+
+
+
+
+
+
+
+=head2 worker_processes
+
+
+B<syntax:> worker_processes I<I<C<number>> E<verbar> C<auto>>
+
+
+B<default:> I<1>
+
+
+B<context:> I<main>
+
+
+
+
+
+Defines the number of worker processes.
+
+
+
+
+
+The optimal value depends on many factors including (but not
+limited to) the number of CPU cores, the number of hard disk
+drives that store data, and load pattern.
+When one is in doubt, setting it to the number of available CPU cores
+would be a good start (the value “C<auto>”
+will try to autodetect it).
+
+B<NOTE>
+
+The C<auto> parameter is supported starting from
+versions 1.3.8 and 1.2.5.
+
+
+
+
+
+
+
+
+=head2 worker_rlimit_core
+
+
+B<syntax:> worker_rlimit_core I<I<C<size>>>
+
+
+
+B<context:> I<main>
+
+
+
+
+
+Changes the limit on the largest size of a core file
+(C<RLIMIT_CORE>) for worker processes.
+Used to increase the limit without restarting the main process.
+
+
+
+
+
+
+
+=head2 worker_rlimit_nofile
+
+
+B<syntax:> worker_rlimit_nofile I<I<C<number>>>
+
+
+
+B<context:> I<main>
+
+
+
+
+
+Changes the limit on the maximum number of open files
+(C<RLIMIT_NOFILE>) for worker processes.
+Used to increase the limit without restarting the main process.
+
+
+
+
+
+
+
+=head2 worker_shutdown_timeout
+
+
+B<syntax:> worker_shutdown_timeout I<I<C<time>>>
+
+
+
+B<context:> I<main>
+
+
+
+This directive appeared in version 1.11.11.
+
+
+
+
+
+Configures a timeout for a graceful shutdown of worker processes.
+When the I<C<time>> expires,
+nginx will try to close all the connections currently open
+to facilitate shutdown.
+
+
+
+
+
+
+
+=head2 working_directory
+
+
+B<syntax:> working_directory I<I<C<directory>>>
+
+
+
+B<context:> I<main>
+
+
+
+
+
+Defines the current working directory for a worker process.
+It is primarily used when writing a core-file, in which case
+a worker process should have write permission for the
+specified directory.
+
+
+
+
+
+
+

@@ -1,0 +1,125 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+stream_processing - How nginx processes a TCP/UDP session
+
+
+=head1
+
+
+
+A TCPE<sol>UDP session from a client is processed
+in successive steps called B<phases>:
+
+
+=over
+
+
+
+=item 
+C<Post-accept>
+
+
+
+
+
+The first phase after accepting a client connection.
+The L<ngx_stream_realip_module|ngx_stream_realip_module>
+module is invoked at this phase.
+
+
+
+=item 
+C<Pre-access>
+
+
+
+
+
+Preliminary check for access.
+The L<ngx_stream_limit_conn_module|ngx_stream_limit_conn_module>
+module is invoked at this phase.
+
+
+
+=item 
+C<Access>
+
+
+
+
+
+Client access limitation before actual data processing.
+The L<ngx_stream_access_module|ngx_stream_access_module>
+module is invoked at this phase.
+
+
+
+=item 
+C<SSL>
+
+
+
+
+
+TLSE<sol>SSL termination.
+The L<ngx_stream_ssl_module|ngx_stream_ssl_module>
+module is invoked at this phase.
+
+
+
+=item 
+C<Preread>
+
+
+
+
+
+Reading initial bytes of data into the
+L<preread buffer|ngx_stream_core_module>
+to allow modules such as
+L<ngx_stream_ssl_preread_module|ngx_stream_ssl_preread_module>
+analyze the data before its processing.
+
+
+
+=item 
+C<Content>
+
+
+
+
+
+Mandatory phase where data is actually processed, usually
+L<proxied|ngx_stream_proxy_module> to
+L<upstream|ngx_stream_upstream_module> servers,
+or a specified value
+is L<returned|ngx_stream_return_module> to a client.
+
+
+
+=item 
+C<Log>
+
+
+
+
+
+The final phase
+where the result of a client session processing is recorded.
+The L<ngx_stream_log_module|ngx_stream_log_module>
+module is invoked at this phase.
+
+
+
+=back
+
+
+
+
+
+
+

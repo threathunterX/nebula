@@ -1,0 +1,101 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_gzip_static_module - Module ngx_http_gzip_static_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_gzip_static_module> module allows
+sending precompressed files with the “C<.gz>”
+filename extension instead of regular files.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+C<--with-http_gzip_static_module>
+configuration parameter.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    gzip_static  on;
+    gzip_proxied expired no-cache no-store private auth;
+
+
+
+
+
+
+=head1 Directives
+
+=head2 gzip_static
+
+
+B<syntax:> gzip_static I<
+    C<on> E<verbar>
+    C<off> E<verbar>
+    C<always>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Enables (“C<on>”) or disables (“C<off>”)
+checking the existence of precompressed files.
+The following directives are also taken into account:
+L<ngx_http_gzip_module>,
+L<ngx_http_gzip_module>,
+L<ngx_http_gzip_module>,
+and L<ngx_http_gzip_module>.
+
+
+
+
+
+With the “C<always>” value (1.3.6), gzipped file is used
+in all cases, without checking if the client supports it.
+It is useful if there are no uncompressed files on the disk anyway
+or the L<ngx_http_gunzip_module|ngx_http_gunzip_module>
+is used.
+
+
+
+
+
+The files can be compressed using the C<gzip> command,
+or any other compatible one.
+It is recommended that the modification date and time of original and
+compressed files be the same.
+
+
+
+
+
+
+

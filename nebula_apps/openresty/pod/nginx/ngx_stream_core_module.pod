@@ -1,0 +1,934 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_core_module - Module ngx_stream_core_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_core_module> module
+is available since version 1.9.0.
+This module is not built by default, it should be enabled with the
+C<--with-stream>
+configuration parameter.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    worker_processes auto;
+    
+    error_log /var/log/nginx/error.log info;
+    
+    events {
+        worker_connections  1024;
+    }
+    
+    stream {
+        upstream backend {
+            hash $remote_addr consistent;
+    
+            server backend1.example.com:12345 weight=5;
+            server 127.0.0.1:12345            max_fails=3 fail_timeout=30s;
+            server unix:/tmp/backend3;
+        }
+    
+        upstream dns {
+           server 192.168.0.1:53535;
+           server dns.example.com:53;
+        }
+    
+        server {
+            listen 12345;
+            proxy_connect_timeout 1s;
+            proxy_timeout 3s;
+            proxy_pass backend;
+        }
+    
+        server {
+            listen 127.0.0.1:53 udp;
+            proxy_responses 1;
+            proxy_timeout 20s;
+            proxy_pass dns;
+        }
+    
+        server {
+            listen [::1]:12345;
+            proxy_pass unix:/tmp/stream.socket;
+        }
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 listen
+
+
+B<syntax:> listen I<
+    I<C<address>>:I<C<port>>
+    [C<ssl>]
+    [C<udp>]
+    [C<proxy_protocol>]
+    [C<backlog>=I<C<number>>]
+    [C<rcvbuf>=I<C<size>>]
+    [C<sndbuf>=I<C<size>>]
+    [C<bind>]
+    [C<ipv6only>=C<on>E<verbar>C<off>]
+    [C<reuseport>]
+    [C<so_keepalive>=C<on>E<verbar>C<off>E<verbar>[I<C<keepidle>>]:[I<C<keepintvl>>]:[I<C<keepcnt>>]]>
+
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the I<C<address>> and I<C<port>> for the socket
+on which the server will accept connections.
+It is possible to specify just the port.
+The address can also be a hostname, for example:
+
+    
+    listen 127.0.0.1:12345;
+    listen *:12345;
+    listen 12345;     # same as *:12345
+    listen localhost:12345;
+
+
+IPv6 addresses are specified in square brackets:
+
+    
+    listen [::1]:12345;
+    listen [::]:12345;
+
+
+UNIX-domain sockets are specified with the “C<unix:>”
+prefix:
+
+    
+    listen unix:/var/run/nginx.sock;
+
+
+
+
+
+
+
+
+The C<ssl> parameter allows specifying that all
+connections accepted on this port should work in SSL mode.
+
+
+
+
+
+The C<udp> parameter configures a listening socket
+for working with datagrams (1.9.13).
+
+
+
+
+
+The C<proxy_protocol> parameter (1.11.4)
+allows specifying that all connections accepted on this port should use the
+L<PROXY
+protocol|http://www.haproxy.org/download/1.5/doc/proxy-protocol.txt>.
+
+
+
+
+
+The C<listen> directive
+can have several additional parameters specific to socket-related system calls.
+
+=over
+
+
+
+=item 
+C<backlog>=I<C<number>>
+
+
+
+
+
+sets the C<backlog> parameter in the
+C<listen> call that limits
+the maximum length for the queue of pending connections (1.9.2).
+By default,
+C<backlog> is set to -1 on FreeBSD, DragonFly BSD, and macOS,
+and to 511 on other platforms.
+
+
+
+=item 
+C<rcvbuf>=I<C<size>>
+
+
+
+
+
+sets the receive buffer size
+(the C<SO_RCVBUF> option) for the listening socket (1.11.13).
+
+
+
+=item 
+C<sndbuf>=I<C<size>>
+
+
+
+
+
+sets the send buffer size
+(the C<SO_SNDBUF> option) for the listening socket (1.11.13).
+
+
+
+=item 
+C<bind>
+
+
+
+
+
+this parameter instructs to make a separate C<bind>
+call for a given address:port pair.
+The fact is that if there are several C<listen> directives with
+the same port but different addresses, and one of the
+C<listen> directives listens on all addresses
+for the given port (C<*:>I<C<port>>), nginx will
+C<bind> only to C<*:>I<C<port>>.
+It should be noted that the C<getsockname> system call will be
+made in this case to determine the address that accepted the connection.
+If the C<ipv6only>
+or C<so_keepalive> parameters
+are used then for a given
+I<C<address>>:I<C<port>> pair
+a separate C<bind> call will always be made.
+
+
+
+=item 
+C<ipv6only>=C<on>E<verbar>C<off>
+
+
+
+
+
+this parameter determines
+(via the C<IPV6_V6ONLY> socket option)
+whether an IPv6 socket listening on a wildcard address C<[::]>
+will accept only IPv6 connections or both IPv6 and IPv4 connections.
+This parameter is turned on by default.
+It can only be set once on start.
+
+
+
+=item 
+C<reuseport>
+
+
+
+
+
+this parameter (1.9.1) instructs to create an individual listening socket
+for each worker process
+(using the C<SO_REUSEPORT> socket option), allowing a kernel
+to distribute incoming connections between worker processes.
+This currently works only on Linux 3.9+ and DragonFly BSD.
+
+B<NOTE>
+
+Inappropriate use of this option may have its security
+L<implications|http://man7.org/linux/man-pages/man7/socket.7.html>.
+
+
+
+
+=item 
+C<so_keepalive>=C<on>E<verbar>C<off>E<verbar>[I<C<keepidle>>]:[I<C<keepintvl>>]:[I<C<keepcnt>>]
+
+
+
+
+
+this parameter configures the “TCP keepalive” behavior
+for the listening socket.
+If this parameter is omitted then the operating system’s settings will be
+in effect for the socket.
+If it is set to the value “C<on>”, the
+C<SO_KEEPALIVE> option is turned on for the socket.
+If it is set to the value “C<off>”, the
+C<SO_KEEPALIVE> option is turned off for the socket.
+Some operating systems support setting of TCP keepalive parameters on
+a per-socket basis using the C<TCP_KEEPIDLE>,
+C<TCP_KEEPINTVL>, and C<TCP_KEEPCNT> socket options.
+On such systems (currently, Linux 2.4+, NetBSD 5+, and
+FreeBSD 9.0-STABLE), they can be configured
+using the I<C<keepidle>>, I<C<keepintvl>>, and
+I<C<keepcnt>> parameters.
+One or two parameters may be omitted, in which case the system default setting
+for the corresponding socket option will be in effect.
+For example,
+
+    so_keepalive=30m::10
+
+will set the idle timeout (C<TCP_KEEPIDLE>) to 30 minutes,
+leave the probe interval (C<TCP_KEEPINTVL>) at its system default,
+and set the probes count (C<TCP_KEEPCNT>) to 10 probes.
+
+
+
+
+=back
+
+
+
+
+
+
+
+Different servers must listen on different
+I<C<address>>:I<C<port>> pairs.
+
+
+
+
+
+
+
+=head2 preread_buffer_size
+
+
+B<syntax:> preread_buffer_size I<I<C<size>>>
+
+
+B<default:> I<16k>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.11.5.
+
+
+
+
+
+Specifies a I<C<size>> of the
+L<preread|stream_processing> buffer.
+
+
+
+
+
+
+
+=head2 preread_timeout
+
+
+B<syntax:> preread_timeout I<I<C<timeout>>>
+
+
+B<default:> I<30s>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.11.5.
+
+
+
+
+
+Specifies a I<C<timeout>> of the
+L<preread|stream_processing> phase.
+
+
+
+
+
+
+
+=head2 proxy_protocol_timeout
+
+
+B<syntax:> proxy_protocol_timeout I<I<C<timeout>>>
+
+
+B<default:> I<30s>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.11.4.
+
+
+
+
+
+Specifies a I<C<timeout>> for
+reading the PROXY protocol header to complete.
+If no entire header is transmitted within this time,
+the connection is closed.
+
+
+
+
+
+
+
+=head2 resolver
+
+
+B<syntax:> resolver I<
+    I<C<address>> ...
+    [C<valid>=I<C<time>>]
+    [C<ipv6>=C<on>E<verbar>C<off>]>
+
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.11.3.
+
+
+
+
+
+Configures name servers used to resolve names of upstream servers
+into addresses, for example:
+
+    
+    resolver 127.0.0.1 [::1]:5353;
+
+
+An address can be specified as a domain name or IP address,
+and an optional port.
+If port is not specified, the port 53 is used.
+Name servers are queried in a round-robin fashion.
+
+
+
+
+
+By default, nginx will look up both IPv4 and IPv6 addresses while resolving.
+If looking up of IPv6 addresses is not desired,
+the C<ipv6=off> parameter can be specified.
+
+
+
+
+
+By default, nginx caches answers using the TTL value of a response.
+The optional C<valid> parameter allows overriding it:
+
+    
+    resolver 127.0.0.1 [::1]:5353 valid=30s;
+
+
+
+B<NOTE>
+
+Before version 1.11.3, this directive was available as part of our
+commercial subscription.
+
+
+
+
+
+
+
+
+=head2 resolver_timeout
+
+
+B<syntax:> resolver_timeout I<I<C<time>>>
+
+
+B<default:> I<30s>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.11.3.
+
+
+
+
+
+Sets a timeout for name resolution, for example:
+
+    
+    resolver_timeout 5s;
+
+
+
+B<NOTE>
+
+Before version 1.11.3, this directive was available as part of our
+commercial subscription.
+
+
+
+
+
+
+
+
+=head2 server
+
+
+server { B<...> }
+
+
+
+B<context:> I<stream>
+
+
+
+
+
+Sets the configuration for a server.
+
+
+
+
+
+
+
+=head2 stream
+
+
+stream { B<...> }
+
+
+
+B<context:> I<main>
+
+
+
+
+
+Provides the configuration file context in which the stream server directives
+are specified.
+
+
+
+
+
+
+
+=head2 tcp_nodelay
+
+
+B<syntax:> tcp_nodelay I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.9.4.
+
+
+
+
+
+Enables or disables the use of the C<TCP_NODELAY> option.
+The option is enabled for both client and proxied server connections.
+
+
+
+
+
+
+
+=head2 variables_hash_bucket_size
+
+
+B<syntax:> variables_hash_bucket_size I<I<C<size>>>
+
+
+B<default:> I<64>
+
+
+B<context:> I<stream>
+
+
+
+This directive appeared in version 1.11.2.
+
+
+
+
+
+Sets the bucket size for the variables hash table.
+The details of setting up hash tables are provided in a separate
+L<document|hash>.
+
+
+
+
+
+
+
+=head2 variables_hash_max_size
+
+
+B<syntax:> variables_hash_max_size I<I<C<size>>>
+
+
+B<default:> I<1024>
+
+
+B<context:> I<stream>
+
+
+
+This directive appeared in version 1.11.2.
+
+
+
+
+
+Sets the maximum I<C<size>> of the variables hash table.
+The details of setting up hash tables are provided in a separate
+L<document|hash>.
+
+
+
+
+
+
+
+=head1 Embedded Variables
+
+
+
+The C<ngx_stream_core_module> module supports variables
+since 1.11.2.
+
+=over
+
+
+
+=item C<$binary_remote_addr>
+
+
+
+
+client address in a binary form, value’s length is always 4 bytes
+for IPv4 addresses or 16 bytes for IPv6 addresses
+
+
+
+=item C<$bytes_received>
+
+
+
+
+number of bytes received from a client (1.11.4)
+
+
+
+=item C<$bytes_sent>
+
+
+
+
+number of bytes sent to a client
+
+
+
+=item C<$connection>
+
+
+
+
+connection serial number
+
+
+
+=item C<$hostname>
+
+
+
+
+host name
+
+
+
+=item C<$msec>
+
+
+
+
+current time in seconds with the milliseconds resolution
+
+
+
+=item C<$nginx_version>
+
+
+
+
+nginx version
+
+
+
+=item C<$pid>
+
+
+
+
+PID of the worker process
+
+
+
+=item C<$protocol>
+
+
+
+
+protocol used to communicate with the client:
+C<TCP> or C<UDP> (1.11.4)
+
+
+
+=item C<$proxy_protocol_addr>
+
+
+
+
+client address from the PROXY protocol header, or an empty string otherwise
+(1.11.4)
+
+
+The PROXY protocol must be previously enabled by setting the
+C<proxy_protocol> parameter
+in the L</listen> directive.
+
+
+
+
+
+=item C<$proxy_protocol_port>
+
+
+
+
+client port from the PROXY protocol header, or an empty string otherwise
+(1.11.4)
+
+
+The PROXY protocol must be previously enabled by setting the
+C<proxy_protocol> parameter
+in the L</listen> directive.
+
+
+
+
+
+=item C<$remote_addr>
+
+
+
+
+client address
+
+
+
+=item C<$remote_port>
+
+
+
+
+client port
+
+
+
+=item C<$server_addr>
+
+
+
+
+an address of the server which accepted a connection
+
+
+Computing a value of this variable usually requires one system call.
+To avoid a system call, the L</listen> directives
+must specify addresses and use the C<bind> parameter.
+
+
+
+
+
+=item C<$server_port>
+
+
+
+
+port of the server which accepted a connection
+
+
+
+=item C<$session_time>
+
+
+
+
+session duration in seconds with a milliseconds resolution
+(1.11.4);
+
+
+
+=item C<$status>
+
+
+
+
+session status (1.11.4), can be one of the following:
+
+=over
+
+
+
+=item C<200>
+
+
+
+
+session completed successfully
+
+
+
+=item C<400>
+
+
+
+
+client data could not be parsed, for example,
+the PROXY protocol header
+
+
+
+=item C<403>
+
+
+
+
+access forbidden, for example, when access is limited for
+L<certain client addresses|ngx_stream_access_module>
+
+
+
+=item C<500>
+
+
+
+
+internal server error
+
+
+
+=item C<502>
+
+
+
+
+bad gateway, for example,
+if an upstream server could not be selected or reached.
+
+
+
+=item C<503>
+
+
+
+
+service unavailable, for example, when access is limited by the
+L<number of connections|ngx_stream_limit_conn_module>
+
+
+
+
+=back
+
+
+
+
+
+=item C<$time_iso8601>
+
+
+
+
+local time in the ISO 8601 standard format
+
+
+
+=item C<$time_local>
+
+
+
+
+local time in the Common Log Format
+
+
+
+
+=back
+
+
+
+
+
+

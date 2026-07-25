@@ -1,0 +1,135 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_addition_module - Module ngx_http_addition_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_addition_module> module is a filter
+that adds text before and after a response.
+This module is not built by default, it should be enabled with the
+C<--with-http_addition_module>
+configuration parameter.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location / {
+        add_before_body /before_action;
+        add_after_body  /after_action;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 add_before_body
+
+
+B<syntax:> add_before_body I<I<C<uri>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Adds the text returned as a result of processing a given subrequest
+before the response body.
+An empty string (C<"">) as a parameter cancels addition
+inherited from the previous configuration level.
+
+
+
+
+
+
+
+=head2 add_after_body
+
+
+B<syntax:> add_after_body I<I<C<uri>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Adds the text returned as a result of processing a given subrequest
+after the response body.
+An empty string (C<"">) as a parameter cancels addition
+inherited from the previous configuration level.
+
+
+
+
+
+
+
+=head2 addition_types
+
+
+B<syntax:> addition_types I<I<C<mime-type>> ...>
+
+
+B<default:> I<textE<sol>html>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.7.9.
+
+
+
+
+
+Allows adding text in responses with the specified MIME types,
+in addition to “C<textE<sol>html>”.
+The special value “C<*>” matches any MIME type (0.8.29).
+
+
+
+
+
+
+

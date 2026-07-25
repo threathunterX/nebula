@@ -1,0 +1,32 @@
+<configuration>
+    <property name="LOG_DIR" value="/data/logs/profile"/>
+    <property name="LOG_FILE_NAME" value="profiles.log"/>
+
+    <!-- Output to File and Rotate if it's necessary -->
+    <appender name="ROLLING" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <filter class="com.threathunter.platform.logging.ErrorStatisticsFilter" />
+        <file>${LOG_DIR}/${LOG_FILE_NAME}</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <!-- rollover daily -->
+            <fileNamePattern>${LOG_DIR}/${LOG_FILE_NAME}.%i</fileNamePattern>
+            <minIndex>1</minIndex>
+            <maxIndex>10</maxIndex>
+        </rollingPolicy>
+
+        <triggeringPolicy name="ROLLING" class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <maxFileSize>50MB</maxFileSize>
+        </triggeringPolicy>
+
+        <encoder>
+            <pattern>%date [%-5thread] %-5level [%-10logger] %-10msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="com.threathunter" level="WARN" additivity="false">
+        <appender-ref ref="ROLLING"/>
+    </logger>
+
+    <root level="WARN">
+        <appender-ref ref="ROLLING"/>
+    </root>
+</configuration>

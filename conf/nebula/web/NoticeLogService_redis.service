@@ -1,0 +1,13 @@
+
+{
+    "name": "notice_notify",
+    "callmode": "notify",
+    "delivermode": "topic",
+    "serverimpl": "redis",
+    "coder": "mail",
+    "options": {
+        "serversubname": "eslog",
+        "sdc":"sh",
+        "cdc":"sh"
+    }
+}

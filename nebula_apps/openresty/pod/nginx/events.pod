@@ -1,0 +1,128 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+events - Connection processing methods
+
+
+=head1
+
+
+
+nginx supports a variety of connection processing methods.
+The availability of a particular method depends on the platform used.
+On platforms that support several methods nginx will normally
+select the most efficient method automatically.
+However, if needed, a connection processing method can be selected
+explicitly with the
+L<ngx_core_module> directive.
+
+
+
+
+
+The following connection processing methods are supported:
+
+=over
+
+
+
+
+=item *
+
+
+
+C<select>E<mdash>standard method.
+The supporting module is built automatically on platforms that lack
+more efficient methods.
+The C<--with-select_module> and
+C<--without-select_module> configuration parameters
+can be used to forcibly enable or disable the build of this module.
+
+
+
+
+
+=item *
+
+
+
+C<poll>E<mdash>standard method.
+The supporting module is built automatically on platforms that lack
+more efficient methods.
+The C<--with-poll_module> and
+C<--without-poll_module> configuration parameters
+can be used to forcibly enable or disable the build of this module.
+
+
+
+
+
+=item *
+
+
+
+C<kqueue>E<mdash>efficient method used on
+FreeBSD 4.1+, OpenBSD 2.9+, NetBSD 2.0, and macOS.
+
+
+
+
+
+=item *
+
+
+
+C<epoll>E<mdash>efficient method used on
+Linux 2.6+.
+
+B<NOTE>
+
+The C<EPOLLRDHUP> (Linux 2.6.17, glibc 2.8)
+and C<EPOLLEXCLUSIVE> (Linux 4.5, glibc 2.24)
+flags are supported since 1.11.3.
+
+
+B<NOTE>
+
+Some older distributions like SuSE 8.2 provide patches
+that add epoll support to 2.4 kernels.
+
+
+
+
+
+
+=item *
+
+
+
+C<E<sol>devE<sol>poll>E<mdash>efficient method used on
+Solaris 7 11E<sol>99+, HPE<sol>UX 11.22+ (eventport), IRIX 6.5.15+,
+and Tru64 UNIX 5.1A+.
+
+
+
+
+
+=item *
+
+
+
+C<eventport>E<mdash>event ports, method
+used on Solaris 10+ (due to known issues,
+it is recommended using the C<E<sol>devE<sol>poll> method instead).
+
+
+
+
+
+=back
+
+
+
+
+
+

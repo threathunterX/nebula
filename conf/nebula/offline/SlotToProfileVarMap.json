@@ -1,0 +1,20 @@
+{
+  "uid": [
+    "uid__visit_dynamic_count__1h__slot",
+    "uid_did__visit_dynamic_count_top20__1h__slot",
+    "uid_useragent__visit_dynamic_count_top20__1h__slot",
+    "uid__visit_incident_count__1h__slot",
+    "uid_geo_city__visit_dynamic_count_top20__1h__slot",
+    "uid__visit_dynamic_last_timestamp__1h__slot",
+    "uid__visit_dynamic_distinct_count_did__1h__slot",
+    "uid__visit_dynamic_distinct_count_ip__1h__slot"
+  ],
+  "did": [
+    "did__visit_dynamic_distinct_count_ip__1h__slot",
+    "did__visit_dynamic_distinct_count_uid__1h__slot"
+  ],
+  "ip": [
+    "ip__visit_dynamic_distinct_count_uid__1h__slot",
+    "ip__visit_dynamic_distinct_count_did__1h__slot"
+  ]
+}

@@ -1,0 +1,3681 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_proxy_module - Module ngx_http_proxy_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_proxy_module> module allows passing
+requests to another server.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location / {
+        proxy_pass       http://localhost:8000;
+        proxy_set_header Host      $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 proxy_bind
+
+
+B<syntax:> proxy_bind I<
+    I<C<address>>
+    [C<transparent>] E<verbar>
+    C<off>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.8.22.
+
+
+
+
+
+Makes outgoing connections to a proxied server originate
+from the specified local IP address with an optional port (1.11.2).
+Parameter value can contain variables (1.3.12).
+The special value C<off> (1.3.12) cancels the effect
+of the C<proxy_bind> directive
+inherited from the previous configuration level, which allows the
+system to auto-assign the local IP address and port.
+
+
+
+
+
+The C<transparent> parameter (1.11.0) allows
+outgoing connections to a proxied server originate
+from a non-local IP address,
+for example, from a real IP address of a client:
+
+    
+    proxy_bind $remote_addr transparent;
+
+
+In order for this parameter to work,
+it is necessary to run nginx worker processes with the
+L<superuser|ngx_core_module> privileges
+and configure kernel routing table
+to intercept network traffic from the proxied server.
+
+
+
+
+
+
+
+=head2 proxy_buffer_size
+
+
+B<syntax:> proxy_buffer_size I<I<C<size>>>
+
+
+B<default:> I<4kE<verbar>8k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the I<C<size>> of the buffer used for reading the first part
+of the response received from the proxied server.
+This part usually contains a small response header.
+By default, the buffer size is equal to one memory page.
+This is either 4K or 8K, depending on a platform.
+It can be made smaller, however.
+
+
+
+
+
+
+
+=head2 proxy_buffering
+
+
+B<syntax:> proxy_buffering I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Enables or disables buffering of responses from the proxied server.
+
+
+
+
+
+When buffering is enabled, nginx receives a response from the proxied server
+as soon as possible, saving it into the buffers set by the
+L</proxy_buffer_size> and L</proxy_buffers> directives.
+If the whole response does not fit into memory, a part of it can be saved
+to a temporary file on the disk.
+Writing to temporary files is controlled by the
+L</proxy_max_temp_file_size> and
+L</proxy_temp_file_write_size> directives.
+
+
+
+
+
+When buffering is disabled, the response is passed to a client synchronously,
+immediately as it is received.
+nginx will not try to read the whole response from the proxied server.
+The maximum size of the data that nginx can receive from the server
+at a time is set by the L</proxy_buffer_size> directive.
+
+
+
+
+
+Buffering can also be enabled or disabled by passing
+“C<yes>” or “C<no>” in the
+C<X-Accel-Buffering> response header field.
+This capability can be disabled using the
+L</proxy_ignore_headers> directive.
+
+
+
+
+
+
+
+=head2 proxy_buffers
+
+
+B<syntax:> proxy_buffers I<I<C<number>> I<C<size>>>
+
+
+B<default:> I<8 4kE<verbar>8k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the I<C<number>> and I<C<size>> of the
+buffers used for reading a response from the proxied server,
+for a single connection.
+By default, the buffer size is equal to one memory page.
+This is either 4K or 8K, depending on a platform.
+
+
+
+
+
+
+
+=head2 proxy_busy_buffers_size
+
+
+B<syntax:> proxy_busy_buffers_size I<I<C<size>>>
+
+
+B<default:> I<8kE<verbar>16k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+When buffering of responses from the proxied
+server is enabled, limits the total I<C<size>> of buffers that
+can be busy sending a response to the client while the response is not
+yet fully read.
+In the meantime, the rest of the buffers can be used for reading the response
+and, if needed, buffering part of the response to a temporary file.
+By default, I<C<size>> is limited by the size of two buffers set by the
+L</proxy_buffer_size> and L</proxy_buffers> directives.
+
+
+
+
+
+
+
+=head2 proxy_cache
+
+
+B<syntax:> proxy_cache I<I<C<zone>> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines a shared memory zone used for caching.
+The same zone can be used in several places.
+Parameter value can contain variables (1.7.9).
+The C<off> parameter disables caching inherited
+from the previous configuration level.
+
+
+
+
+
+
+
+=head2 proxy_cache_background_update
+
+
+B<syntax:> proxy_cache_background_update I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.11.10.
+
+
+
+
+
+Allows starting a background subrequest
+to update an expired cache item,
+while a stale cached response is returned to the client.
+Note that it is necessary to
+allow
+the usage of a stale cached response when it is being updated.
+
+
+
+
+
+
+
+=head2 proxy_cache_bypass
+
+
+B<syntax:> proxy_cache_bypass I<I<C<string>> ...>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines conditions under which the response will not be taken from a cache.
+If at least one value of the string parameters is not empty and is not
+equal to “0” then the response will not be taken from the cache:
+
+    
+    proxy_cache_bypass $cookie_nocache $arg_nocache$arg_comment;
+    proxy_cache_bypass $http_pragma    $http_authorization;
+
+
+Can be used along with the L</proxy_no_cache> directive.
+
+
+
+
+
+
+=head2 proxy_cache_convert_head
+
+
+B<syntax:> proxy_cache_convert_head I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.9.7.
+
+
+
+
+
+Enables or disables the conversion of the “C<HEAD>” method
+to “C<GET>” for caching.
+When the conversion is disabled, the
+cache key should be configured
+to include the C<$request_method>.
+
+
+
+
+
+
+
+=head2 proxy_cache_key
+
+
+B<syntax:> proxy_cache_key I<I<C<string>>>
+
+
+B<default:> I<$scheme$proxy_host$request_uri>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines a key for caching, for example
+
+    
+    proxy_cache_key "$host$request_uri $cookie_user";
+
+
+By default, the directive’s value is close to the string
+
+    
+    proxy_cache_key $scheme$proxy_host$uri$is_args$args;
+
+
+
+
+
+
+
+
+
+=head2 proxy_cache_lock
+
+
+B<syntax:> proxy_cache_lock I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.1.12.
+
+
+
+
+
+When enabled, only one request at a time will be allowed to populate
+a new cache element identified according to the L</proxy_cache_key>
+directive by passing a request to a proxied server.
+Other requests of the same cache element will either wait
+for a response to appear in the cache or the cache lock for
+this element to be released, up to the time set by the
+L</proxy_cache_lock_timeout> directive.
+
+
+
+
+
+
+
+=head2 proxy_cache_lock_age
+
+
+B<syntax:> proxy_cache_lock_age I<I<C<time>>>
+
+
+B<default:> I<5s>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.8.
+
+
+
+
+
+If the last request passed to the proxied server
+for populating a new cache element
+has not completed for the specified I<C<time>>,
+one more request may be passed to the proxied server.
+
+
+
+
+
+
+
+=head2 proxy_cache_lock_timeout
+
+
+B<syntax:> proxy_cache_lock_timeout I<I<C<time>>>
+
+
+B<default:> I<5s>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.1.12.
+
+
+
+
+
+Sets a timeout for L</proxy_cache_lock>.
+When the I<C<time>> expires,
+the request will be passed to the proxied server,
+however, the response will not be cached.
+
+B<NOTE>
+
+Before 1.7.8, the response could be cached.
+
+
+
+
+
+
+
+
+=head2 proxy_cache_max_range_offset
+
+
+B<syntax:> proxy_cache_max_range_offset I<I<C<number>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.11.6.
+
+
+
+
+
+Sets an offset in bytes for byte-range requests.
+If the range is beyond the offset,
+the range request will be passed to the proxied server
+and the response will not be cached.
+
+
+
+
+
+
+
+=head2 proxy_cache_methods
+
+
+B<syntax:> proxy_cache_methods I<
+    C<GET> E<verbar>
+    C<HEAD> E<verbar>
+    C<POST>
+    ...>
+
+
+B<default:> I<GET HEAD>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.7.59.
+
+
+
+
+
+If the client request method is listed in this directive then
+the response will be cached.
+“C<GET>” and “C<HEAD>” methods are always
+added to the list, though it is recommended to specify them explicitly.
+See also the L</proxy_no_cache> directive.
+
+
+
+
+
+
+
+=head2 proxy_cache_min_uses
+
+
+B<syntax:> proxy_cache_min_uses I<I<C<number>>>
+
+
+B<default:> I<1>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the I<C<number>> of requests after which the response
+will be cached.
+
+
+
+
+
+
+
+=head2 proxy_cache_path
+
+
+B<syntax:> proxy_cache_path I<
+    I<C<path>>
+    [C<levels>=I<C<levels>>]
+    [C<use_temp_path>=C<on>E<verbar>C<off>]
+    C<keys_zone>=I<C<name>>:I<C<size>>
+    [C<inactive>=I<C<time>>]
+    [C<max_size>=I<C<size>>]
+    [C<manager_files>=I<C<number>>]
+    [C<manager_sleep>=I<C<time>>]
+    [C<manager_threshold>=I<C<time>>]
+    [C<loader_files>=I<C<number>>]
+    [C<loader_sleep>=I<C<time>>]
+    [C<loader_threshold>=I<C<time>>]
+    [C<purger>=C<on>E<verbar>C<off>]
+    [C<purger_files>=I<C<number>>]
+    [C<purger_sleep>=I<C<time>>]
+    [C<purger_threshold>=I<C<time>>]>
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Sets the path and other parameters of a cache.
+Cache data are stored in files.
+The file name in a cache is a result of
+applying the MD5 function to the
+cache key.
+The C<levels> parameter defines hierarchy levels of a cache:
+from 1 to 3, each level accepts values 1 or 2.
+For example, in the following configuration
+
+    
+    proxy_cache_path /data/nginx/cache levels=1:2 keys_zone=one:10m;
+
+
+file names in a cache will look like this:
+
+    
+    /data/nginx/cache/<emphasis>c</emphasis>/<emphasis>29</emphasis>/b7f54b2df7773722d382f4809d650<emphasis>29c</emphasis>
+
+
+
+
+
+
+
+A cached response is first written to a temporary file,
+and then the file is renamed.
+Starting from version 0.8.9, temporary files and the cache can be put on
+different file systems.
+However, be aware that in this case a file is copied
+across two file systems instead of the cheap renaming operation.
+It is thus recommended that for any given location both cache and a directory
+holding temporary files
+are put on the same file system.
+The directory for temporary files is set based on
+the C<use_temp_path> parameter (1.7.10).
+If this parameter is omitted or set to the value C<on>,
+the directory set by the L</proxy_temp_path> directive
+for the given location will be used.
+If the value is set to C<off>,
+temporary files will be put directly in the cache directory.
+
+
+
+
+
+In addition, all active keys and information about data are stored
+in a shared memory zone, whose I<C<name>> and I<C<size>>
+are configured by the C<keys_zone> parameter.
+One megabyte zone can store about 8 thousand keys.
+
+
+
+
+
+Cached data that are not accessed during the time specified by the
+C<inactive> parameter get removed from the cache
+regardless of their freshness.
+By default, C<inactive> is set to 10 minutes.
+
+
+
+
+
+The special “cache manager” process monitors the maximum cache size set
+by the C<max_size> parameter.
+When this size is exceeded, it removes the least recently used data.
+The data is removed in iterations configured by
+C<manager_files>,
+C<manager_threshold>, and
+C<manager_sleep> parameters (1.11.5).
+During one iteration no more than C<manager_files> items
+are deleted (by default, 100).
+The duration of one iteration is limited by the
+C<manager_threshold> parameter (by default, 200 milliseconds).
+Between iterations, a pause configured by the C<manager_sleep>
+parameter (by default, 50 milliseconds) is made.
+
+
+
+
+
+A minute after the start the special “cache loader” process is activated.
+It loads information about previously cached data stored on file system
+into a cache zone.
+The loading is also done in iterations.
+During one iteration no more than C<loader_files> items
+are loaded (by default, 100).
+Besides, the duration of one iteration is limited by the
+C<loader_threshold> parameter (by default, 200 milliseconds).
+Between iterations, a pause configured by the C<loader_sleep>
+parameter (by default, 50 milliseconds) is made.
+
+
+
+
+
+Additionally,
+the following parameters are available as part of our
+commercial subscription:
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<purger>=C<on>E<verbar>C<off>
+
+
+
+
+
+Instructs whether cache entries that match a
+wildcard key
+will be removed from the disk by the cache purger (1.7.12).
+Setting the parameter to C<on>
+(default is C<off>)
+will activate the “cache purger” process that
+permanently iterates through all cache entries
+and deletes the entries that match the wildcard key.
+
+
+
+=item 
+C<purger_files>=I<C<number>>
+
+
+
+
+
+Sets the number of items that will be scanned during one iteration (1.7.12).
+By default, C<purger_files> is set to 10.
+
+
+
+=item 
+C<purger_threshold>=I<C<number>>
+
+
+
+
+
+Sets the duration of one iteration (1.7.12).
+By default, C<purger_threshold> is set to 50 milliseconds.
+
+
+
+=item 
+C<purger_sleep>=I<C<number>>
+
+
+
+
+
+Sets a pause between iterations (1.7.12).
+By default, C<purger_sleep> is set to 50 milliseconds.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 proxy_cache_purge
+
+
+B<syntax:> proxy_cache_purge I<string ...>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.5.7.
+
+
+
+
+
+Defines conditions under which the request will be considered a cache
+purge request.
+If at least one value of the string parameters is not empty and is not equal
+to “0” then the cache entry with a corresponding
+cache key is removed.
+The result of successful operation is indicated by returning
+the C<204> (C<No Content>) response.
+
+
+
+
+
+If the cache key of a purge request ends
+with an asterisk (“C<*>”), all cache entries matching the
+wildcard key will be removed from the cache.
+However, these entries will remain on the disk until they are deleted
+for either inactivity,
+or processed by the cache purger (1.7.12),
+or a client attempts to access them.
+
+
+
+
+
+Example configuration:
+
+    
+    proxy_cache_path /data/nginx/cache keys_zone=cache_zone:10m;
+    
+    map $request_method $purge_method {
+        PURGE   1;
+        default 0;
+    }
+    
+    server {
+        ...
+        location / {
+            proxy_pass http://backend;
+            proxy_cache cache_zone;
+            proxy_cache_key $uri;
+            proxy_cache_purge $purge_method;
+        }
+    }
+
+
+
+B<NOTE>
+
+This functionality is available as part of our
+commercial subscription.
+
+
+
+
+
+
+
+
+=head2 proxy_cache_revalidate
+
+
+B<syntax:> proxy_cache_revalidate I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.5.7.
+
+
+
+
+
+Enables revalidation of expired cache items using conditional requests with
+the C<If-Modified-Since> and C<If-None-Match>
+header fields.
+
+
+
+
+
+
+
+=head2 proxy_cache_use_stale
+
+
+B<syntax:> proxy_cache_use_stale I<
+    C<error> E<verbar>
+    C<timeout> E<verbar>
+    C<invalid_header> E<verbar>
+    C<updating> E<verbar>
+    C<http_500> E<verbar>
+    C<http_502> E<verbar>
+    C<http_503> E<verbar>
+    C<http_504> E<verbar>
+    C<http_403> E<verbar>
+    C<http_404> E<verbar>
+    C<http_429> E<verbar>
+    C<off>
+    ...>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Determines in which cases a stale cached response can be used
+during communication with the proxied server.
+The directive’s parameters match the parameters of the
+L</proxy_next_upstream> directive.
+
+
+
+
+
+The C<error> parameter also permits
+using a stale cached response if a proxied server to process a request
+cannot be selected.
+
+
+
+
+
+Additionally, the C<updating> parameter permits
+using a stale cached response if it is currently being updated.
+This allows minimizing the number of accesses to proxied servers
+when updating cached data.
+
+
+
+
+
+Using a stale cached response
+can also be enabled directly in the response header
+for a specified number of seconds after the response became stale (1.11.10).
+This has lower priority than using the directive parameters.
+
+=over
+
+
+
+
+=item *
+
+The
+“L<stale-while-revalidate|https://tools.ietf.org/html/rfc5861#section-3>”
+extension of the C<Cache-Control> header field permits
+using a stale cached response if it is currently being updated.
+
+
+
+=item *
+
+The
+“L<stale-if-error|https://tools.ietf.org/html/rfc5861#section-4>”
+extension of the C<Cache-Control> header field permits
+using a stale cached response in case of an error.
+
+
+
+=back
+
+
+
+
+
+
+
+To minimize the number of accesses to proxied servers when
+populating a new cache element, the L</proxy_cache_lock>
+directive can be used.
+
+
+
+
+
+
+
+=head2 proxy_cache_valid
+
+
+B<syntax:> proxy_cache_valid I<[I<C<code>> ...] I<C<time>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets caching time for different response codes.
+For example, the following directives
+
+    
+    proxy_cache_valid 200 302 10m;
+    proxy_cache_valid 404      1m;
+
+
+set 10 minutes of caching for responses with codes 200 and 302
+and 1 minute for responses with code 404.
+
+
+
+
+
+If only caching I<C<time>> is specified
+
+    
+    proxy_cache_valid 5m;
+
+
+then only 200, 301, and 302 responses are cached.
+
+
+
+
+
+In addition, the C<any> parameter can be specified
+to cache any responses:
+
+    
+    proxy_cache_valid 200 302 10m;
+    proxy_cache_valid 301      1h;
+    proxy_cache_valid any      1m;
+
+
+
+
+
+
+
+Parameters of caching can also be set directly
+in the response header.
+This has higher priority than setting of caching time using the directive.
+
+=over
+
+
+
+
+=item *
+
+The C<X-Accel-Expires> header field sets caching time of a
+response in seconds.
+The zero value disables caching for a response.
+If the value starts with the C<@> prefix, it sets an absolute
+time in seconds since Epoch, up to which the response may be cached.
+
+
+
+=item *
+
+If the header does not include the C<X-Accel-Expires> field,
+parameters of caching may be set in the header fields
+C<Expires> or C<Cache-Control>.
+
+
+
+=item *
+
+If the header includes the C<Set-Cookie> field, such a
+response will not be cached.
+
+
+
+=item *
+
+If the header includes the C<Vary> field
+with the special value “C<*>”, such a
+response will not be cached (1.7.7).
+If the header includes the C<Vary> field
+with another value, such a response will be cached
+taking into account the corresponding request header fields (1.7.7).
+
+
+
+=back
+
+
+Processing of one or more of these response header fields can be disabled
+using the L</proxy_ignore_headers> directive.
+
+
+
+
+
+
+
+=head2 proxy_connect_timeout
+
+
+B<syntax:> proxy_connect_timeout I<I<C<time>>>
+
+
+B<default:> I<60s>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines a timeout for establishing a connection with a proxied server.
+It should be noted that this timeout cannot usually exceed 75 seconds.
+
+
+
+
+
+
+
+=head2 proxy_cookie_domain
+
+
+B<syntax:> proxy_cookie_domain I<C<off>>
+
+
+B<syntax:> proxy_cookie_domain I<I<C<domain>> I<C<replacement>>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.1.15.
+
+
+
+
+
+Sets a text that should be changed in the C<domain>
+attribute of the C<Set-Cookie> header fields of a
+proxied server response.
+Suppose a proxied server returned the C<Set-Cookie>
+header field with the attribute
+“C<domain=localhost>”.
+The directive
+
+    
+    proxy_cookie_domain localhost example.org;
+
+
+will rewrite this attribute to
+“C<domain=example.org>”.
+
+
+
+
+
+A dot at the beginning of the I<C<domain>> and
+I<C<replacement>> strings and the C<domain>
+attribute is ignored.
+Matching is case-insensitive.
+
+
+
+
+
+The I<C<domain>> and I<C<replacement>> strings
+can contain variables:
+
+    
+    proxy_cookie_domain www.$host $host;
+
+
+
+
+
+
+
+The directive can also be specified using regular expressions.
+In this case, I<C<domain>> should start from
+the “C<~>” symbol.
+A regular expression can contain named and positional captures,
+and I<C<replacement>> can reference them:
+
+    
+    proxy_cookie_domain ~\.(?P<sl_domain>[-0-9a-z]+\.[a-z]+)$ $sl_domain;
+
+
+
+
+
+
+
+There could be several C<proxy_cookie_domain> directives:
+
+    
+    proxy_cookie_domain localhost example.org;
+    proxy_cookie_domain ~\.([a-z]+\.[a-z]+)$ $1;
+
+
+
+
+
+
+
+The C<off> parameter cancels the effect of all
+C<proxy_cookie_domain> directives on the current level:
+
+    
+    proxy_cookie_domain off;
+    proxy_cookie_domain localhost example.org;
+    proxy_cookie_domain www.example.org example.org;
+
+
+
+
+
+
+
+
+
+=head2 proxy_cookie_path
+
+
+B<syntax:> proxy_cookie_path I<C<off>>
+
+
+B<syntax:> proxy_cookie_path I<I<C<path>> I<C<replacement>>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.1.15.
+
+
+
+
+
+Sets a text that should be changed in the C<path>
+attribute of the C<Set-Cookie> header fields of a
+proxied server response.
+Suppose a proxied server returned the C<Set-Cookie>
+header field with the attribute
+“C<path=E<sol>twoE<sol>someE<sol>uriE<sol>>”.
+The directive
+
+    
+    proxy_cookie_path /two/ /;
+
+
+will rewrite this attribute to
+“C<path=E<sol>someE<sol>uriE<sol>>”.
+
+
+
+
+
+The I<C<path>> and I<C<replacement>> strings
+can contain variables:
+
+    
+    proxy_cookie_path $uri /some$uri;
+
+
+
+
+
+
+
+The directive can also be specified using regular expressions.
+In this case, I<C<path>> should either start from
+the “C<~>” symbol for a case-sensitive matching,
+or from the “C<~*>” symbols for case-insensitive
+matching.
+The regular expression can contain named and positional captures,
+and I<C<replacement>> can reference them:
+
+    
+    proxy_cookie_path ~*^/user/([^/]+) /u/$1;
+
+
+
+
+
+
+
+There could be several C<proxy_cookie_path> directives:
+
+    
+    proxy_cookie_path /one/ /;
+    proxy_cookie_path / /two/;
+
+
+
+
+
+
+
+The C<off> parameter cancels the effect of all
+C<proxy_cookie_path> directives on the current level:
+
+    
+    proxy_cookie_path off;
+    proxy_cookie_path /two/ /;
+    proxy_cookie_path ~*^/user/([^/]+) /u/$1;
+
+
+
+
+
+
+
+
+
+=head2 proxy_force_ranges
+
+
+B<syntax:> proxy_force_ranges I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.7.
+
+
+
+
+
+Enables byte-range support
+for both cached and uncached responses from the proxied server
+regardless of the C<Accept-Ranges> field in these responses.
+
+
+
+
+
+
+
+=head2 proxy_headers_hash_bucket_size
+
+
+B<syntax:> proxy_headers_hash_bucket_size I<I<C<size>>>
+
+
+B<default:> I<64>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the bucket I<C<size>> for hash tables
+used by the L</proxy_hide_header> and L</proxy_set_header>
+directives.
+The details of setting up hash tables are provided in a separate
+L<document|hash>.
+
+
+
+
+
+
+
+=head2 proxy_headers_hash_max_size
+
+
+B<syntax:> proxy_headers_hash_max_size I<I<C<size>>>
+
+
+B<default:> I<512>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the maximum I<C<size>> of hash tables
+used by the L</proxy_hide_header> and L</proxy_set_header>
+directives.
+The details of setting up hash tables are provided in a separate
+L<document|hash>.
+
+
+
+
+
+
+
+=head2 proxy_hide_header
+
+
+B<syntax:> proxy_hide_header I<I<C<field>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+By default,
+nginx does not pass the header fields C<Date>,
+C<Server>, C<X-Pad>, and
+C<X-Accel-...> from the response of a proxied
+server to a client.
+The C<proxy_hide_header> directive sets additional fields
+that will not be passed.
+If, on the contrary, the passing of fields needs to be permitted,
+the L</proxy_pass_header> directive can be used.
+
+
+
+
+
+
+
+=head2 proxy_http_version
+
+
+B<syntax:> proxy_http_version I<C<1.0> E<verbar> C<1.1>>
+
+
+B<default:> I<1.0>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.1.4.
+
+
+
+
+
+Sets the HTTP protocol version for proxying.
+By default, version 1.0 is used.
+Version 1.1 is recommended for use with
+L<ngx_http_upstream_module>
+connections and
+L<NTLM authentication|ngx_http_upstream_module>.
+
+
+
+
+
+
+
+=head2 proxy_ignore_client_abort
+
+
+B<syntax:> proxy_ignore_client_abort I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Determines whether the connection with a proxied server should be
+closed when a client closes the connection without waiting
+for a response.
+
+
+
+
+
+
+
+=head2 proxy_ignore_headers
+
+
+B<syntax:> proxy_ignore_headers I<I<C<field>> ...>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Disables processing of certain response header fields from the proxied server.
+The following fields can be ignored: C<X-Accel-Redirect>,
+C<X-Accel-Expires>, C<X-Accel-Limit-Rate> (1.1.6),
+C<X-Accel-Buffering> (1.1.6),
+C<X-Accel-Charset> (1.1.6), C<Expires>,
+C<Cache-Control>, C<Set-Cookie> (0.8.44),
+and C<Vary> (1.7.7).
+
+
+
+
+
+If not disabled, processing of these header fields has the following
+effect:
+
+=over
+
+
+
+
+=item *
+
+C<X-Accel-Expires>, C<Expires>,
+C<Cache-Control>, C<Set-Cookie>,
+and C<Vary>
+set the parameters of response caching;
+
+
+
+=item *
+
+C<X-Accel-Redirect> performs an
+L<internal
+redirect|ngx_http_core_module> to the specified URI;
+
+
+
+=item *
+
+C<X-Accel-Limit-Rate> sets the
+L<rate
+limit|ngx_http_core_module> for transmission of a response to a client;
+
+
+
+=item *
+
+C<X-Accel-Buffering> enables or disables
+buffering of a response;
+
+
+
+=item *
+
+C<X-Accel-Charset> sets the desired
+L<ngx_http_charset_module>
+of a response.
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 proxy_intercept_errors
+
+
+B<syntax:> proxy_intercept_errors I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Determines whether proxied responses with codes greater than or equal
+to 300 should be passed to a client
+or be intercepted and redirected to nginx for processing
+with the L<ngx_http_core_module> directive.
+
+
+
+
+
+
+
+=head2 proxy_limit_rate
+
+
+B<syntax:> proxy_limit_rate I<I<C<rate>>>
+
+
+B<default:> I<0>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.7.
+
+
+
+
+
+Limits the speed of reading the response from the proxied server.
+The I<C<rate>> is specified in bytes per second.
+The zero value disables rate limiting.
+The limit is set per a request, and so if nginx simultaneously opens
+two connections to the proxied server,
+the overall rate will be twice as much as the specified limit.
+The limitation works only if
+buffering of responses from the proxied
+server is enabled.
+
+
+
+
+
+
+
+=head2 proxy_max_temp_file_size
+
+
+B<syntax:> proxy_max_temp_file_size I<I<C<size>>>
+
+
+B<default:> I<1024m>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+When buffering of responses from the proxied
+server is enabled, and the whole response does not fit into the buffers
+set by the L</proxy_buffer_size> and L</proxy_buffers>
+directives, a part of the response can be saved to a temporary file.
+This directive sets the maximum I<C<size>> of the temporary file.
+The size of data written to the temporary file at a time is set
+by the L</proxy_temp_file_write_size> directive.
+
+
+
+
+
+The zero value disables buffering of responses to temporary files.
+
+
+
+
+
+
+B<NOTE>
+
+This restriction does not apply to responses
+that will be cached
+or stored on disk.
+
+
+
+
+
+
+
+
+=head2 proxy_method
+
+
+B<syntax:> proxy_method I<I<C<method>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Specifies the HTTP I<C<method>> to use in requests forwarded
+to the proxied server instead of the method from the client request.
+Parameter value can contain variables (1.11.6).
+
+
+
+
+
+
+
+=head2 proxy_next_upstream
+
+
+B<syntax:> proxy_next_upstream I<
+    C<error> E<verbar>
+    C<timeout> E<verbar>
+    C<invalid_header> E<verbar>
+    C<http_500> E<verbar>
+    C<http_502> E<verbar>
+    C<http_503> E<verbar>
+    C<http_504> E<verbar>
+    C<http_403> E<verbar>
+    C<http_404> E<verbar>
+    C<http_429> E<verbar>
+    C<non_idempotent> E<verbar>
+    C<off>
+    ...>
+
+
+B<default:> I<error timeout>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Specifies in which cases a request should be passed to the next server:
+
+=over
+
+
+
+=item C<error>
+
+
+
+an error occurred while establishing a connection with the
+server, passing a request to it, or reading the response header;
+
+
+=item C<timeout>
+
+
+
+a timeout has occurred while establishing a connection with the
+server, passing a request to it, or reading the response header;
+
+
+=item C<invalid_header>
+
+
+
+a server returned an empty or invalid response;
+
+
+=item C<http_500>
+
+
+
+a server returned a response with the code 500;
+
+
+=item C<http_502>
+
+
+
+a server returned a response with the code 502;
+
+
+=item C<http_503>
+
+
+
+a server returned a response with the code 503;
+
+
+=item C<http_504>
+
+
+
+a server returned a response with the code 504;
+
+
+=item C<http_403>
+
+
+
+a server returned a response with the code 403;
+
+
+=item C<http_404>
+
+
+
+a server returned a response with the code 404;
+
+
+=item C<http_429>
+
+
+
+a server returned a response with the code 429 (1.11.13);
+
+
+=item C<non_idempotent>
+
+
+
+normally, requests with a
+L<non-idempotent|https://tools.ietf.org/html/rfc7231#section-4.2.2>
+method
+(C<POST>, C<LOCK>, C<PATCH>)
+are not passed to the next server
+if a request has been sent to an upstream server (1.9.13);
+enabling this option explicitly allows retrying such requests;
+
+
+
+=item C<off>
+
+
+
+disables passing a request to the next server.
+
+
+
+=back
+
+
+
+
+
+
+
+One should bear in mind that passing a request to the next server is
+only possible if nothing has been sent to a client yet.
+That is, if an error or timeout occurs in the middle of the
+transferring of a response, fixing this is impossible.
+
+
+
+
+
+The directive also defines what is considered an
+L<unsuccessful
+attempt|ngx_http_upstream_module> of communication with a server.
+The cases of C<error>, C<timeout> and
+C<invalid_header> are always considered unsuccessful attempts,
+even if they are not specified in the directive.
+The cases of C<http_500>, C<http_502>,
+C<http_503>, C<http_504>,
+and C<http_429> are
+considered unsuccessful attempts only if they are specified in the directive.
+The cases of C<http_403> and C<http_404>
+are never considered unsuccessful attempts.
+
+
+
+
+
+Passing a request to the next server can be limited by
+the number of tries
+and by time.
+
+
+
+
+
+
+
+=head2 proxy_next_upstream_timeout
+
+
+B<syntax:> proxy_next_upstream_timeout I<I<C<time>>>
+
+
+B<default:> I<0>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.5.
+
+
+
+
+
+Limits the time during which a request can be passed to the
+next server.
+The C<0> value turns off this limitation.
+
+
+
+
+
+
+
+=head2 proxy_next_upstream_tries
+
+
+B<syntax:> proxy_next_upstream_tries I<I<C<number>>>
+
+
+B<default:> I<0>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.5.
+
+
+
+
+
+Limits the number of possible tries for passing a request to the
+next server.
+The C<0> value turns off this limitation.
+
+
+
+
+
+
+
+=head2 proxy_no_cache
+
+
+B<syntax:> proxy_no_cache I<I<C<string>> ...>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines conditions under which the response will not be saved to a cache.
+If at least one value of the string parameters is not empty and is not
+equal to “0” then the response will not be saved:
+
+    
+    proxy_no_cache $cookie_nocache $arg_nocache$arg_comment;
+    proxy_no_cache $http_pragma    $http_authorization;
+
+
+Can be used along with the L</proxy_cache_bypass> directive.
+
+
+
+
+
+
+
+=head2 proxy_pass
+
+
+B<syntax:> proxy_pass I<I<C<URL>>>
+
+
+
+B<context:> I<location>
+
+
+B<context:> I<if in location>
+
+
+B<context:> I<limit_except>
+
+
+
+
+
+Sets the protocol and address of a proxied server and an optional URI
+to which a location should be mapped.
+As a protocol, “C<http>” or “C<https>”
+can be specified.
+The address can be specified as a domain name or IP address,
+and an optional port:
+
+    
+    proxy_pass http://localhost:8000/uri/;
+
+
+or as a UNIX-domain socket path specified after the word
+“C<unix>” and enclosed in colons:
+
+    
+    proxy_pass http://unix:/tmp/backend.socket:/uri/;
+
+
+
+
+
+
+
+If a domain name resolves to several addresses, all of them will be
+used in a round-robin fashion.
+In addition, an address can be specified as a
+L<server group|ngx_http_upstream_module>.
+
+
+
+
+
+A request URI is passed to the server as follows:
+
+=over
+
+
+
+
+=item *
+
+If the C<proxy_pass> directive is specified with a URI,
+then when a request is passed to the server, the part of a
+L<normalized|ngx_http_core_module>
+request URI matching the location is replaced by a URI
+specified in the directive:
+
+    
+    location /name/ {
+        proxy_pass http://127.0.0.1/remote/;
+    }
+
+
+
+
+
+=item *
+
+If C<proxy_pass> is specified without a URI,
+the request URI is passed to the server in the same form
+as sent by a client when the original request is processed,
+or the full normalized request URI is passed
+when processing the changed URI:
+
+    
+    location /some/path/ {
+        proxy_pass http://127.0.0.1;
+    }
+
+
+
+B<NOTE>
+
+Before version 1.1.12,
+if C<proxy_pass> is specified without a URI,
+the original request URI might be passed
+instead of the changed URI in some cases.
+
+
+
+=back
+
+
+
+
+
+
+
+In some cases, the part of a request URI to be replaced cannot be determined:
+
+=over
+
+
+
+
+=item *
+
+When location is specified using a regular expression.
+
+
+In this case, the directive should be specified without a URI.
+
+
+
+
+
+=item *
+
+When the URI is changed inside a proxied location using the
+L<ngx_http_rewrite_module> directive,
+and this same configuration will be used to process a request
+(C<break>):
+
+    
+    location /name/ {
+        rewrite    /name/([^/]+) /users?name=$1 break;
+        proxy_pass http://127.0.0.1;
+    }
+
+
+
+
+In this case, the URI specified in the directive is ignored and
+the full changed request URI is passed to the server.
+
+
+
+
+=back
+
+
+
+
+
+
+
+A server name, its port and the passed URI can also be specified using
+variables:
+
+    
+    proxy_pass http://$host$uri;
+
+
+or even like this:
+
+    
+    proxy_pass $request;
+
+
+
+
+
+
+
+In this case, the server name is searched among the described
+L<server groups|ngx_http_upstream_module>,
+and, if not found, is determined using a
+L<ngx_http_core_module>.
+
+
+
+
+
+L<WebSocket|websocket> proxying requires special
+configuration and is supported since version 1.3.13.
+
+
+
+
+
+
+
+=head2 proxy_pass_header
+
+
+B<syntax:> proxy_pass_header I<I<C<field>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Permits passing otherwise disabled header
+fields from a proxied server to a client.
+
+
+
+
+
+
+
+=head2 proxy_pass_request_body
+
+
+B<syntax:> proxy_pass_request_body I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Indicates whether the original request body is passed
+to the proxied server.
+
+    
+    location /x-accel-redirect-here/ {
+        proxy_method GET;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+    
+        proxy_pass ...
+    }
+
+
+See also the L</proxy_set_header> and
+L</proxy_pass_request_headers> directives.
+
+
+
+
+
+
+
+=head2 proxy_pass_request_headers
+
+
+B<syntax:> proxy_pass_request_headers I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Indicates whether the header fields of the original request are passed
+to the proxied server.
+
+    
+    location /x-accel-redirect-here/ {
+        proxy_method GET;
+        proxy_pass_request_headers off;
+        proxy_pass_request_body off;
+    
+        proxy_pass ...
+    }
+
+
+See also the L</proxy_set_header> and
+L</proxy_pass_request_body> directives.
+
+
+
+
+
+
+
+=head2 proxy_read_timeout
+
+
+B<syntax:> proxy_read_timeout I<I<C<time>>>
+
+
+B<default:> I<60s>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines a timeout for reading a response from the proxied server.
+The timeout is set only between two successive read operations,
+not for the transmission of the whole response.
+If the proxied server does not transmit anything within this time,
+the connection is closed.
+
+
+
+
+
+
+
+=head2 proxy_redirect
+
+
+B<syntax:> proxy_redirect I<C<default>>
+
+
+B<syntax:> proxy_redirect I<C<off>>
+
+
+B<syntax:> proxy_redirect I<I<C<redirect>> I<C<replacement>>>
+
+
+B<default:> I<default>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the text that should be changed in the C<Location>
+and C<Refresh> header fields of a proxied server response.
+Suppose a proxied server returned the header field
+“C<Location: http:E<sol>E<sol>localhost:8000E<sol>twoE<sol>someE<sol>uriE<sol>>”.
+The directive
+
+    
+    proxy_redirect http://localhost:8000/two/ http://frontend/one/;
+
+
+will rewrite this string to
+“C<Location: http:E<sol>E<sol>frontendE<sol>oneE<sol>someE<sol>uriE<sol>>”.
+
+
+
+
+
+A server name may be omitted in the I<C<replacement>> string:
+
+    
+    proxy_redirect http://localhost:8000/two/ /;
+
+
+then the primary server’s name and port, if different from 80,
+will be inserted.
+
+
+
+
+
+The default replacement specified by the C<default> parameter
+uses the parameters of the
+L<ngx_http_core_module> and
+L</proxy_pass> directives.
+Hence, the two configurations below are equivalent:
+
+    
+    location /one/ {
+        proxy_pass     http://upstream:port/two/;
+        proxy_redirect default;
+
+
+
+
+    
+    location /one/ {
+        proxy_pass     http://upstream:port/two/;
+        proxy_redirect http://upstream:port/two/ /one/;
+
+
+The C<default> parameter is not permitted if
+L</proxy_pass> is specified using variables.
+
+
+
+
+
+A I<C<replacement>> string can contain variables:
+
+    
+    proxy_redirect http://localhost:8000/ http://$host:$server_port/;
+
+
+
+
+
+
+
+A I<C<redirect>> can also contain (1.1.11) variables:
+
+    
+    proxy_redirect http://$proxy_host:8000/ /;
+
+
+
+
+
+
+
+The directive can be specified (1.1.11) using regular expressions.
+In this case, I<C<redirect>> should either start with
+the “C<~>” symbol for a case-sensitive matching,
+or with the “C<~*>” symbols for case-insensitive
+matching.
+The regular expression can contain named and positional captures,
+and I<C<replacement>> can reference them:
+
+    
+    proxy_redirect ~^(http://[^:]+):\d+(/.+)$ $1$2;
+    proxy_redirect ~*/user/([^/]+)/(.+)$      http://$1.example.com/$2;
+
+
+
+
+
+
+
+There could be several C<proxy_redirect> directives:
+
+    
+    proxy_redirect default;
+    proxy_redirect http://localhost:8000/  /;
+    proxy_redirect http://www.example.com/ /;
+
+
+
+
+
+
+
+The C<off> parameter cancels the effect of all
+C<proxy_redirect> directives on the current level:
+
+    
+    proxy_redirect off;
+    proxy_redirect default;
+    proxy_redirect http://localhost:8000/  /;
+    proxy_redirect http://www.example.com/ /;
+
+
+
+
+
+
+
+Using this directive, it is also possible to add host names to relative
+redirects issued by a proxied server:
+
+    
+    proxy_redirect / /;
+
+
+
+
+
+
+
+
+
+=head2 proxy_request_buffering
+
+
+B<syntax:> proxy_request_buffering I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.11.
+
+
+
+
+
+Enables or disables buffering of a client request body.
+
+
+
+
+
+When buffering is enabled, the entire request body is
+L<read|ngx_http_core_module>
+from the client before sending the request to a proxied server.
+
+
+
+
+
+When buffering is disabled, the request body is sent to the proxied server
+immediately as it is received.
+In this case, the request cannot be passed to the
+next server
+if nginx already started sending the request body.
+
+
+
+
+
+When HTTPE<sol>1.1 chunked transfer encoding is used
+to send the original request body,
+the request body will be buffered regardless of the directive value unless
+HTTPE<sol>1.1 is enabled for proxying.
+
+
+
+
+
+
+
+=head2 proxy_send_lowat
+
+
+B<syntax:> proxy_send_lowat I<I<C<size>>>
+
+
+B<default:> I<0>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+If the directive is set to a non-zero value, nginx will try to
+minimize the number
+of send operations on outgoing connections to a proxied server by using either
+C<NOTE_LOWAT> flag of the
+L<events> method,
+or the C<SO_SNDLOWAT> socket option,
+with the specified I<C<size>>.
+
+
+
+
+
+This directive is ignored on Linux, Solaris, and Windows.
+
+
+
+
+
+
+
+=head2 proxy_send_timeout
+
+
+B<syntax:> proxy_send_timeout I<I<C<time>>>
+
+
+B<default:> I<60s>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets a timeout for transmitting a request to the proxied server.
+The timeout is set only between two successive write operations,
+not for the transmission of the whole request.
+If the proxied server does not receive anything within this time,
+the connection is closed.
+
+
+
+
+
+
+
+=head2 proxy_set_body
+
+
+B<syntax:> proxy_set_body I<I<C<value>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Allows redefining the request body passed to the proxied server.
+The I<C<value>> can contain text, variables, and their combination.
+
+
+
+
+
+
+
+=head2 proxy_set_header
+
+
+B<syntax:> proxy_set_header I<I<C<field>> I<C<value>>>
+
+
+B<default:> I<Host $proxy_host>
+
+
+B<default:> I<Connection close>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Allows redefining or appending fields to the request header
+passed to the proxied server.
+The I<C<value>> can contain text, variables, and their combinations.
+These directives are inherited from the previous level if and
+only if there are no
+C<proxy_set_header>
+directives defined on the current level.
+By default, only two fields are redefined:
+
+    
+    proxy_set_header Host       $proxy_host;
+    proxy_set_header Connection close;
+
+
+If caching is enabled, the header fields
+C<If-Modified-Since>,
+C<If-Unmodified-Since>,
+C<If-None-Match>,
+C<If-Match>,
+C<Range>,
+and
+C<If-Range>
+from the original request are not passed to the proxied server.
+
+
+
+
+
+An unchanged C<Host> request header field can be passed like this:
+
+    
+    proxy_set_header Host       $http_host;
+
+
+
+
+
+
+
+However, if this field is not present in a client request header then
+nothing will be passed.
+In such a case it is better to use the C<$host> variableE<mdash>its
+value equals the server name in the C<Host> request header
+field or the primary server name if this field is not present:
+
+    
+    proxy_set_header Host       $host;
+
+
+
+
+
+
+
+In addition, the server name can be passed together with the port of the
+proxied server:
+
+    
+    proxy_set_header Host       $host:$proxy_port;
+
+
+
+
+
+
+
+If the value of a header field is an empty string then this
+field will not be passed to a proxied server:
+
+    
+    proxy_set_header Accept-Encoding "";
+
+
+
+
+
+
+
+
+
+=head2 proxy_ssl_certificate
+
+
+B<syntax:> proxy_ssl_certificate I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.8.
+
+
+
+
+
+Specifies a I<C<file>> with the certificate in the PEM format
+used for authentication to a proxied HTTPS server.
+
+
+
+
+
+
+
+=head2 proxy_ssl_certificate_key
+
+
+B<syntax:> proxy_ssl_certificate_key I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.8.
+
+
+
+
+
+Specifies a I<C<file>> with the secret key in the PEM format
+used for authentication to a proxied HTTPS server.
+
+
+
+
+
+The value
+C<engine>:I<C<name>>:I<C<id>>
+can be specified instead of the I<C<file>> (1.7.9),
+which loads a secret key with a specified I<C<id>>
+from the OpenSSL engine I<C<name>>.
+
+
+
+
+
+
+
+=head2 proxy_ssl_ciphers
+
+
+B<syntax:> proxy_ssl_ciphers I<I<C<ciphers>>>
+
+
+B<default:> I<DEFAULT>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.5.6.
+
+
+
+
+
+Specifies the enabled ciphers for requests to a proxied HTTPS server.
+The ciphers are specified in the format understood by the OpenSSL library.
+
+
+
+
+
+The full list can be viewed using the
+“C<openssl ciphers>” command.
+
+
+
+
+
+
+
+=head2 proxy_ssl_crl
+
+
+B<syntax:> proxy_ssl_crl I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.0.
+
+
+
+
+
+Specifies a I<C<file>> with revoked certificates (CRL)
+in the PEM format used to verify
+the certificate of the proxied HTTPS server.
+
+
+
+
+
+
+
+=head2 proxy_ssl_name
+
+
+B<syntax:> proxy_ssl_name I<I<C<name>>>
+
+
+B<default:> I<$proxy_host>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.0.
+
+
+
+
+
+Allows overriding the server name used to
+verify
+the certificate of the proxied HTTPS server and to be
+passed through SNI
+when establishing a connection with the proxied HTTPS server.
+
+
+
+
+
+By default, the host part of the L</proxy_pass> URL is used.
+
+
+
+
+
+
+
+=head2 proxy_ssl_password_file
+
+
+B<syntax:> proxy_ssl_password_file I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.8.
+
+
+
+
+
+Specifies a I<C<file>> with passphrases for
+secret keys
+where each passphrase is specified on a separate line.
+Passphrases are tried in turn when loading the key.
+
+
+
+
+
+
+
+=head2 proxy_ssl_server_name
+
+
+B<syntax:> proxy_ssl_server_name I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.0.
+
+
+
+
+
+Enables or disables passing of the server name through
+L<TLS
+Server Name Indication extension|http://en.wikipedia.org/wiki/Server_Name_Indication> (SNI, RFC 6066)
+when establishing a connection with the proxied HTTPS server.
+
+
+
+
+
+
+
+=head2 proxy_ssl_session_reuse
+
+
+B<syntax:> proxy_ssl_session_reuse I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Determines whether SSL sessions can be reused when working with
+the proxied server.
+If the errors
+“C<SSL3_GET_FINISHED:digest check failed>”
+appear in the logs, try disabling session reuse.
+
+
+
+
+
+
+
+=head2 proxy_ssl_protocols
+
+
+B<syntax:> proxy_ssl_protocols I<
+    [C<SSLv2>]
+    [C<SSLv3>]
+    [C<TLSv1>]
+    [C<TLSv1.1>]
+    [C<TLSv1.2>]>
+
+
+B<default:> I<TLSv1 TLSv1.1 TLSv1.2>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.5.6.
+
+
+
+
+
+Enables the specified protocols for requests to a proxied HTTPS server.
+
+
+
+
+
+
+
+=head2 proxy_ssl_trusted_certificate
+
+
+B<syntax:> proxy_ssl_trusted_certificate I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.0.
+
+
+
+
+
+Specifies a I<C<file>> with trusted CA certificates in the PEM format
+used to verify
+the certificate of the proxied HTTPS server.
+
+
+
+
+
+
+
+=head2 proxy_ssl_verify
+
+
+B<syntax:> proxy_ssl_verify I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.0.
+
+
+
+
+
+Enables or disables verification of the proxied HTTPS server certificate.
+
+
+
+
+
+
+
+=head2 proxy_ssl_verify_depth
+
+
+B<syntax:> proxy_ssl_verify_depth I<I<C<number>>>
+
+
+B<default:> I<1>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.7.0.
+
+
+
+
+
+Sets the verification depth in the proxied HTTPS server certificates chain.
+
+
+
+
+
+
+
+=head2 proxy_store
+
+
+B<syntax:> proxy_store I<
+    C<on> E<verbar>
+    C<off> E<verbar>
+    I<C<string>>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Enables saving of files to a disk.
+The C<on> parameter saves files with paths
+corresponding to the directives
+L<ngx_http_core_module> or
+L<ngx_http_core_module>.
+The C<off> parameter disables saving of files.
+In addition, the file name can be set explicitly using the
+I<C<string>> with variables:
+
+    
+    proxy_store /data/www$original_uri;
+
+
+
+
+
+
+
+The modification time of files is set according to the received
+C<Last-Modified> response header field.
+The response is first written to a temporary file,
+and then the file is renamed.
+Starting from version 0.8.9, temporary files and the persistent store
+can be put on different file systems.
+However, be aware that in this case a file is copied
+across two file systems instead of the cheap renaming operation.
+It is thus recommended that for any given location both saved files and a
+directory holding temporary files, set by the L</proxy_temp_path>
+directive, are put on the same file system.
+
+
+
+
+
+This directive can be used to create local copies of static unchangeable
+files, e.g.:
+
+    
+    location /images/ {
+        root               /data/www;
+        error_page         404 = /fetch$uri;
+    }
+    
+    location /fetch/ {
+        internal;
+    
+        proxy_pass         http://backend/;
+        proxy_store        on;
+        proxy_store_access user:rw group:rw all:r;
+        proxy_temp_path    /data/temp;
+    
+        alias              /data/www/;
+    }
+
+
+
+
+
+
+
+or like this:
+
+    
+    location /images/ {
+        root               /data/www;
+        error_page         404 = @fetch;
+    }
+    
+    location @fetch {
+        internal;
+    
+        proxy_pass         http://backend;
+        proxy_store        on;
+        proxy_store_access user:rw group:rw all:r;
+        proxy_temp_path    /data/temp;
+    
+        root               /data/www;
+    }
+
+
+
+
+
+
+
+
+
+=head2 proxy_store_access
+
+
+B<syntax:> proxy_store_access I<I<C<users>>:I<C<permissions>> ...>
+
+
+B<default:> I<user:rw>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets access permissions for newly created files and directories, e.g.:
+
+    
+    proxy_store_access user:rw group:rw all:r;
+
+
+
+
+
+
+
+If any C<group> or C<all> access permissions
+are specified then C<user> permissions may be omitted:
+
+    
+    proxy_store_access group:rw all:r;
+
+
+
+
+
+
+
+
+
+=head2 proxy_temp_file_write_size
+
+
+B<syntax:> proxy_temp_file_write_size I<I<C<size>>>
+
+
+B<default:> I<8kE<verbar>16k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Limits the I<C<size>> of data written to a temporary file
+at a time, when buffering of responses from the proxied server
+to temporary files is enabled.
+By default, I<C<size>> is limited by two buffers set by the
+L</proxy_buffer_size> and L</proxy_buffers> directives.
+The maximum size of a temporary file is set by the
+L</proxy_max_temp_file_size> directive.
+
+
+
+
+
+
+
+=head2 proxy_temp_path
+
+
+B<syntax:> proxy_temp_path I<
+    I<C<path>>
+    [I<C<level1>>
+    [I<C<level2>>
+    [I<C<level3>>]]]>
+
+
+B<default:> I<proxy_temp>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines a directory for storing temporary files
+with data received from proxied servers.
+Up to three-level subdirectory hierarchy can be used underneath the specified
+directory.
+For example, in the following configuration
+
+    
+    proxy_temp_path /spool/nginx/proxy_temp 1 2;
+
+
+a temporary file might look like this:
+
+    
+    /spool/nginx/proxy_temp/<emphasis>7</emphasis>/<emphasis>45</emphasis>/00000123<emphasis>457</emphasis>
+
+
+
+
+
+
+
+See also the C<use_temp_path> parameter of the
+L</proxy_cache_path> directive.
+
+
+
+
+
+
+
+=head1 Embedded Variables
+
+
+
+The C<ngx_http_proxy_module> module supports embedded variables
+that can be used to compose headers using the
+L</proxy_set_header> directive:
+
+=over
+
+
+
+=item C<$proxy_host>
+
+
+
+name and port of a proxied server as specified in the
+L</proxy_pass> directive;
+
+
+=item C<$proxy_port>
+
+
+
+port of a proxied server as specified in the
+L</proxy_pass> directive, or the protocol’s default port;
+
+
+=item 
+C<$proxy_add_x_forwarded_for>
+
+
+
+the C<X-Forwarded-For> client request header field
+with the C<$remote_addr> variable appended to it, separated by a comma.
+If the C<X-Forwarded-For> field is not present in the client
+request header, the C<$proxy_add_x_forwarded_for> variable is equal
+to the C<$remote_addr> variable.
+
+
+=back
+
+
+
+
+
+

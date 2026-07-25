@@ -1,0 +1,317 @@
+=encoding utf-8
+
+
+=head1 Name
+
+resty.limit.traffic - Lua module for aggregating multiple instances of limiter classes
+
+
+=head1 Synopsis
+
+
+    http {
+        lua_shared_dict my_req_store 100m;
+        lua_shared_dict my_conn_store 100m;
+    
+        server {
+            location / {
+                access_by_lua_block {
+                    local limit_conn = require "resty.limit.conn"
+                    local limit_req = require "resty.limit.req"
+                    local limit_traffic = require "resty.limit.traffic"
+    
+                    local lim1, err = limit_req.new("my_req_store", 300, 200)
+                    assert(lim1, err)
+                    local lim2, err = limit_req.new("my_req_store", 200, 100)
+                    assert(lim2, err)
+                    local lim3, err = limit_conn.new("my_conn_store", 1000, 1000, 0.5)
+                    assert(lim3, err)
+    
+                    local limiters = {lim1, lim2, lim3}
+    
+                    local host = ngx.var.host
+                    local client = ngx.var.binary_remote_addr
+                    local keys = {host, client, client}
+    
+                    local states = {}
+    
+                    local delay, err = limit_traffic.combine(limiters, keys, states)
+                    if not delay then
+                        if err == "rejected" then
+                            return ngx.exit(503)
+                        end
+                        ngx.log(ngx.ERR, "failed to limit traffic: ", err)
+                        return ngx.exit(500)
+                    end
+    
+                    if lim3:is_committed() then
+                        local ctx = ngx.ctx
+                        ctx.limit_conn = lim3
+                        ctx.limit_conn_key = keys[3]
+                    end
+    
+                    print("sleeping ", delay, " sec, states: ", table.concat(states, ", "))
+    
+                    if delay >= 0.001 then
+                        ngx.sleep(delay)
+                    end
+                }
+    
+                # content handler goes here. if it is content_by_lua, then you can
+                # merge the Lua code above in access_by_lua into your
+                # content_by_lua's Lua handler to save a little bit of CPU time.
+    
+                log_by_lua_block {
+                    local ctx = ngx.ctx
+                    local lim = ctx.limit_conn
+                    if lim then
+                        -- if you are using an upstream module in the content phase,
+                        -- then you probably want to use $upstream_response_time
+                        -- instead of $request_time below.
+                        local latency = tonumber(ngx.var.request_time)
+                        local key = ctx.limit_conn_key
+                        assert(key)
+                        local conn, err = lim:leaving(key, latency)
+                        if not conn then
+                            ngx.log(ngx.ERR,
+                                    "failed to record the connection leaving ",
+                                    "request: ", err)
+                            return
+                        end
+                    end
+                }
+             }
+        }
+    }
+
+
+=head1 Description
+
+This module can combine multiple limiters at once. For example, you may want to use
+two request rate limiters for different keys (one for host names and one for the remote
+client''s IP address), as well as one limiter for concurrency level at a key of the remote
+client address. This module can take into account all the limiters involved without
+introducing any extra delays for the current request.
+
+The concrete limiters supplied can be an instance of the L<resty.limit.req|./req.md> class
+or an instance of the L<resty.limit.conn|./conn.md> class, or an instance of any user class
+which has a compatible API (see the L<combine> class method for more details).
+
+
+=head1 Methods
+
+
+
+
+=head2 combine
+
+B<syntax:> C<delay, err = class.combine(limiters, keys)>
+
+B<syntax:> C<delay, err = class.combine(limiters, keys, states)>
+
+Combines all the concrete limiter objects and the limiting keys specified, calculates
+the over-all delay across all the limiters, and (optionally) records any current
+state information returned by each concrete limiter object (if any).
+
+This method takes the following parameters:
+
+
+=over
+
+
+=item *
+
+C<limiters> is an array-shaped Lua table that holds all the concrete limiter objects
+(for example, instances of the L<resty.limit.req|lib/resty/limit/req.md> and/or
+L<resty.limit.conn|lib/resty/limit/conn.md> classes or other compatible objects).
+
+The limiter object must have a method named C<incoming> which takes two parameters,
+C<key> and C<commit>, just like the L<resty.limit.req|lib/resty/limit/req.md> objects.
+In addition, this C<incoming> method must return a delay and another opaque value representing
+the current state (or a string describing the error when the first return value is C<nil>).
+
+In addition, the limiter object should also take a method named C<uncommit> which can be
+used to undo whatever is committed in the C<incoming> method call (approximately if not possible to do precisely).
+
+=item *
+
+C<keys> is an array-shaped Lua table that holds all the user keys corresponding to each of the
+concrete limiter object specified in the (previous) C<limiters> parameter. The number of elements
+in this table must equate that of the C<limiters> table.
+
+=item *
+
+C<states> is an optional user-supplied Lua table that can be used to output all the
+state information returned by each of the concrete limiter object.
+
+For example, instances
+of the L<resty.limit.req|lib/resty/limit/req.md> class return the current number of excessive
+requests per second (if exceeding the rate threshold) while instances of the L<resty.limit.conn|lib/resty/conn.md> class return the current concurrency level.
+
+When missing or set to C<nil>, this method does not bother outputing any state information.
+
+
+=back
+
+This method returns the delay in seconds (the caller should sleep before processing
+the current request) across all the concrete limiter objects specified upon each
+of the corresponding limiting keys (under the hood, the delay is just the maximum of all the delays dictated by the limiters).
+
+If any of the limiters reject the current request immediately, then this method ensure
+the current request incoming event is not committed in any of these concrete limiters.
+In this case, this method returns C<nil> and the error string C<"rejected">.
+
+In case of other errors, it returns C<nil> and a string describing the error.
+
+Like each of concrete limiter objects, this method never sleeps itself. It simply returns a delay if necessary and requires the caller
+to later invoke the L<ngx.sleep|https://github.com/openresty/lua-nginx-module#ngxsleep>
+method to sleep.
+
+
+
+
+=head1 Instance Sharing
+
+This class itself carries no state information at all.
+The states are stored in each of the concrete limiter objects. Thus, as long as
+all those user-supplied concrete limiters support L<worker-level sharing|https://github.com/openresty/lua-nginx-module#data-sharing-within-an-nginx-worker>,
+this class does.
+
+
+
+
+=head1 Limiting Granularity
+
+All the concrete limiter objects must follow the same granularity (usually being the
+NGINX server instance level, across all its worker processes).
+
+Unmatched limiting granularity can cause unexpected results (which cannot happen if you
+limit yourself to the concrete limiter classes provided by this library, which is always
+on the NGINX server instance level).
+
+
+
+
+=head1 Installation
+
+Please see L<library installation instructions|../../../README.md#installation>.
+
+
+
+
+=head1 Community
+
+
+
+
+=head2 English Mailing List
+
+The L<openresty-en|https://groups.google.com/group/openresty-en> mailing list is for English speakers.
+
+
+
+
+=head2 Chinese Mailing List
+
+The L<openresty|https://groups.google.com/group/openresty> mailing list is for Chinese speakers.
+
+
+
+
+=head1 Bugs and Patches
+
+Please report bugs or submit patches by
+
+
+=over
+
+
+=item 1.
+
+creating a ticket on the L<GitHub Issue Tracker|https://github.com/openresty/lua-resty-limit-traffic/issues>,
+
+=item 2.
+
+or posting to the L<OpenResty community>.
+
+
+=back
+
+
+
+
+=head1 Author
+
+Yichun "agentzh" Zhang (章亦春) E<lt>agentzh@gmail.comE<gt>, CloudFlare Inc.
+
+
+
+
+=head1 Copyright and License
+
+This module is licensed under the BSD license.
+
+Copyright (C) 2015-2016, by Yichun "agentzh" Zhang, CloudFlare Inc.
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+
+=back
+
+
+=over
+
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+module L<resty.limit.req|./req.md>
+
+=item *
+
+module L<resty.limit.conn|./conn.md>
+
+=item *
+
+library L<lua-resty-limit-traffic|../../../README.md>
+
+=item *
+
+the ngx_lua module: https://github.com/openresty/lua-nginx-module
+
+=item *
+
+OpenResty: https://openresty.org/
+
+
+=back
+
+
+

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<function-configuration>
+	<!-- 系统函数默认配置 -->
+	<bean class="com.threathunter.labrador.expression.function.SystemFunctions">
+		<function name="CONTAINS" method="contains" meta="calcDate">
+			<parameter-type>java.lang.String</parameter-type>
+			<parameter-type>java.lang.String</parameter-type>
+		</function>
+		<function name="STARTSWITH" method="startsWith">
+			<parameter-type>java.lang.String</parameter-type>
+			<parameter-type>java.lang.String</parameter-type>
+		</function>
+		<function name="ENDSWITH" method="endsWith" verify="true">
+			<parameter-type>java.lang.String</parameter-type>
+			<parameter-type>java.lang.String</parameter-type>
+		</function>
+		<function name="CALCDATE" method="calcDate">
+			<parameter-type>java.util.Date</parameter-type>
+			<parameter-type>int</parameter-type>
+			<parameter-type>int</parameter-type>
+			<parameter-type>int</parameter-type>
+			<parameter-type>int</parameter-type>
+			<parameter-type>int</parameter-type>
+			<parameter-type>int</parameter-type>
+		</function>
+		<function name="SYSDATE" method="sysDate" />
+		<function name="HELLO" method = "hello" />
+		<function name="DAYEQUALS" method="dayEquals">
+			<parameter-type>java.util.Date</parameter-type>
+			<parameter-type>java.util.Date</parameter-type>
+		</function>
+	</bean>
+
+	<bean class="com.threathunter.labrador.application.spl.UserDefinedFunctions">
+		<function name = "CHECKNOTICE" method="checkNotice" verify="true">
+			<parameter-type regex="(ip|did|uid|page)" type="constant">java.lang.String</parameter-type>
+			<parameter-type regex="(c_ip|did|uid|page)" type="variable">java.lang.String</parameter-type>
+			<parameter-type regex=".+" type="constant">java.lang.String</parameter-type>
+			<parameter-type regex="\d+" type="constant">int</parameter-type>
+		</function>
+	</bean>
+	
+</function-configuration>

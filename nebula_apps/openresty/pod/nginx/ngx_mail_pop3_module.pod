@@ -1,0 +1,139 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_mail_pop3_module - Module ngx_mail_pop3_module
+
+
+
+
+=head1 Directives
+
+=head2 pop3_auth
+
+
+B<syntax:> pop3_auth I<I<C<method>> ...>
+
+
+B<default:> I<plain>
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets permitted methods of authentication for POP3 clients.
+Supported methods are:
+
+=over
+
+
+
+=item C<plain>
+
+
+
+
+L<USERE<sol>PASS|https://tools.ietf.org/html/rfc1939>,
+L<AUTH PLAIN|https://tools.ietf.org/html/rfc4616>,
+L<AUTH LOGIN|https://tools.ietf.org/html/draft-murchison-sasl-login-00>.
+It is not possible to disable these methods.
+
+
+
+=item C<apop>
+
+
+
+
+L<APOP|https://tools.ietf.org/html/rfc1939>.
+In order for this method to work, the password must be stored unencrypted.
+
+
+
+=item C<cram-md5>
+
+
+
+
+L<AUTH CRAM-MD5|https://tools.ietf.org/html/rfc2195>.
+In order for this method to work, the password must be stored unencrypted.
+
+
+
+=item C<external>
+
+
+
+
+L<AUTH EXTERNAL|https://tools.ietf.org/html/rfc4422> (1.11.6).
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 pop3_capabilities
+
+
+B<syntax:> pop3_capabilities I<I<C<extension>> ...>
+
+
+B<default:> I<TOP USER UIDL>
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the
+L<POP3 protocol|https://tools.ietf.org/html/rfc2449>
+extensions list that is passed to the client in response to
+the C<CAPA> command.
+The authentication methods specified in the L</pop3_auth> directive
+(L<SASL|https://tools.ietf.org/html/rfc2449> extension) and
+L<STLS|https://tools.ietf.org/html/rfc2595>
+are automatically added to this list depending on the
+L<ngx_mail_ssl_module> directive value.
+
+
+
+
+
+It makes sense to specify the extensions
+supported by the POP3 backends
+to which the clients are proxied (if these extensions are related to commands
+used after the authentication, when nginx transparently proxies the client
+connection to the backend).
+
+
+
+
+
+The current list of standardized extensions is published at
+L<www.iana.org|http://www.iana.org/assignments/pop3-extension-mechanism>.
+
+
+
+
+
+
+

@@ -1,0 +1,1527 @@
+=pod
+
+LuaJIT
+
+=head1 LuaJIT Change History
+
+=over
+
+=item * LuaJIT
+
+=over
+
+=item * Download E<rchevron>
+
+=item * Installation
+
+=item * Running
+
+=back
+
+=item * Extensions
+
+=over
+
+=item * FFI Library
+
+=over
+
+=item * FFI Tutorial
+
+=item * ffi.* API
+
+=item * FFI Semantics
+
+=back
+
+=item * jit.* Library
+
+=item * Lua/C API
+
+=item * Profiler
+
+=back
+
+=item * Status
+
+=over
+
+=item * Changes
+
+=back
+
+=item * FAQ
+
+=item * Performance E<rchevron>
+
+=item * Wiki E<rchevron>
+
+=item * Mailing List E<rchevron>
+
+=back
+
+This is a list of changes between the released versions of LuaJIT.
+
+The current stable version is B<LuaJIT 2.0.4>.
+
+Please check the E<rchevron> Online Change History to see whether newer
+versions are available.
+
+=head2 LuaJIT 2.1.0-beta2 E<mdash> 2016-03-03
+
+=over
+
+=item * Enable trace stitching.
+
+=item * Use internal implementation for converting FP numbers to
+strings.
+
+=item * Parse Unicode escape C<'\u{XX...}'> in string literals.
+
+=item * Add MIPS soft-float support.
+
+=item * Switch MIPS port to dual-number mode.
+
+=item * x86/x64: Add support for AES-NI, AVX and AVX2 to DynASM.
+
+=item * FFI: Add C<ssize_t> declaration.
+
+=item * FFI: Parse C<#line NN> and C<#NN>.
+
+=item * Various minor fixes.
+
+=back
+
+=head2 LuaJIT 2.1.0-beta1 E<mdash> 2015-08-25
+
+This is a brief summary of the major changes in LuaJIT 2.1 compared to
+2.0. Please take a look at the commit history for more details.
+
+=over
+
+=item * Changes to the VM core:
+
+=over
+
+=item * Add low-overhead profiler (C<-jp>).
+
+=item * Add C<LJ_GC64> mode: 64 bit GC object references (really: 47
+bit). Interpreter-only for now.
+
+=item * Add C<LJ_FR2> mode: Two-slot frame info. Required by C<LJ_GC64>
+mode.
+
+=item * Add C<table.new()> and C<table.clear()>.
+
+=item * Parse binary number literals (C<0bxxx>).
+
+=back
+
+=item * Improvements to the JIT compiler:
+
+=over
+
+=item * Add trace stitching (disabled for now).
+
+=item * Compile various builtins: C<string.char()>,
+C<string.reverse()>, C<string.lower()>, C<string.upper()>,
+C<string.rep()>, C<string.format()>, C<table.concat()>, C<bit.tohex()>,
+C<getfenv(0)>, C<debug.getmetatable()>.
+
+=item * Compile C<string.find()> for fixed string searches (no
+patterns).
+
+=item * Compile C<BC_TSETM>, e.g. C<{1,2,3,f()}>.
+
+=item * Compile string concatenations (C<BC_CAT>).
+
+=item * Compile C<__concat> metamethod.
+
+=item * Various minor optimizations.
+
+=back
+
+=item * Internal Changes:
+
+=over
+
+=item * Add support for embedding LuaJIT bytecode for builtins.
+
+=item * Replace various builtins with embedded bytecode.
+
+=item * Refactor string buffers and string formatting.
+
+=item * Remove obsolete non-truncating number to integer conversions.
+
+=back
+
+=item * Ports:
+
+=over
+
+=item * Add Xbox One port (C<LJ_GC64> mode).
+
+=item * ARM64: Add port of the interpreter (C<LJ_GC64> mode).
+
+=item * x64: Add separate port of the interpreter to C<LJ_GC64> mode.
+
+=item * x86/x64: Drop internal x87 math functions. Use libm functions.
+
+=item * x86: Remove x87 support from interpreter. SSE2 is mandatory
+now.
+
+=item * PPC/e500: Drop support for this architecture.
+
+=back
+
+=item * FFI library:
+
+=over
+
+=item * FFI: Add 64 bit bitwise operations.
+
+=item * FFI: Compile VLA/VLS and large cdata allocations with default
+initialization.
+
+=item * FFI: Compile conversions from functions to function pointers.
+
+=item * FFI: Compile lightuserdata to C<void *> conversion.
+
+=item * FFI: Compile C<ffi.gc(cdata, nil)>, too.
+
+=item * FFI: Add C<ffi.typeinfo()>.
+
+=back
+
+=back
+
+=head2 LuaJIT 2.0.4 E<mdash> 2015-05-14
+
+=over
+
+=item * Fix stack check in narrowing optimization.
+
+=item * Fix Lua/C API typecheck error for special indexes.
+
+=item * Fix string to number conversion.
+
+=item * Fix lexer error for chunks without tokens.
+
+=item * Don't compile C<IR_RETF> after C<CALLT> to ff with-side
+effects.
+
+=item * Fix C<BC_UCLO>/C<BC_JMP> join optimization in Lua parser.
+
+=item * Fix corner case in string to number conversion.
+
+=item * Gracefully handle C<lua_error()> for a suspended coroutine.
+
+=item * Avoid error messages when building with Clang.
+
+=item * Fix snapshot #0 handling for traces with a stack check on
+entry.
+
+=item * Fix fused constant loads under high register pressure.
+
+=item * Invalidate backpropagation cache after DCE.
+
+=item * Fix ABC elimination.
+
+=item * Fix debug info for main chunk of stripped bytecode.
+
+=item * Fix FOLD rule for C<string.sub(s, ...) == k>.
+
+=item * Fix FOLD rule for C<STRREF> of C<SNEW>.
+
+=item * Fix frame traversal while searching for error function.
+
+=item * Prevent GC estimate miscalculation due to buffer growth.
+
+=item * Prevent adding side traces for stack checks.
+
+=item * Fix top slot calculation for snapshots with continuations.
+
+=item * Fix check for reuse of SCEV results in C<FORL>.
+
+=item * Add PS Vita port.
+
+=item * Fix compatibility issues with Illumos.
+
+=item * Fix DragonFly build (unsupported).
+
+=item * OpenBSD/x86: Better executable memory allocation for W^X mode.
+
+=item * x86: Fix argument checks for C<ipairs()> iterator.
+
+=item * x86: C<lj_math_random_step()> clobbers XMM regs on OSX Clang.
+
+=item * x86: Fix code generation for unused result of C<math.random()>.
+
+=item * x64: Allow building with C<LUAJIT_USE_SYSMALLOC> and
+C<LUAJIT_USE_VALGRIND>.
+
+=item * x86/x64: Fix argument check for bit shifts.
+
+=item * x86/x64: Fix code generation for fused test/arith ops.
+
+=item * ARM: Fix write barrier check in C<BC_USETS>.
+
+=item * PPC: Fix red zone overflow in machine code generation.
+
+=item * PPC: Don't use C<mcrxr> on PPE.
+
+=item * Various archs: Fix excess stack growth in interpreter.
+
+=item * FFI: Fix FOLD rule for C<TOBIT> + C<CONV num.u32>.
+
+=item * FFI: Prevent DSE across C<ffi.string()>.
+
+=item * FFI: No meta fallback when indexing pointer to incomplete
+struct.
+
+=item * FFI: Fix initialization of unions of subtypes.
+
+=item * FFI: Fix cdata vs. non-cdata arithmetic and comparisons.
+
+=item * FFI: Fix C<__index>/C<__newindex> metamethod resolution for
+ctypes.
+
+=item * FFI: Fix compilation of reference field access.
+
+=item * FFI: Fix frame traversal for backtraces with FFI callbacks.
+
+=item * FFI: Fix recording of indexing a struct pointer ctype object
+itself.
+
+=item * FFI: Allow non-scalar cdata to be compared for equality by
+address.
+
+=item * FFI: Fix pseudo type conversions for type punning.
+
+=back
+
+=head2 LuaJIT 2.0.3 E<mdash> 2014-03-12
+
+=over
+
+=item * Add PS4 port.
+
+=item * Add support for multilib distro builds.
+
+=item * Fix OSX build.
+
+=item * Fix MinGW build.
+
+=item * Fix Xbox 360 build.
+
+=item * Improve ULOAD forwarding for open upvalues.
+
+=item * Fix GC steps threshold handling when called by JIT-compiled
+code.
+
+=item * Fix argument checks for C<math.deg()> and C<math.rad()>.
+
+=item * Fix C<jit.flush(func|true)>.
+
+=item * Respect C<jit.off(func)> when returning to a function, too.
+
+=item * Fix compilation of C<string.byte(s, nil, n)>.
+
+=item * Fix line number for relocated bytecode after closure fixup
+
+=item * Fix frame traversal for backtraces.
+
+=item * Fix ABC elimination.
+
+=item * Fix handling of redundant PHIs.
+
+=item * Fix snapshot restore for exit to function header.
+
+=item * Fix type punning alias analysis for constified pointers
+
+=item * Fix call unroll checks in the presence of metamethod frames.
+
+=item * Fix initial maxslot for down-recursive traces.
+
+=item * Prevent BASE register coalescing if parent uses C<IR_RETF>.
+
+=item * Don't purge modified function from stack slots in C<BC_RET>.
+
+=item * Fix recording of C<BC_VARG>.
+
+=item * Don't access dangling reference to reallocated IR.
+
+=item * Fix frame depth display for bytecode dump in C<-jdump>.
+
+=item * ARM: Fix register allocation when rematerializing FPRs.
+
+=item * x64: Fix store to upvalue for lightuserdata values.
+
+=item * FFI: Add missing GC steps for callback argument conversions.
+
+=item * FFI: Properly unload loaded DLLs.
+
+=item * FFI: Fix argument checks for C<ffi.string()>.
+
+=item * FFI/x64: Fix passing of vector arguments to calls.
+
+=item * FFI: Rehash finalizer table after GC cycle, if needed.
+
+=item * FFI: Fix C<cts-E<gt>L> for cdata unsinking in snapshot restore.
+
+=back
+
+=head2 LuaJIT 2.0.2 E<mdash> 2013-06-03
+
+=over
+
+=item * Fix memory access check for fast string interning.
+
+=item * Fix MSVC intrinsics for older versions.
+
+=item * Add missing GC steps for C<io.*> functions.
+
+=item * Fix spurious red zone overflows in machine code generation.
+
+=item * Fix jump-range constrained mcode allocation.
+
+=item * Inhibit DSE for implicit loads via calls.
+
+=item * Fix builtin string to number conversion for overflow digits.
+
+=item * Fix optional argument handling while recording builtins.
+
+=item * Fix optional argument handling in C<table.concat()>.
+
+=item * Add partial support for building with MingW64 GCC 4.8-SEH.
+
+=item * Add missing PHI barrier to C<string.sub(str, a, b) == kstr>
+FOLD rule.
+
+=item * Fix compatibility issues with Illumos.
+
+=item * ARM: Fix cache flush/sync for exit stubs of JIT-compiled code.
+
+=item * MIPS: Fix cache flush/sync for JIT-compiled code jump area.
+
+=item * PPC: Add C<plt> suffix for external calls from assembler code.
+
+=item * FFI: Fix snapshot substitution in SPLIT pass.
+
+=item * FFI/x86: Fix register allocation for 64 bit comparisons.
+
+=item * FFI: Fix tailcall in lowest frame to C function with bool
+result.
+
+=item * FFI: Ignore C<long> type specifier in C<ffi.istype()>.
+
+=item * FFI: Fix calling conventions for 32 bit OSX and iOS simulator
+(struct returns).
+
+=item * FFI: Fix calling conventions for ARM hard-float EABI (nested
+structs).
+
+=item * FFI: Improve error messages for arithmetic and comparison
+operators.
+
+=item * FFI: Insert no-op type conversion for pointer to integer cast.
+
+=item * FFI: Fix unroll limit for C<ffi.fill()>.
+
+=item * FFI: Must sink C<XBAR> together with C<XSTORE>s.
+
+=item * FFI: Preserve intermediate string for C<const char *>
+conversion.
+
+=back
+
+=head2 LuaJIT 2.0.1 E<mdash> 2013-02-19
+
+=over
+
+=item * Don't clear frame for out-of-memory error.
+
+=item * Leave hook when resume catches error thrown from hook.
+
+=item * Add missing GC steps for template table creation.
+
+=item * Fix discharge order of comparisons in Lua parser.
+
+=item * Improve buffer handling for C<io.read()>.
+
+=item * OSX: Add support for Mach-O object files to C<-b> option.
+
+=item * Fix PS3 port.
+
+=item * Fix/enable Xbox 360 port.
+
+=item * x86/x64: Always mark ref for shift count as non-weak.
+
+=item * x64: Don't fuse implicitly 32-to-64 extended operands.
+
+=item * ARM: Fix armhf call argument handling.
+
+=item * ARM: Fix code generation for integer math.min/math.max.
+
+=item * PPC/e500: Fix C<lj_vm_floor()> for Inf/NaN.
+
+=item * FFI: Change priority of table initializer variants for structs.
+
+=item * FFI: Fix code generation for bool call result check on x86/x64.
+
+=item * FFI: Load FFI library on-demand for bytecode with cdata
+literals.
+
+=item * FFI: Fix handling of qualified transparent structs/unions.
+
+=back
+
+=head2 LuaJIT 2.0.0 E<mdash> 2012-11-08
+
+=over
+
+=item * Correctness and completeness:
+
+=over
+
+=item * Fix Android/x86 build.
+
+=item * Fix recording of equality comparisons with C<__eq> metamethods.
+
+=item * Fix detection of immutable upvalues.
+
+=item * Replace error with PANIC for callbacks from JIT-compiled code.
+
+=item * Fix builtin string to number conversion for C<INT_MIN>.
+
+=item * Don't create unneeded array part for template tables.
+
+=item * Fix C<CONV.num.int> sinking.
+
+=item * Don't propagate implicitly widened number to index metamethods.
+
+=item * ARM: Fix ordered comparisons of number vs. non-number.
+
+=item * FFI: Fix code generation for replay of sunk float fields.
+
+=item * FFI: Fix signedness of bool.
+
+=item * FFI: Fix recording of bool call result check on x86/x64.
+
+=item * FFI: Fix stack-adjustment for C<__thiscall> callbacks.
+
+=back
+
+=back
+
+=head2 LuaJIT 2.0.0-beta11 E<mdash> 2012-10-16
+
+=over
+
+=item * New features:
+
+=over
+
+=item * Use ARM VFP instructions, if available (build-time detection).
+
+=item * Add support for ARM hard-float EABI (C<armhf>).
+
+=item * Add PS3 port.
+
+=item * Add many features from Lua 5.2, e.g. C<goto>/labels. Refer to
+this list.
+
+=item * FFI: Add parameterized C types.
+
+=item * FFI: Add support for copy constructors.
+
+=item * FFI: Equality comparisons never raise an error (treat as
+unequal instead).
+
+=item * FFI: Box all accessed or returned enums.
+
+=item * FFI: Check for C<__new> metamethod when calling a constructor.
+
+=item * FFI: Handle C<__pairs>/C<__ipairs> metamethods for cdata
+objects.
+
+=item * FFI: Convert C<io.*> file handle to C<FILE *> pointer (but as a
+C<void *>).
+
+=item * FFI: Detect and support type punning through unions.
+
+=item * FFI: Improve various error messages.
+
+=back
+
+=item * Build-system reorganization:
+
+=over
+
+=item * Reorganize directory layout:
+
+C<lib/*> E<rarr> C<src/jit/*>
+
+C<src/buildvm_*.dasc> E<rarr> C<src/vm_*.dasc>
+
+C<src/buildvm_*.h> E<rarr> removed
+
+C<src/buildvm*> E<rarr> C<src/host/*>
+
+=item * Add minified Lua interpreter plus Lua BitOp (C<minilua>) to run
+DynASM.
+
+=item * Change DynASM bit operations to use Lua BitOp
+
+=item * Translate only C<vm_*.dasc> for detected target architecture.
+
+=item * Improve target detection for C<msvcbuild.bat>.
+
+=item * Fix build issues on Cygwin and MinGW with optional MSys.
+
+=item * Handle cross-compiles with FPU/no-FPU or hard-fp/soft-fp ABI
+mismatch.
+
+=item * Remove some library functions for no-JIT/no-FFI builds.
+
+=item * Add uninstall target to top-level Makefile.
+
+=back
+
+=item * Correctness and completeness:
+
+=over
+
+=item * Preserve snapshot #0 PC for all traces.
+
+=item * Fix argument checks for C<coroutine.create()>.
+
+=item * Command line prints version and JIT status to C<stdout>, not
+C<stderr>.
+
+=item * Fix userdata C<__gc> separations at Lua state close.
+
+=item * Fix C<TDUP> to C<HLOAD> forwarding for C<LJ_DUALNUM> builds.
+
+=item * Fix buffer check in bytecode writer.
+
+=item * Make C<os.date()> thread-safe.
+
+=item * Add missing declarations for MSVC intrinsics.
+
+=item * Fix dispatch table modifications for return hooks.
+
+=item * Workaround for MSVC conversion bug (C<double> E<rarr>
+C<uint32_t> E<rarr> C<int32_t>).
+
+=item * Fix FOLD rule C<(i-j)-i =E<gt> 0-j>.
+
+=item * Never use DWARF unwinder on Windows.
+
+=item * Fix shrinking of direct mapped blocks in builtin allocator.
+
+=item * Limit recursion depth in C<string.match()> et al.
+
+=item * Fix late despecialization of C<ITERN> after loop has been
+entered.
+
+=item * Fix C<'f'> and C<'L'> options for C<debug.getinfo()> and
+C<lua_getinfo()>.
+
+=item * Fix C<package.searchpath()>.
+
+=item * OSX: Change dylib names to be consistent with other platforms.
+
+=item * Android: Workaround for broken C<sprintf("%g", -0.0)>.
+
+=item * x86: Remove support for ancient CPUs without C<CMOV> (before
+Pentium Pro).
+
+=item * x86: Fix register allocation for calls returning register pair.
+
+=item * x86/x64: Fix fusion of unsigned byte comparisons with swapped
+operands.
+
+=item * ARM: Fix C<tonumber()> argument check.
+
+=item * ARM: Fix modulo operator and C<math.floor()>/C<math.ceil()> for
+C<inf>/C<nan>.
+
+=item * ARM: Invoke SPLIT pass for leftover C<IR_TOBIT>.
+
+=item * ARM: Fix BASE register coalescing.
+
+=item * PPC: Fix interpreter state setup in callbacks.
+
+=item * PPC: Fix C<string.sub()> range check.
+
+=item * MIPS: Support generation of MIPS/MIPSEL bytecode object files.
+
+=item * MIPS: Fix calls to C<floor()>/C<ceil()>C</trunc()>.
+
+=item * ARM/PPC: Detect more target architecture variants.
+
+=item * ARM/PPC/e500/MIPS: Fix tailcalls from fast functions, esp.
+C<tostring()>.
+
+=item * ARM/PPC/MIPS: Fix rematerialization of FP constants.
+
+=item * FFI: Don't call C<FreeLibrary()> on our own EXE/DLL.
+
+=item * FFI: Resolve metamethods for constructors, too.
+
+=item * FFI: Properly disable callbacks on iOS (would require
+executable memory).
+
+=item * FFI: Fix cdecl string parsing during recording.
+
+=item * FFI: Show address pointed to for C<tostring(ref)>, too.
+
+=item * FFI: Fix alignment of C call argument/return structure.
+
+=item * FFI: Initialize all fields of standard types.
+
+=item * FFI: Fix callback handling when new C types are declared in
+callback.
+
+=item * FFI: Fix recording of constructors for pointers.
+
+=item * FFI: Always resolve metamethods for pointers to structs.
+
+=item * FFI: Correctly propagate alignment when interning nested types.
+
+=back
+
+=item * Structural and performance enhancements:
+
+=over
+
+=item * Add allocation sinking and store sinking optimization.
+
+=item * Constify immutable upvalues.
+
+=item * Add builtin string to integer or FP number conversion. Improves
+cross-platform consistency and correctness.
+
+=item * Create string hash slots in template tables for non-const
+values, too. Avoids later table resizes.
+
+=item * Eliminate C<HREFK> guard for template table references.
+
+=item * Add various new FOLD rules.
+
+=item * Don't use stack unwinding for C<lua_yield()> (slow on x64).
+
+=item * ARM, PPC, MIPS: Improve C<XLOAD> operand fusion and register
+hinting.
+
+=item * PPC, MIPS: Compile C<math.sqrt()> to sqrt instruction, if
+available.
+
+=item * FFI: Fold C<KPTR> + constant offset in SPLIT pass.
+
+=item * FFI: Optimize/inline C<ffi.copy()> and C<ffi.fill()>.
+
+=item * FFI: Compile and optimize array/struct copies.
+
+=item * FFI: Compile C<ffi.typeof(cdata|ctype)>, C<ffi.sizeof()>,
+C<ffi.alignof()>, C<ffi.offsetof()> and C<ffi.gc()>.
+
+=back
+
+=back
+
+=head2 LuaJIT 2.0.0-beta10 E<mdash> 2012-05-09
+
+=over
+
+=item * New features:
+
+=over
+
+=item * The MIPS of LuaJIT is complete. It requires a CPU conforming to
+the MIPS32 R1 architecture with hardware FPU. O32 hard-fp ABI,
+little-endian or big-endian.
+
+=item * Auto-detect target arch via cross-compiler. No need for
+C<TARGET=arch> anymore.
+
+=item * Make DynASM compatible with Lua 5.2.
+
+=item * From Lua 5.2: Try C<__tostring> metamethod on non-string error
+messages..
+
+=back
+
+=item * Correctness and completeness:
+
+=over
+
+=item * Fix parsing of hex literals with exponents.
+
+=item * Fix bytecode dump for certain number constants.
+
+=item * Fix argument type in error message for relative arguments.
+
+=item * Fix argument error handling on Lua stacks without a frame.
+
+=item * Add missing mcode limit check in assembler backend.
+
+=item * Fix compilation on OpenBSD.
+
+=item * Avoid recursive GC steps after GC-triggered trace exit.
+
+=item * Replace C<E<lt>unwind.hE<gt>> definitions with our own.
+
+=item * Fix OSX build issues. Bump minimum required OSX version to
+10.4.
+
+=item * Fix discharge order of comparisons in Lua parser.
+
+=item * Ensure running C<__gc> of userdata created in C<__gc> at state
+close.
+
+=item * Limit number of userdata C<__gc> separations at state close.
+
+=item * Fix bytecode C<JMP> slot range when optimizing C<and>/C<or>
+with constant LHS.
+
+=item * Fix DSE of C<USTORE>.
+
+=item * Make C<lua_concat()> work from C hook with partial frame.
+
+=item * Add required PHIs for implicit conversions, e.g. via C<XREF>
+forwarding.
+
+=item * Add more comparison variants to Valgrind suppressions file.
+
+=item * Disable loading bytecode with an extra header (BOM or C<#!>).
+
+=item * Fix PHI stack slot syncing.
+
+=item * ARM: Reorder type/value tests to silence Valgrind.
+
+=item * ARM: Fix register allocation for C<ldrd>-optimized C<HREFK>.
+
+=item * ARM: Fix conditional branch fixup for C<OBAR>.
+
+=item * ARM: Invoke SPLIT pass for C<double> args in FFI call.
+
+=item * ARM: Handle all C<CALL*> ops with C<double> results in SPLIT
+pass.
+
+=item * ARM: Fix rejoin of C<POW> in SPLIT pass.
+
+=item * ARM: Fix compilation of C<math.sinh>, C<math.cosh>,
+C<math.tanh>.
+
+=item * ARM, PPC: Avoid pointless arg clearing in C<BC_IFUNCF>.
+
+=item * PPC: Fix resume after yield from hook.
+
+=item * PPC: Fix argument checking for C<rawget()>.
+
+=item * PPC: Fix fusion of floating-point C<XLOAD>/C<XSTORE>.
+
+=item * PPC: Fix C<HREFK> code generation for huge tables.
+
+=item * PPC: Use builtin D-Cache/I-Cache sync code.
+
+=back
+
+=item * FFI library:
+
+=over
+
+=item * Ignore empty statements in C<ffi.cdef()>.
+
+=item * Ignore number parsing errors while skipping definitions.
+
+=item * Don't touch frame in callbacks with tailcalls to fast
+functions.
+
+=item * Fix library unloading on POSIX systems.
+
+=item * Finalize cdata before userdata when closing the state.
+
+=item * Change C<ffi.load()> library name resolution for Cygwin.
+
+=item * Fix resolving of function name redirects on Windows/x86.
+
+=item * Fix symbol resolving error messages on Windows.
+
+=item * Fix blacklisting of C functions calling callbacks.
+
+=item * Fix result type of pointer difference.
+
+=item * Use correct PC in FFI metamethod error message.
+
+=item * Allow C<'typedef _Bool int BOOL;'> for the Windows API.
+
+=item * Don't record test for bool result of call, if ignored.
+
+=back
+
+=back
+
+=head2 LuaJIT 2.0.0-beta9 E<mdash> 2011-12-14
+
+=over
+
+=item * New features:
+
+=over
+
+=item * PPC port of LuaJIT is complete. Default is the dual-number port
+(usually faster). Single-number port selectable via C<src/Makefile> at
+build time.
+
+=item * Add FFI callback support.
+
+=item * Extend C<-b> to generate C<.c>, C<.h> or C<.obj/.o> files with
+embedded bytecode.
+
+=item * Allow loading embedded bytecode with C<require()>.
+
+=item * From Lua 5.2: Change to C<'\z'> escape. Reject undefined escape
+sequences.
+
+=back
+
+=item * Correctness and completeness:
+
+=over
+
+=item * Fix OSX 10.7 build. Fix C<install_name> and versioning on OSX.
+
+=item * Fix iOS build.
+
+=item * Install C<dis_arm.lua>, too.
+
+=item * Mark installed shared library as executable.
+
+=item * Add debug option to C<msvcbuild.bat> and improve error
+handling.
+
+=item * Fix data-flow analysis for iterators.
+
+=item * Fix forced unwinding triggered by external unwinder.
+
+=item * Record missing C<for> loop slot loads (return to lower frame).
+
+=item * Always use ANSI variants of Windows system functions.
+
+=item * Fix GC barrier for multi-result table constructor (C<TSETM>).
+
+=item * Fix/add various FOLD rules.
+
+=item * Add potential PHI for number conversions due to type
+instability.
+
+=item * Do not eliminate PHIs only referenced from other PHIs.
+
+=item * Correctly anchor implicit number to string conversions in Lua/C
+API.
+
+=item * Fix various stack limit checks.
+
+=item * x64: Use thread-safe exceptions for external unwinding (GCC
+platforms).
+
+=item * x64: Fix result type of cdata index conversions.
+
+=item * x64: Fix C<math.random()> and C<bit.bswap()> code generation.
+
+=item * x64: Fix C<lightuserdata> comparisons.
+
+=item * x64: Always extend stack-passed arguments to pointer size.
+
+=item * ARM: Many fixes to code generation backend.
+
+=item * PPC/e500: Fix dispatch for binop metamethods.
+
+=item * PPC/e500: Save/restore condition registers when
+entering/leaving the VM.
+
+=item * PPC/e500: Fix write barrier in stores of strings to upvalues.
+
+=back
+
+=item * FFI library:
+
+=over
+
+=item * Fix C comment parsing.
+
+=item * Fix snapshot optimization for cdata comparisons.
+
+=item * Fix recording of const/enum lookups in namespaces.
+
+=item * Fix call argument and return handling for C<I8/U8/I16/U16>
+types.
+
+=item * Fix unfused loads of float fields.
+
+=item * Fix C<ffi.string()> recording.
+
+=item * Save C<GetLastError()> around C<ffi.load()> and symbol
+resolving, too.
+
+=item * Improve ld script detection in C<ffi.load()>.
+
+=item * Record loads/stores to external variables in namespaces.
+
+=item * Compile calls to stdcall, fastcall and vararg functions.
+
+=item * Treat function ctypes like pointers in comparisons.
+
+=item * Resolve C<__call> metamethod for pointers, too.
+
+=item * Record C function calls with bool return values.
+
+=item * Record C<ffi.errno()>.
+
+=item * x86: Fix number to C<uint32_t> conversion rounding.
+
+=item * x86: Fix 64 bit arithmetic in assembler backend.
+
+=item * x64: Fix struct-by-value calling conventions.
+
+=item * ARM: Ensure invocation of SPLIT pass for float conversions.
+
+=back
+
+=item * Structural and performance enhancements:
+
+=over
+
+=item * Display trace types with C<-jv> and C<-jdump>.
+
+=item * Record isolated calls. But prefer recording loops over calls.
+
+=item * Specialize to prototype for non-monomorphic functions. Solves
+the trace-explosion problem for closure-heavy programming styles.
+
+=item * Always generate a portable C<vmdef.lua>. Easier for distros.
+
+=back
+
+=back
+
+=head2 LuaJIT 2.0.0-beta8 E<mdash> 2011-06-23
+
+=over
+
+=item * New features:
+
+=over
+
+=item * Soft-float ARM port of LuaJIT is complete.
+
+=item * Add support for bytecode loading/saving and C<-b> command line
+option.
+
+=item * From Lua 5.2: C<__len> metamethod for tables (disabled by
+default).
+
+=back
+
+=item * Correctness and completeness:
+
+=over
+
+=item * ARM: Misc. fixes for interpreter.
+
+=item * x86/x64: Fix C<bit.*> argument checking in interpreter.
+
+=item * Catch early out-of-memory in memory allocator initialization.
+
+=item * Fix data-flow analysis for paths leading to an upvalue close.
+
+=item * Fix check for missing arguments in C<string.format()>.
+
+=item * Fix Solaris/x86 build (note: not a supported target).
+
+=item * Fix recording of loops with instable directions in side traces.
+
+=item * x86/x64: Fix fusion of comparisons with C<u8>/C<u16> C<XLOAD>.
+
+=item * x86/x64: Fix register allocation for variable shifts.
+
+=back
+
+=item * FFI library:
+
+=over
+
+=item * Add C<ffi.errno()>. Save C<errno>/C<GetLastError()> around
+allocations etc.
+
+=item * Fix C<__gc> for VLA/VLS cdata objects.
+
+=item * Fix recording of casts from 32 bit cdata pointers to integers.
+
+=item * C<tonumber(cdata)> returns C<nil> for non-numbers.
+
+=item * Show address pointed to for C<tostring(pointer)>.
+
+=item * Print C<NULL> pointers as C<"cdataE<lt>... *E<gt>: NULL">.
+
+=item * Support C<__tostring> metamethod for pointers to structs, too.
+
+=back
+
+=item * Structural and performance enhancements:
+
+=over
+
+=item * More tuning for loop unrolling heuristics.
+
+=item * Flatten and compress in-memory debug info (saves ~70%).
+
+=back
+
+=back
+
+=head2 LuaJIT 2.0.0-beta7 E<mdash> 2011-05-05
+
+=over
+
+=item * New features:
+
+=over
+
+=item * ARM port of the LuaJIT interpreter is complete.
+
+=item * FFI library: Add C<ffi.gc()>, C<ffi.metatype()>,
+C<ffi.istype()>.
+
+=item * FFI library: Resolve ld script redirection in C<ffi.load()>.
+
+=item * From Lua 5.2: C<package.searchpath()>, C<fp:read("*L")>,
+C<load(string)>.
+
+=item * From Lua 5.2, disabled by default: empty statement,
+C<table.unpack()>, modified C<coroutine.running()>.
+
+=back
+
+=item * Correctness and completeness:
+
+=over
+
+=item * FFI library: numerous fixes.
+
+=item * Fix type mismatches in store-to-load forwarding.
+
+=item * Fix error handling within metamethods.
+
+=item * Fix C<table.maxn()>.
+
+=item * Improve accuracy of C<x^-k> on x64.
+
+=item * Fix code generation for Intel Atom in x64 mode.
+
+=item * Fix narrowing of POW.
+
+=item * Fix recording of retried fast functions.
+
+=item * Fix code generation for C<bit.bnot()> and multiplies.
+
+=item * Fix error location within cpcall frames.
+
+=item * Add workaround for old libgcc unwind bug.
+
+=item * Fix C<lua_yield()> and C<getmetatable(lightuserdata)> on x64.
+
+=item * Misc. fixes for PPC/e500 interpreter.
+
+=item * Fix stack slot updates for down-recursion.
+
+=back
+
+=item * Structural and performance enhancements:
+
+=over
+
+=item * Add dual-number mode (int/double) for the VM. Enabled for ARM.
+
+=item * Improve narrowing of arithmetic operators and C<for> loops.
+
+=item * Tune loop unrolling heuristics and increase trace recorder
+limits.
+
+=item * Eliminate dead slots in snapshots using bytecode data-flow
+analysis.
+
+=item * Avoid phantom stores to proxy tables.
+
+=item * Optimize lookups in empty proxy tables.
+
+=item * Improve bytecode optimization of C<and>/C<or> operators.
+
+=back
+
+=back
+
+=head2 LuaJIT 2.0.0-beta6 E<mdash> 2011-02-11
+
+=over
+
+=item * New features:
+
+=over
+
+=item * PowerPC/e500v2 port of the LuaJIT interpreter is complete.
+
+=item * Various minor features from Lua 5.2: Hex escapes in literals,
+C<'\*'> escape, reversible C<string.format("%q",s)>, C<"%g"> pattern,
+C<table.sort> checks callbacks, C<os.exit(status|true|false[,close])>.
+
+=item * Lua 5.2 C<__pairs> and C<__ipairs> metamethods (disabled by
+default).
+
+=item * Initial release of the FFI library.
+
+=back
+
+=item * Correctness and completeness:
+
+=over
+
+=item * Fix C<string.format()> for non-finite numbers.
+
+=item * Fix memory leak when compiled to use the built-in allocator.
+
+=item * x86/x64: Fix unnecessary resize in C<TSETM> bytecode.
+
+=item * Fix various GC issues with traces and C<jit.flush()>.
+
+=item * x64: Fix fusion of indexes for array references.
+
+=item * x86/x64: Fix stack overflow handling for coroutine results.
+
+=item * Enable low-2GB memory allocation on FreeBSD/x64.
+
+=item * Fix C<collectgarbage("count")> result if more than 2GB is in
+use.
+
+=item * Fix parsing of hex floats.
+
+=item * x86/x64: Fix loop branch inversion with trailing C<HREF+NE/EQ>.
+
+=item * Add C<jit.os> string.
+
+=item * C<coroutine.create()> permits running C functions, too.
+
+=item * Fix OSX build to work with newer ld64 versions.
+
+=item * Fix bytecode optimization of C<and>/C<or> operators.
+
+=back
+
+=item * Structural and performance enhancements:
+
+=over
+
+=item * Emit specialized bytecode for C<pairs()>/C<next()>.
+
+=item * Improve bytecode coalescing of C<nil> constants.
+
+=item * Compile calls to vararg functions.
+
+=item * Compile C<select()>.
+
+=item * Improve alias analysis, esp. for loads from allocations.
+
+=item * Tuning of various compiler heuristics.
+
+=item * Refactor and extend IR conversion instructions.
+
+=item * x86/x64: Various backend enhancements related to the FFI.
+
+=item * Add SPLIT pass to split 64 bit IR instructions for 32 bit CPUs.
+
+=back
+
+=back
+
+=head2 LuaJIT 2.0.0-beta5 E<mdash> 2010-08-24
+
+=over
+
+=item * Correctness and completeness:
+
+=over
+
+=item * Fix trace exit dispatch to function headers.
+
+=item * Fix Windows and OSX builds with LUAJIT_DISABLE_JIT.
+
+=item * Reorganize and fix placement of generated machine code on x64.
+
+=item * Fix TNEW in x64 interpreter.
+
+=item * Do not eliminate PHIs for values only referenced from side
+exits.
+
+=item * OS-independent canonicalization of strings for non-finite
+numbers.
+
+=item * Fix C<string.char()> range check on x64.
+
+=item * Fix C<tostring()> resolving within C<print()>.
+
+=item * Fix error handling for C<next()>.
+
+=item * Fix passing of constant arguments to external calls on x64.
+
+=item * Fix interpreter argument check for two-argument SSE math
+functions.
+
+=item * Fix C frame chain corruption caused by C<lua_cpcall()>.
+
+=item * Fix return from C<pcall()> within active hook.
+
+=back
+
+=item * Structural and performance enhancements:
+
+=over
+
+=item * Replace on-trace GC frame syncing with interpreter exit.
+
+=item * Improve hash lookup specialization by not removing dead keys
+during GC.
+
+=item * Turn traces into true GC objects.
+
+=item * Avoid starting a GC cycle immediately after library init.
+
+=item * Add weak guards to improve dead-code elimination.
+
+=item * Speed up string interning.
+
+=back
+
+=back
+
+=head2 LuaJIT 2.0.0-beta4 E<mdash> 2010-03-28
+
+=over
+
+=item * Correctness and completeness:
+
+=over
+
+=item * Fix precondition for on-trace creation of table keys.
+
+=item * Fix C<{f()}> on x64 when table is resized.
+
+=item * Fix folding of ordered comparisons with same references.
+
+=item * Fix snapshot restores for multi-result bytecodes.
+
+=item * Fix potential hang when recording bytecode with nested
+closures.
+
+=item * Fix recording of C<getmetatable()>, C<tonumber()> and bad
+argument types.
+
+=item * Fix SLOAD fusion across returns to lower frames.
+
+=back
+
+=item * Structural and performance enhancements:
+
+=over
+
+=item * Add array bounds check elimination. C<-Oabc> is enabled by
+default.
+
+=item * More tuning for x64, e.g. smaller table objects.
+
+=back
+
+=back
+
+=head2 LuaJIT 2.0.0-beta3 E<mdash> 2010-03-07
+
+=over
+
+=item * LuaJIT x64 port:
+
+=over
+
+=item * Port integrated memory allocator to Linux/x64, Windows/x64 and
+OSX/x64.
+
+=item * Port interpreter and JIT compiler to x64.
+
+=item * Port DynASM to x64.
+
+=item * Many 32/64 bit cleanups in the VM.
+
+=item * Allow building the interpreter with either x87 or SSE2
+arithmetics.
+
+=item * Add external unwinding and C++ exception interop (default on
+x64).
+
+=back
+
+=item * Correctness and completeness:
+
+=over
+
+=item * Fix constructor bytecode generation for certain conditional
+values.
+
+=item * Fix some cases of ordered string comparisons.
+
+=item * Fix C<lua_tocfunction()>.
+
+=item * Fix cutoff register in JMP bytecode for some conditional
+expressions.
+
+=item * Fix PHI marking algorithm for references from variant slots.
+
+=item * Fix C<package.cpath> for non-default PREFIX.
+
+=item * Fix DWARF2 frame unwind information for interpreter on OSX.
+
+=item * Drive the GC forward on string allocations in the parser.
+
+=item * Implement call/return hooks (zero-cost if disabled).
+
+=item * Implement yield from C hooks.
+
+=item * Disable JIT compiler on older non-SSE2 CPUs instead of
+aborting.
+
+=back
+
+=item * Structural and performance enhancements:
+
+=over
+
+=item * Compile recursive code (tail-, up- and down-recursion).
+
+=item * Improve heuristics for bytecode penalties and blacklisting.
+
+=item * Split CALL/FUNC recording and clean up fast function call
+semantics.
+
+=item * Major redesign of internal function call handling.
+
+=item * Improve FOR loop const specialization and integerness checks.
+
+=item * Switch to pre-initialized stacks. Avoid frame-clearing.
+
+=item * Colocation of prototypes and related data: bytecode, constants,
+debug info.
+
+=item * Cleanup parser and streamline bytecode generation.
+
+=item * Add support for weak IR references to register allocator.
+
+=item * Switch to compressed, extensible snapshots.
+
+=item * Compile returns to frames below the start frame.
+
+=item * Improve alias analysis of upvalues using a disambiguation hash
+value.
+
+=item * Compile floor/ceil/trunc to SSE2 helper calls or SSE4.1
+instructions.
+
+=item * Add generic C call handling to IR and backend.
+
+=item * Improve KNUM fuse vs. load heuristics.
+
+=item * Compile various C<io.*()> functions.
+
+=item * Compile C<math.sinh()>, C<math.cosh()>, C<math.tanh()> and
+C<math.random()>.
+
+=back
+
+=back
+
+=head2 LuaJIT 2.0.0-beta2 E<mdash> 2009-11-09
+
+=over
+
+=item * Reorganize build system. Build static+shared library on POSIX.
+
+=item * Allow C++ exception conversion on all platforms using a wrapper
+function.
+
+=item * Automatically catch C++ exceptions and rethrow Lua error
+(DWARF2 only).
+
+=item * Check for the correct x87 FPU precision at strategic points.
+
+=item * Always use wrappers for libm functions.
+
+=item * Resurrect metamethod name strings before copying them.
+
+=item * Mark current trace, even if compiler is idle.
+
+=item * Ensure FILE metatable is created only once.
+
+=item * Fix type comparisons when different integer types are involved.
+
+=item * Fix C<getmetatable()> recording.
+
+=item * Fix TDUP with dead keys in template table.
+
+=item * C<jit.flush(tr)> returns status. Prevent manual flush of a
+trace that's still linked.
+
+=item * Improve register allocation heuristics for invariant
+references.
+
+=item * Compile the push/pop variants of C<table.insert()> and
+C<table.remove()>.
+
+=item * Compatibility with MSVC C<link /debug>.
+
+=item * Fix C<lua_iscfunction()>.
+
+=item * Fix C<math.random()> when compiled with C<-fpic> (OSX).
+
+=item * Fix C<table.maxn()>.
+
+=item * Bump C<MACOSX_DEPLOYMENT_TARGET> to C<10.4>
+
+=item * C<luaL_check*()> and C<luaL_opt*()> now support negative
+arguments, too.
+
+This matches the behavior of Lua 5.1, but not the specification.
+
+=back
+
+=head2 LuaJIT 2.0.0-beta1 E<mdash> 2009-10-31
+
+=over
+
+=item * This is the first public release of LuaJIT 2.0.
+
+=item * The whole VM has been rewritten from the ground up, so there's
+no point in listing differences over earlier versions.
+
+=back
+
+----
+
+Copyright E<copy> 2005-2017 Mike Pall E<middot> Contact
+
+=cut
+
+#Pod::HTML2Pod conversion notes:
+#From file changes.html
+# 39774 bytes of input
+#Sat Apr  8 14:31:44 2017 agentzh
+# No a_name switch not specified, so will not try to render <a name='...'>
+# No a_href switch not specified, so will not try to render <a href='...'>

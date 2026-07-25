@@ -1,0 +1,710 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_ssi_module - Module ngx_http_ssi_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_ssi_module> module is a filter
+that processes SSI (Server Side Includes) commands in responses
+passing through it.
+Currently, the list of supported SSI commands is incomplete.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location / {
+        ssi on;
+        ...
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 ssi
+
+
+B<syntax:> ssi I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<if in location>
+
+
+
+
+
+Enables or disables processing of SSI commands in responses.
+
+
+
+
+
+
+
+=head2 ssi_last_modified
+
+
+B<syntax:> ssi_last_modified I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 1.5.1.
+
+
+
+
+
+Allows preserving the C<Last-Modified> header field
+from the original response during SSI processing
+to facilitate response caching.
+
+
+
+
+
+By default, the header field is removed as contents of the response
+are modified during processing and may contain dynamically generated elements
+or parts that are changed independently of the original response.
+
+
+
+
+
+
+
+=head2 ssi_min_file_chunk
+
+
+B<syntax:> ssi_min_file_chunk I<C<size>>
+
+
+B<default:> I<1k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the minimum I<C<size>> for parts of a response stored on disk,
+starting from which it makes sense to send them using
+L<ngx_http_core_module>.
+
+
+
+
+
+
+
+=head2 ssi_silent_errors
+
+
+B<syntax:> ssi_silent_errors I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+If enabled, suppresses the output of the
+“C<[an error occurred while processing the directive]>”
+string if an error occurred during SSI processing.
+
+
+
+
+
+
+
+=head2 ssi_types
+
+
+B<syntax:> ssi_types I<I<C<mime-type>> ...>
+
+
+B<default:> I<textE<sol>html>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Enables processing of SSI commands in responses with the specified MIME types
+in addition to “C<textE<sol>html>”.
+The special value “C<*>” matches any MIME type (0.8.29).
+
+
+
+
+
+
+
+=head2 ssi_value_length
+
+
+B<syntax:> ssi_value_length I<I<C<length>>>
+
+
+B<default:> I<256>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the maximum length of parameter values in SSI commands.
+
+
+
+
+
+
+
+=head1 SSI Commands
+
+
+
+SSI commands have the following generic format:
+
+    
+    <!--# command parameter1=value1 parameter2=value2 ... -->
+
+
+
+
+
+
+
+The following commands are supported:
+
+=over
+
+
+
+=item C<block>
+
+
+
+
+Defines a block that can be used as a stub
+in the C<include> command.
+The block can contain other SSI commands.
+The command has the following parameter:
+
+
+=over
+
+
+=item C<name>
+
+
+
+
+block name.
+
+
+
+=back
+
+
+
+Example:
+
+    
+    <!--# block name="one" -->
+    stub
+    <!--# endblock -->
+
+
+
+
+
+
+
+=item C<config>
+
+
+
+
+Sets some parameters used during SSI processing, namely:
+
+
+=over
+
+
+=item C<errmsg>
+
+
+
+
+a string that is output if an error occurs during SSI processing.
+By default, the following string is output:
+
+    
+    [an error occurred while processing the directive]
+
+
+
+
+
+=item C<timefmt>
+
+
+
+
+a format string passed to the C<strftime> function
+used to output date and time.
+By default, the following format is used:
+
+    
+    "%A, %d-%b-%Y %H:%M:%S %Z"
+
+
+The “C<%s>” format is suitable to output time in seconds.
+
+
+
+=back
+
+
+
+
+
+
+
+=item C<echo>
+
+
+
+
+Outputs the value of a variable.
+The command has the following parameters:
+
+
+=over
+
+
+=item C<var>
+
+
+
+
+the variable name.
+
+
+
+=item C<encoding>
+
+
+
+
+the encoding method.
+Possible values include C<none>, C<url>, and
+C<entity>.
+By default, C<entity> is used.
+
+
+
+=item C<default>
+
+
+
+
+a non-standard parameter that sets a string to be output
+if a variable is undefined.
+By default, “C<(none)>” is output.
+The command
+
+    
+    <!--# echo var="name" default="<emphasis>no</emphasis>" -->
+
+
+replaces the following sequence of commands:
+
+    
+    <!--# if expr="$name" --><!--# echo var="name" --><!--#
+           else --><emphasis>no</emphasis><!--# endif -->
+
+
+
+
+
+=back
+
+
+
+
+
+
+
+=item C<if>
+
+
+
+
+Performs a conditional inclusion.
+The following commands are supported:
+
+    
+    <!--# if expr="..." -->
+    ...
+    <!--# elif expr="..." -->
+    ...
+    <!--# else -->
+    ...
+    <!--# endif -->
+
+
+Only one level of nesting is currently supported.
+The command has the following parameter:
+
+
+=over
+
+
+=item C<expr>
+
+
+
+
+expression.
+An expression can be:
+
+
+=over
+
+
+
+
+=item *
+
+variable existence check:
+
+    
+    <!--# if expr="$name" -->
+
+
+
+
+
+=item *
+
+comparison of a variable with a text:
+
+    
+    <!--# if expr="$name = <value>text</value>" -->
+    <!--# if expr="$name != <value>text</value>" -->
+
+
+
+
+
+=item *
+
+comparison of a variable with a regular expression:
+
+    
+    <!--# if expr="$name = /<value>text</value>/" -->
+    <!--# if expr="$name != /<value>text</value>/" -->
+
+
+
+
+=back
+
+
+
+If a I<C<text>> contains variables,
+their values are substituted.
+A regular expression can contain positional and named captures
+that can later be used through variables, for example:
+
+    
+    <!--# if expr="$name = /(.+)@(?P<domain>.+)/" -->
+        <!--# echo var="1" -->
+        <!--# echo var="domain" -->
+    <!--# endif -->
+
+
+
+
+
+=back
+
+
+
+
+
+
+
+=item C<include>
+
+
+
+
+Includes the result of another request into a response.
+The command has the following parameters:
+
+
+=over
+
+
+=item C<file>
+
+
+
+
+specifies an included file, for example:
+
+    
+    <!--# include file="footer.html" -->
+
+
+
+
+
+=item C<virtual>
+
+
+
+
+specifies an included request, for example:
+
+    
+    <!--# include virtual="/remote/body.php?argument=value" -->
+
+
+Several requests specified on one page and processed by proxied or
+FastCGIE<sol>uwsgiE<sol>SCGI servers run in parallel.
+If sequential processing is desired, the C<wait>
+parameter should be used.
+
+
+
+=item C<stub>
+
+
+
+
+a non-standard parameter that names the block whose
+content will be output if the included request results in an empty
+body or if an error occurs during the request processing, for example:
+
+    
+    <!--# block name="one" -->&nbsp;<!--# endblock -->
+    <!--# include virtual="/remote/body.php?argument=value" stub="one" -->
+
+
+The replacement block content is processed in the included request context.
+
+
+
+=item C<wait>
+
+
+
+
+a non-standard parameter that instructs to wait for a request to fully
+complete before continuing with SSI processing, for example:
+
+    
+    <!--# include virtual="/remote/body.php?argument=value" wait="yes" -->
+
+
+
+
+
+=item C<set>
+
+
+
+
+a non-standard parameter that instructs to write a successful result
+of request processing to the specified variable,
+for example:
+
+    
+    <!--# include virtual="/remote/body.php?argument=value" set="one" -->
+
+
+It should be noted that only the results of responses obtained using the
+L<ngx_http_proxy_module|ngx_http_proxy_module>,
+L<ngx_http_memcached_module|ngx_http_memcached_module>,
+L<ngx_http_fastcgi_module|ngx_http_fastcgi_module> (1.5.6),
+L<ngx_http_uwsgi_module|ngx_http_uwsgi_module> (1.5.6),
+and L<ngx_http_scgi_module|ngx_http_scgi_module> (1.5.6)
+modules can be written into variables.
+
+
+
+
+=back
+
+
+
+
+
+
+
+=item C<set>
+
+
+
+
+Sets a value of a variable.
+The command has the following parameters:
+
+
+=over
+
+
+=item C<var>
+
+
+
+
+the variable name.
+
+
+
+=item C<value>
+
+
+
+
+the variable value.
+If an assigned value contains variables,
+their values are substituted.
+
+
+
+=back
+
+
+
+
+
+
+
+=back
+
+
+
+
+
+
+=head1 Embedded Variables
+
+
+
+The C<ngx_http_ssi_module> module supports
+two embedded variables:
+
+=over
+
+
+
+=item C<$date_local>
+
+
+
+
+current time in the local time zone.
+The format is set by the C<config> command
+with the C<timefmt> parameter.
+
+
+
+=item C<$date_gmt>
+
+
+
+
+current time in GMT.
+The format is set by the C<config> command
+with the C<timefmt> parameter.
+
+
+
+
+=back
+
+
+
+
+
+

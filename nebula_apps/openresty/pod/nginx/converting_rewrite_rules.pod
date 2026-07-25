@@ -1,0 +1,175 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+converting_rewrite_rules - Converting rewrite rules
+
+
+=head1 A redirect to a main site
+
+
+
+People who during their shared hosting life used to configure
+I<everything> using I<only> ApacheE<rsquo>s .htaccess files,
+usually translate the following rules:
+
+
+    
+    RewriteCond  %{HTTP_HOST}  example.org
+    RewriteRule  (.*)          http://www.example.org$1
+
+
+
+to something like this:
+
+
+    
+    server {
+        listen       80;
+        server_name  www.example.org  example.org;
+        if ($http_host = example.org) {
+            rewrite  (.*)  http://www.example.org$1;
+        }
+        ...
+    }
+
+
+
+
+
+
+
+This is a wrong, cumbersome, and ineffective way.
+The right way is to define a separate server for C<example.org>:
+
+
+    
+    server {
+        listen       80;
+        server_name  example.org;
+        return       301 http://www.example.org$request_uri;
+    }
+    
+    server {
+        listen       80;
+        server_name  www.example.org;
+        ...
+    }
+
+
+
+
+B<NOTE>
+
+On versions prior to 0.9.1, redirects can be made with:
+
+    
+        rewrite      ^ http://www.example.org$request_uri?;
+
+
+
+
+
+
+
+
+=head1
+
+
+
+Another example.
+Instead of the E<ldquo>upside-downE<rdquo> logic E<ldquo>all that is not
+C<example.com> and is not C<www.example.com>E<rdquo>:
+
+
+    
+    RewriteCond  %{HTTP_HOST}  !example.com
+    RewriteCond  %{HTTP_HOST}  !www.example.com
+    RewriteRule  (.*)          http://www.example.com$1
+
+
+
+one should simply define C<example.com>, C<www.example.com>,
+and E<ldquo>everything elseE<rdquo>:
+
+
+    
+    server {
+        listen       80;
+        server_name  example.com www.example.com;
+        ...
+    }
+    
+    server {
+        listen       80 default_server;
+        server_name  _;
+        return       301 http://example.com$request_uri;
+    }
+
+
+
+
+B<NOTE>
+
+On versions prior to 0.9.1, redirects can be made with:
+
+    
+        rewrite      ^ http://example.com$request_uri?;
+
+
+
+
+
+
+
+
+=head1 Converting Mongrel rules
+
+
+
+Typical Mongrel rules:
+
+
+    
+    DocumentRoot /var/www/myapp.com/current/public
+    
+    RewriteCond %{DOCUMENT_ROOT}/system/maintenance.html -f
+    RewriteCond %{SCRIPT_FILENAME} !maintenance.html
+    RewriteRule ^.*$ %{DOCUMENT_ROOT}/system/maintenance.html [L]
+    
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^(.*)$ $1 [QSA,L]
+    
+    RewriteCond %{REQUEST_FILENAME}/index.html -f
+    RewriteRule ^(.*)$ $1/index.html [QSA,L]
+    
+    RewriteCond %{REQUEST_FILENAME}.html -f
+    RewriteRule ^(.*)$ $1.html [QSA,L]
+    
+    RewriteRule ^/(.*)$ balancer://mongrel_cluster%{REQUEST_URI} [P,QSA,L]
+
+
+
+should be converted to
+
+
+    
+    location / {
+        root       /var/www/myapp.com/current/public;
+    
+        try_files  /system/maintenance.html
+                   $uri  $uri/index.html $uri.html
+                   @mongrel;
+    }
+    
+    location @mongrel {
+        proxy_pass  http://mongrel;
+    }
+
+
+
+
+
+

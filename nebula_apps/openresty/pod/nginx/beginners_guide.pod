@@ -1,0 +1,563 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+beginners_guide - Beginner’s Guide
+
+
+=head1
+
+
+
+This guide gives a basic introduction to nginx and describes some
+simple tasks that can be done with it.
+It is supposed that nginx is already installed on the reader’s machine.
+If it is not, see the L<install> page.
+This guide describes how to start and stop nginx, and reload its
+configuration, explains the structure
+of the configuration file and describes how to set up nginx
+to serve out static content, how to configure nginx as a proxy
+server, and how to connect it with a FastCGI application.
+
+
+
+
+
+nginx has one master process and several worker processes.
+The main purpose of the master process is to read and evaluate configuration,
+and maintain worker processes.
+Worker processes do actual processing of requests.
+nginx employs event-based model and OS-dependent mechanisms to efficiently
+distribute requests among worker processes.
+The number of worker processes is defined in the configuration file and
+may be fixed for a given configuration or automatically adjusted to the
+number of available CPU cores (see
+L<ngx_core_module>).
+
+
+
+
+
+The way nginx and its modules work is determined in the configuration file.
+By default, the configuration file is named F<nginx.conf>
+and placed in the directory
+F<E<sol>usrE<sol>localE<sol>nginxE<sol>conf>,
+F<E<sol>etcE<sol>nginx>, or
+F<E<sol>usrE<sol>localE<sol>etcE<sol>nginx>.
+
+
+
+
+=head1 Starting, Stopping, and Reloading Configuration
+
+
+
+To start nginx, run the executable file.
+Once nginx is started, it can be controlled by invoking the executable
+with the C<-s> parameter.
+Use the following syntax:
+
+    
+    nginx -s <i>signal</i>
+
+
+Where I<signal> may be one of the following:
+
+=over
+
+
+
+=item *
+
+C<stop>E<mdash>fast shutdown
+
+
+=item *
+
+C<quit>E<mdash>graceful shutdown
+
+
+=item *
+
+C<reload>E<mdash>reloading the configuration file
+
+
+=item *
+
+C<reopen>E<mdash>reopening the log files
+
+
+=back
+
+
+For example, to stop nginx processes with waiting for the worker processes
+to finish serving current requests, the following command can be executed:
+
+    
+    nginx -s quit
+
+
+
+B<NOTE>
+This command should be executed under the same user that
+started nginx.
+
+
+
+
+
+Changes made in the configuration file
+will not be applied until the command to reload configuration is
+sent to nginx or it is restarted.
+To reload configuration, execute:
+
+    
+    nginx -s reload
+
+
+
+
+
+
+
+Once the master process receives the signal to reload configuration,
+it checks the syntax validity
+of the new configuration file and tries to apply the configuration provided
+in it.
+If this is a success, the master process starts new worker processes
+and sends messages to old worker processes, requesting them to
+shut down.
+Otherwise, the master process rolls back the changes and
+continues to work with the old configuration.
+Old worker processes, receiving a command to shut down,
+stop accepting new connections and continue to service current requests until
+all such requests are serviced.
+After that, the old worker processes exit.
+
+
+
+
+
+A signal may also be sent to nginx processes with the help of Unix tools
+such as the C<kill> utility.
+In this case a signal is sent directly to a process with a given process ID.
+The process ID of the nginx master process is written, by default, to the
+F<nginx.pid> in the directory
+F<E<sol>usrE<sol>localE<sol>nginxE<sol>logs> or
+F<E<sol>varE<sol>run>.
+For example, if the master process ID is 1628, to send the QUIT signal
+resulting in nginx’s graceful shutdown, execute:
+
+    
+    kill -s QUIT 1628
+
+
+For getting the list of all running nginx processes, the C<ps>
+utility may be used, for example, in the following way:
+
+    
+    ps -ax | grep nginx
+
+
+For more information on sending signals to nginx, see
+L<control>.
+
+
+
+
+=head1 Configuration File’s Structure
+
+
+
+nginx consists of modules which are controlled by directives specified
+in the configuration file.
+Directives are divided into simple directives and block directives.
+A simple directive consists of the name and parameters separated by spaces
+and ends with a semicolon (C<;>).
+A block directive has the same structure as a simple directive, but
+instead of the semicolon it ends with a set of additional instructions
+surrounded by braces (C<{> and C<}>).
+If a block directive can have other directives inside braces,
+it is called a context (examples:
+L<ngx_core_module>,
+L<ngx_http_core_module>,
+L<ngx_http_core_module>,
+and
+L<ngx_http_core_module>).
+
+
+
+
+
+Directives placed in the configuration file outside
+of any contexts are considered to be in the
+L<main|ngx_core_module> context.
+The C<events> and C<http> directives
+reside in the C<main> context, C<server>
+in C<http>, and C<location> in
+C<server>.
+
+
+
+
+
+The rest of a line after the C<#> sign is considered a comment.
+
+
+
+
+=head1 Serving Static Content
+
+
+
+An important web server task is serving out
+files (such as images or static HTML pages).
+You will implement an example where, depending on the request,
+files will be served from different local directories: F<E<sol>dataE<sol>www>
+(which may contain HTML files) and F<E<sol>dataE<sol>images>
+(containing images).
+This will require editing of the configuration file and setting up of a
+L<ngx_http_core_module>
+block inside the L<ngx_http_core_module>
+block with two L<ngx_http_core_module>
+blocks.
+
+
+
+
+
+First, create the F<E<sol>dataE<sol>www> directory and put an
+F<index.html> file with any text content into it and
+create the F<E<sol>dataE<sol>images> directory and place some
+images in it.
+
+
+
+
+
+Next, open the configuration file.
+The default configuration file already includes several examples of
+the C<server> block, mostly commented out.
+For now comment out all such blocks and start a new
+C<server> block:
+
+    
+    http {
+        server {
+        }
+    }
+
+
+Generally, the configuration file may include several
+C<server> blocks
+L<distinguished|request_processing> by ports on which
+they L<listen|ngx_http_core_module> to
+and by
+L<server names|server_names>.
+Once nginx decides which C<server> processes a request,
+it tests the URI specified in the request’s header against the parameters of the
+C<location> directives defined inside the
+C<server> block.
+
+
+
+
+
+Add the following C<location> block to the
+C<server> block:
+
+    
+    location / {
+        root /data/www;
+    }
+
+
+This C<location> block specifies the
+“F<E<sol>>” prefix compared with the URI from the request.
+For matching requests, the URI will be added to the path specified in the
+L<ngx_http_core_module>
+directive, that is, to F<E<sol>dataE<sol>www>,
+to form the path to the requested file on the local file system.
+If there are several matching C<location> blocks nginx
+selects the one with the longest prefix.
+The C<location> block above provides the shortest
+prefix, of length one,
+and so only if all other C<location>
+blocks fail to provide a match, this block will be used.
+
+
+
+
+
+Next, add the second C<location> block:
+
+    
+    location /images/ {
+        root /data;
+    }
+
+
+It will be a match for requests starting with C<E<sol>imagesE<sol>>
+(C<location E<sol>> also matches such requests,
+but has shorter prefix).
+
+
+
+
+
+The resulting configuration of the C<server> block should
+look like this:
+
+    
+    server {
+        location / {
+            root /data/www;
+        }
+    
+        location /images/ {
+            root /data;
+        }
+    }
+
+
+This is already a working configuration of a server that listens
+on the standard port 80 and is accessible on the local machine at
+C<http:E<sol>E<sol>localhostE<sol>>.
+In response to requests with URIs starting with C<E<sol>imagesE<sol>>,
+the server will send files from the F<E<sol>dataE<sol>images> directory.
+For example, in response to the
+C<http:E<sol>E<sol>localhostE<sol>imagesE<sol>example.png> request nginx will
+send the F<E<sol>dataE<sol>imagesE<sol>example.png> file.
+If such file does not exist, nginx will send a response
+indicating the 404 error.
+Requests with URIs not starting with C<E<sol>imagesE<sol>> will be
+mapped onto the F<E<sol>dataE<sol>www> directory.
+For example, in response to the
+C<http:E<sol>E<sol>localhostE<sol>someE<sol>example.html> request nginx will
+send the F<E<sol>dataE<sol>wwwE<sol>someE<sol>example.html> file.
+
+
+
+
+
+To apply the new configuration, start nginx if it is not yet started or
+send the C<reload> signal to the nginx’s master process,
+by executing:
+
+    
+    nginx -s reload
+
+
+
+
+
+
+
+
+B<NOTE>
+
+In case something does not work as expected, you may try to find out
+the reason in F<access.log> and
+F<error.log> files in the directory
+F<E<sol>usrE<sol>localE<sol>nginxE<sol>logs> or
+F<E<sol>varE<sol>logE<sol>nginx>.
+
+
+
+
+
+=head1 Setting Up a Simple Proxy Server
+
+
+
+One of the frequent uses of nginx is setting it up as a proxy server, which
+means a server that receives requests, passes them to the proxied servers,
+retrieves responses from them, and sends them to the clients.
+
+
+
+
+
+We will configure a basic proxy server, which serves requests of
+images with files from the local directory and sends all other requests to a
+proxied server.
+In this example, both servers will be defined on a single nginx instance.
+
+
+
+
+
+First, define the proxied server by adding one more C<server>
+block to the nginx’s configuration file with the following contents:
+
+    
+    server {
+        listen 8080;
+        root /data/up1;
+    
+        location / {
+        }
+    }
+
+
+This will be a simple server that listens on the port 8080
+(previously, the C<listen> directive has not been specified
+since the standard port 80 was used) and maps
+all requests to the F<E<sol>dataE<sol>up1> directory on the local
+file system.
+Create this directory and put the F<index.html> file into it.
+Note that the C<root> directive is placed in the
+C<server> context.
+Such C<root> directive is used when the
+C<location> block selected for serving a request does not
+include own C<root> directive.
+
+
+
+
+
+Next, use the server configuration from the previous section
+and modify it to make it a proxy server configuration.
+In the first C<location> block, put the
+L<ngx_http_proxy_module>
+directive with the protocol, name and port of the proxied server specified
+in the parameter (in our case, it is C<http:E<sol>E<sol>localhost:8080>):
+
+    
+    server {
+        location / {
+            proxy_pass http://localhost:8080;
+        }
+    
+        location /images/ {
+            root /data;
+        }
+    }
+
+
+
+
+
+
+
+We will modify the second C<location>
+block, which currently maps requests with the C<E<sol>imagesE<sol>>
+prefix to the files under the F<E<sol>dataE<sol>images> directory,
+to make it match the requests of images with typical file extensions.
+The modified C<location> block looks like this:
+
+    
+    location ~ \.(gif|jpg|png)$ {
+        root /data/images;
+    }
+
+
+The parameter is a regular expression matching all URIs ending
+with F<.gif>, F<.jpg>, or F<.png>.
+A regular expression should be preceded with C<~>.
+The corresponding requests will be mapped to the F<E<sol>dataE<sol>images>
+directory.
+
+
+
+
+
+When nginx selects a C<location> block to serve a request
+it first checks L<ngx_http_core_module>
+directives that specify prefixes, remembering C<location>
+with the longest prefix, and then checks regular expressions.
+If there is a match with a regular expression, nginx picks this
+C<location> or, otherwise, it picks the one remembered earlier.
+
+
+
+
+
+The resulting configuration of a proxy server will look like this:
+
+    
+    server {
+        location / {
+            proxy_pass http://localhost:8080/;
+        }
+    
+        location ~ \.(gif|jpg|png)$ {
+            root /data/images;
+        }
+    }
+
+
+This server will filter requests ending with F<.gif>,
+F<.jpg>, or F<.png>
+and map them to the F<E<sol>dataE<sol>images> directory (by adding URI to the
+C<root> directive’s parameter) and pass all other requests
+to the proxied server configured above.
+
+
+
+
+
+To apply new configuration, send the C<reload> signal to
+nginx as described in the previous sections.
+
+
+
+
+
+There are many L<more|ngx_http_proxy_module>
+directives that may be used to further configure a proxy connection.
+
+
+
+
+=head1 Setting Up FastCGI Proxying
+
+
+
+nginx can be used to route requests to FastCGI servers which run
+applications built with various frameworks and programming languages
+such as PHP.
+
+
+
+
+
+The most basic nginx configuration to work with a FastCGI server
+includes using the
+L<ngx_http_fastcgi_module>
+directive instead of the C<proxy_pass> directive,
+and L<ngx_http_fastcgi_module>
+directives to set parameters passed to a FastCGI server.
+Suppose the FastCGI server is accessible on C<localhost:9000>.
+Taking the proxy configuration from the previous section as a basis,
+replace the C<proxy_pass> directive with the
+C<fastcgi_pass> directive and change the parameter to
+C<localhost:9000>.
+In PHP, the C<SCRIPT_FILENAME> parameter is used for
+determining the script name, and the C<QUERY_STRING>
+parameter is used to pass request parameters.
+The resulting configuration would be:
+
+    
+    server {
+        location / {
+            fastcgi_pass  localhost:9000;
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            fastcgi_param QUERY_STRING    $query_string;
+        }
+    
+        location ~ \.(gif|jpg|png)$ {
+            root /data/images;
+        }
+    }
+
+
+This will set up a server that will route all requests except for
+requests for static images to the proxied server operating on
+C<localhost:9000> through the FastCGI protocol.
+
+
+
+

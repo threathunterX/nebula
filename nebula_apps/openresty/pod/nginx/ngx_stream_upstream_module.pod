@@ -1,0 +1,771 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_upstream_module - Module ngx_stream_upstream_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_upstream_module> module (1.9.0)
+is used to define groups of servers that can be referenced
+by the L<ngx_stream_proxy_module>
+directive.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    upstream <emphasis>backend</emphasis> {
+        hash $remote_addr consistent;
+    
+        server backend1.example.com:12345  weight=5;
+        server backend2.example.com:12345;
+        server unix:/tmp/backend3;
+    
+        server backup1.example.com:12345   backup;
+        server backup2.example.com:12345   backup;
+    }
+    
+    server {
+        listen 12346;
+        proxy_pass <emphasis>backend</emphasis>;
+    }
+
+
+
+
+
+
+
+Dynamically configurable group with
+periodic L<health checks|ngx_stream_upstream_hc_module> is
+available as part of our
+commercial subscription:
+
+    
+    resolver 10.0.0.1;
+    
+    upstream <emphasis>dynamic</emphasis> {
+        zone upstream_dynamic 64k;
+    
+        server backend1.example.com:12345 weight=5;
+        server backend2.example.com:12345 fail_timeout=5s slow_start=30s;
+        server 192.0.2.1:12345            max_fails=3;
+        server backend3.example.com:12345 resolve;
+        server backend4.example.com       service=http resolve;
+    
+        server backup1.example.com:12345  backup;
+        server backup2.example.com:12345  backup;
+    }
+    
+    server {
+        listen 12346;
+        proxy_pass <emphasis>dynamic</emphasis>;
+        health_check;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 upstream
+
+
+B<syntax:> upstream I<I<C<name>> { B<...> } >
+
+
+
+B<context:> I<stream>
+
+
+
+
+
+Defines a group of servers.
+Servers can listen on different ports.
+In addition, servers listening on TCP and UNIX-domain sockets
+can be mixed.
+
+
+
+
+
+Example:
+
+    
+    upstream backend {
+        server backend1.example.com:12345 weight=5;
+        server 127.0.0.1:12345            max_fails=3 fail_timeout=30s;
+        server unix:/tmp/backend2;
+        server backend3.example.com:12345 resolve;
+    
+        server backup1.example.com:12345  backup;
+    }
+
+
+
+
+
+
+
+By default, connections are distributed between the servers using a
+weighted round-robin balancing method.
+In the above example, each 7 connections will be distributed as follows:
+5 connections go to C<backend1.example.com:12345>
+and one connection to each of the second and third servers.
+If an error occurs during communication with a server, the connection will
+be passed to the next server, and so on until all of the functioning
+servers will be tried.
+If communication with all servers fails, the connection will be closed.
+
+
+
+
+
+
+
+=head2 server
+
+
+B<syntax:> server I<I<C<address>> [I<C<parameters>>]>
+
+
+
+B<context:> I<upstream>
+
+
+
+
+
+Defines the I<C<address>> and other I<C<parameters>>
+of a server.
+The address can be specified as a domain name or IP address
+with an obligatory port, or as a UNIX-domain socket path
+specified after the “C<unix:>” prefix.
+A domain name that resolves to several IP addresses defines
+multiple servers at once.
+
+
+
+
+
+The following parameters can be defined:
+
+=over
+
+
+
+=item 
+C<weight>=I<C<number>>
+
+
+
+
+
+sets the weight of the server, by default, 1.
+
+
+
+=item 
+C<max_conns>=I<C<number>>
+
+
+
+
+
+limits the maximum I<C<number>> of simultaneous
+connections to the proxied server (1.11.5).
+Default value is zero, meaning there is no limit.
+If the server group does not reside in the shared memory,
+the limitation works per each worker process.
+
+B<NOTE>
+
+Prior to version 1.11.5, this parameter was available as part of our
+commercial subscription.
+
+
+
+
+=item 
+C<max_fails>=I<C<number>>
+
+
+
+
+
+sets the number of unsuccessful attempts to communicate with the server
+that should happen in the duration set by the C<fail_timeout>
+parameter to consider the server unavailable for a duration also set by the
+C<fail_timeout> parameter.
+By default, the number of unsuccessful attempts is set to 1.
+The zero value disables the accounting of attempts.
+Here, an unsuccessful attempt is an error or timeout
+while establishing a connection with the server.
+
+
+
+=item 
+C<fail_timeout>=I<C<time>>
+
+
+
+
+
+sets
+
+=over
+
+
+
+
+=item *
+
+the time during which the specified number of unsuccessful attempts to
+communicate with the server should happen to consider the server unavailable;
+
+
+
+=item *
+
+and the period of time the server will be considered unavailable.
+
+
+
+=back
+
+
+By default, the parameter is set to 10 seconds.
+
+
+
+=item 
+C<backup>
+
+
+
+
+
+marks the server as a backup server.
+Connections to the backup server will be passed
+when the primary servers are unavailable.
+
+
+
+=item 
+C<down>
+
+
+
+
+
+marks the server as permanently unavailable.
+
+
+
+
+=back
+
+
+
+
+
+
+
+Additionally,
+the following parameters are available as part of our
+commercial subscription:
+
+=over
+
+
+
+=item 
+C<resolve>
+
+
+
+
+
+monitors changes of the IP addresses
+that correspond to a domain name of the server,
+and automatically modifies the upstream configuration
+without the need of restarting nginx.
+The server group must reside in the shared memory.
+
+
+In order for this parameter to work,
+the L<ngx_stream_core_module> directive
+must be specified in the
+L<ngx_stream_core_module> block.
+Example:
+
+    
+    stream {
+        resolver 10.0.0.1;
+    
+        upstream u {
+            zone ...;
+            ...
+            server example.com:12345 resolve;
+        }
+    }
+
+
+
+
+
+
+
+=item 
+C<service>=I<C<name>>
+
+
+
+
+
+enables resolving of DNS
+L<SRV|https://tools.ietf.org/html/rfc2782>
+records and sets the service I<C<name>> (1.9.13).
+In order for this parameter to work, it is necessary to specify
+the L</resolve> parameter for the server
+and specify a hostname without a port number.
+
+
+If the service name does not contain a dot (“C<.>”), then
+the L<RFC|https://tools.ietf.org/html/rfc2782>-compliant name
+is constructed
+and the TCP protocol is added to the service prefix.
+For example, to look up the
+C<_http._tcp.backend.example.com> SRV record,
+it is necessary to specify the directive:
+
+    
+    server backend.example.com service=http resolve;
+
+
+If the service name contains one or more dots, then the name is constructed
+by joining the service prefix and the server name.
+For example, to look up the C<_http._tcp.backend.example.com>
+and C<server1.backend.example.com> SRV records,
+it is necessary to specify the directives:
+
+    
+    server backend.example.com service=_http._tcp resolve;
+    server example.com service=server1.backend resolve;
+
+
+
+
+
+
+
+Highest-priority SRV records
+(records with the same lowest-number priority value)
+are resolved as primary servers,
+the rest of SRV records are resolved as backup servers.
+If the L</backup> parameter is specified for the server,
+high-priority SRV records are resolved as backup servers,
+the rest of SRV records are ignored.
+
+
+
+
+
+=item 
+C<slow_start>=I<C<time>>
+
+
+
+
+
+sets the I<C<time>> during which the server will recover its weight
+from zero to a nominal value, when unhealthy server becomes
+L<healthy|ngx_stream_upstream_hc_module>,
+or when the server becomes available after a period of time
+it was considered unavailable.
+Default value is zero, i.e. slow start is disabled.
+
+B<NOTE>
+
+The parameter cannot be used along with the
+L</hash> load balancing method.
+
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+B<NOTE>
+
+If there is only a single server in a group, C<max_fails>,
+C<fail_timeout> and C<slow_start> parameters
+are ignored, and such a server will never be considered unavailable.
+
+
+
+
+
+
+
+
+=head2 zone
+
+
+B<syntax:> zone I<I<C<name>> [I<C<size>>]>
+
+
+
+B<context:> I<upstream>
+
+
+
+
+
+Defines the I<C<name>> and I<C<size>> of the shared
+memory zone that keeps the group’s configuration and run-time state that are
+shared between worker processes.
+Several groups may share the same zone.
+In this case, it is enough to specify the zone size only once.
+
+
+
+
+
+Additionally,
+as part of our commercial subscription,
+such groups allow changing the group membership
+or modifying the settings of a particular server
+without the need of restarting nginx.
+The configuration is accessible via a special location
+handled by
+L<ngx_http_upstream_conf_module>.
+
+
+
+
+
+
+
+=head2 state
+
+
+B<syntax:> state I<I<C<file>>>
+
+
+
+B<context:> I<upstream>
+
+
+
+This directive appeared in version 1.9.7.
+
+
+
+
+
+Specifies a I<C<file>> that keeps the state
+of the dynamically configurable group.
+
+
+
+
+
+Examples:
+
+    
+    state /var/lib/nginx/state/servers.conf; # path for Linux
+    state /var/db/nginx/state/servers.conf;  # path for FreeBSD
+
+
+
+
+
+
+
+The state is currently limited to the list of servers with their parameters.
+The file is read when parsing the configuration and is updated each time
+the upstream configuration is
+L<changed|ngx_http_upstream_conf_module>.
+Changing the file content directly should be avoided.
+The directive cannot be used
+along with the L</server> directive.
+
+
+
+
+
+
+B<NOTE>
+
+Changes made during
+L<configuration reload|control>
+or L<binary upgrade|control>
+can be lost.
+
+
+
+
+
+
+
+B<NOTE>
+
+This directive is available as part of our
+commercial subscription.
+
+
+
+
+
+
+
+
+=head2 hash
+
+
+B<syntax:> hash I<I<C<key>> [C<consistent>]>
+
+
+
+B<context:> I<upstream>
+
+
+
+
+
+Specifies a load balancing method for a server group
+where client-server mapping is based on the hashed I<C<key>> value.
+The I<C<key>> can contain text, variables,
+and their combinations (1.11.2).
+Usage example:
+
+    
+    hash $remote_addr;
+
+
+Note that adding or removing a server from the group
+may result in remapping most of the keys to different servers.
+The method is compatible with the
+L<Cache::Memcached|http://search.cpan.org/perldoc?Cache%3A%3AMemcached>
+Perl library.
+
+
+
+
+
+If the C<consistent> parameter is specified,
+the L<ketama|http://www.last.fm/user/RJ/journal/2007/04/10/392555/>
+consistent hashing method will be used instead.
+The method ensures that only a few keys
+will be remapped to different servers
+when a server is added to or removed from the group.
+This helps to achieve a higher cache hit ratio for caching servers.
+The method is compatible with the
+L<Cache::Memcached::Fast|http://search.cpan.org/perldoc?Cache%3A%3AMemcached%3A%3AFast>
+Perl library with the I<C<ketama_points>> parameter set to 160.
+
+
+
+
+
+
+
+=head2 least_conn
+
+
+
+
+B<context:> I<upstream>
+
+
+
+
+
+Specifies that a server group should use a load balancing method
+where a connection
+is passed to the server with the least number of active connections,
+taking into account weights of servers.
+If there are several such servers, they are tried in turn using a
+weighted round-robin balancing method.
+
+
+
+
+
+
+
+=head2 least_time
+
+
+B<syntax:> least_time I<
+    C<connect> E<verbar>
+    C<first_byte> E<verbar>
+    C<last_byte>
+    [C<inflight>]>
+
+
+
+B<context:> I<upstream>
+
+
+
+
+
+Specifies that a group should use a load balancing method where a connection
+is passed to the server with the least average time and
+least number of active connections, taking into account weights of servers.
+If there are several such servers, they are tried in turn using a
+weighted round-robin balancing method.
+
+
+
+
+
+If the C<connect> parameter is specified,
+time to connect to the upstream server is used.
+If the C<first_byte> parameter is specified,
+time to receive the first byte of data is used.
+If the C<last_byte> is specified,
+time to receive the last byte of data is used.
+If the C<inflight> parameter is specified (1.11.6),
+incomplete connections are also taken into account.
+
+B<NOTE>
+
+Prior to version 1.11.6,
+incomplete connections were taken into account by default.
+
+
+
+
+
+
+
+B<NOTE>
+
+This directive is available as part of our
+commercial subscription.
+
+
+
+
+
+
+
+
+=head1 Embedded Variables
+
+
+
+The C<ngx_stream_upstream_module> module
+supports the following embedded variables:
+
+=over
+
+
+
+=item C<$upstream_addr>
+
+
+
+
+keeps the IP address and port,
+or the path to the UNIX-domain socket of the upstream server (1.11.4).
+If several servers were contacted during proxying,
+their addresses are separated by commas, e.g.
+“C<192.168.1.1:12345, 192.168.1.2:12345, unix:E<sol>tmpE<sol>sock>”.
+
+
+
+=item C<$upstream_bytes_sent>
+
+
+
+
+number of bytes sent to an upstream server (1.11.4).
+Values from several connections
+are separated by commas like addresses in the
+$upstream_addr variable.
+
+
+
+=item C<$upstream_bytes_received>
+
+
+
+
+number of bytes received from an upstream server (1.11.4).
+Values from several connections
+are separated by commas like addresses in the
+$upstream_addr variable.
+
+
+
+=item C<$upstream_connect_time>
+
+
+
+
+time to connect to the upstream server (1.11.4);
+the time is kept in seconds with millisecond resolution.
+Times of several connections
+are separated by commas like addresses in the
+$upstream_addr variable.
+
+
+
+=item C<$upstream_first_byte_time>
+
+
+
+
+time to receive the first byte of data (1.11.4);
+the time is kept in seconds with millisecond resolution.
+Times of several connections
+are separated by commas like addresses in the
+$upstream_addr variable.
+
+
+
+=item C<$upstream_session_time>
+
+
+
+
+session duration in seconds with millisecond resolution (1.11.4).
+Times of several connections
+are separated by commas like addresses in the
+$upstream_addr variable.
+
+
+
+
+=back
+
+
+
+
+
+

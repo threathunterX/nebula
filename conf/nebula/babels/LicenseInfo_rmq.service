@@ -1,0 +1,12 @@
+{
+    "name": "licenseinfo",
+    "callmode": "rpc",
+    "delivermode": "shuffle",
+    "serverimpl": "rabbitmq",
+    "coder": "mail",
+    "options": {
+        "cdc": "sh",
+        "sdc": "sh",
+        "serversubname": "nebula"
+    }
+}

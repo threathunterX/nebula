@@ -1,0 +1,180 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_auth_basic_module - Module ngx_http_auth_basic_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_auth_basic_module> module allows
+limiting access to resources by validating the user name and password
+using the “HTTP Basic Authentication” protocol.
+
+
+
+
+
+Access can also be limited by
+L<address|ngx_http_access_module>, by the
+L<result of subrequest|ngx_http_auth_request_module>,
+or by L<JWT|ngx_http_auth_jwt_module>.
+Simultaneous limitation of access by address and by password is controlled
+by the L<ngx_http_core_module> directive.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    location / {
+        auth_basic           "closed site";
+        auth_basic_user_file conf/htpasswd;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 auth_basic
+
+
+B<syntax:> auth_basic I<I<C<string>> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<limit_except>
+
+
+
+
+
+Enables validation of user name and password using the
+“HTTP Basic Authentication” protocol.
+The specified parameter is used as a I<C<realm>>.
+Parameter value can contain variables (1.3.10, 1.2.7).
+The special value C<off> allows cancelling the effect
+of the C<auth_basic> directive
+inherited from the previous configuration level.
+
+
+
+
+
+
+
+=head2 auth_basic_user_file
+
+
+B<syntax:> auth_basic_user_file I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<limit_except>
+
+
+
+
+
+Specifies a file that keeps user names and passwords,
+in the following format:
+
+    
+    # comment
+    name1:password1
+    name2:password2:comment
+    name3:password3
+
+
+The I<C<file>> name can contain variables.
+
+
+
+
+
+The following password types are supported:
+
+=over
+
+
+
+
+=item *
+
+encrypted with the C<crypt> function; can be generated using
+the “C<htpasswd>” utility from the Apache HTTP Server
+distribution or the “C<openssl passwd>” command;
+
+
+
+=item *
+
+hashed with the Apache variant of the MD5-based password algorithm (apr1);
+can be generated with the same tools;
+
+
+
+=item *
+
+specified by the
+“C<{>I<C<scheme>>C<}>I<C<data>>”
+syntax (1.0.3+) as described in
+L<RFC 2307|https://tools.ietf.org/html/rfc2307#section-5.3>;
+currently implemented schemes include C<PLAIN> (an example one,
+should not be used), C<SHA> (1.3.13) (plain SHA-1
+hashing, should not be used) and C<SSHA> (salted SHA-1 hashing,
+used by some software packages, notably OpenLDAP and Dovecot).
+
+B<NOTE>
+
+Support for C<SHA> scheme was added only to aid
+in migration from other web servers.
+It should not be used for new passwords, since unsalted SHA-1 hashing
+that it employs is vulnerable to
+L<rainbow table|http://en.wikipedia.org/wiki/Rainbow_attack>
+attacks.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+

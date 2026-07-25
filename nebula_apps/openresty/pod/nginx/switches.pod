@@ -1,0 +1,135 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+switches - Command-line parameters
+
+
+=head1
+
+
+
+nginx supports the following command-line parameters:
+
+=over
+
+
+
+
+=item *
+
+C<-?> E<verbar> C<-h>E<mdash>print help
+for command-line parameters.
+
+
+
+=item *
+
+C<-c I<C<file>>>E<mdash>use an alternative
+configuration I<C<file>> instead of a default file.
+
+
+
+=item *
+
+C<-g I<C<directives>>>E<mdash>set
+L<global configuration directives|ngx_core_module>,
+for example,
+
+    
+    nginx -g "pid /var/run/nginx.pid; worker_processes `sysctl -n hw.ncpu`;"
+
+
+
+
+
+=item *
+
+C<-p I<C<prefix>>>E<mdash>set nginx path prefix,
+i.e. a directory that will keep server files
+(default value is I<C<E<sol>usrE<sol>localE<sol>nginx>>).
+
+
+
+=item *
+
+C<-q>E<mdash>suppress non-error messages
+during configuration testing.
+
+
+
+=item *
+
+C<-s I<C<signal>>>E<mdash>send a I<signal>
+to the master process.
+The argument I<signal> can be one of:
+
+=over
+
+
+
+=item *
+
+C<stop>E<mdash>shut down quickly
+
+
+=item *
+
+C<quit>E<mdash>shut down gracefully
+
+
+=item *
+
+C<reload>E<mdash>reload configuration,
+start the new worker process with a new configuration,
+gracefully shut down old worker processes.
+
+
+=item *
+
+C<reopen>E<mdash>reopen log files
+
+
+=back
+
+
+
+
+
+=item *
+
+C<-t>E<mdash>test the configuration file: nginx checks the
+configuration for correct syntax, and then tries to open files
+referred in the configuration.
+
+
+
+=item *
+
+C<-T>E<mdash>same as C<-t>,
+but additionally dump configuration files to standard output (1.9.2).
+
+
+
+=item *
+
+C<-v>E<mdash>print nginx version.
+
+
+
+=item *
+
+C<-V>E<mdash>print nginx version, compiler version,
+and configure parameters.
+
+
+
+=back
+
+
+
+
+
+
